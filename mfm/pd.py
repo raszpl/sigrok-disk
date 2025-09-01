@@ -66,10 +66,11 @@ class Decoder(srd.Decoder):
 	outputs = ['mfm']
 	tags = ['Disk', 'PC']
 	channels = (
-		{'id': 'data', 'name': 'Read data', 'desc': 'channel 0', 'idn':'dec_mfm_chan_data'},
-		{'id': 'extra', 'name': 'Extra pulses', 'desc': 'channel 1', 'idn':'dec_mfm_chan_extra'},
-		{'id': 'suppress', 'name': 'Suppress pulses', 'desc': 'channel 2', 'idn':'dec_mfm_chan_suppress'},
+		{'id': 'data', 'type': 0, 'name': 'Read data', 'desc': 'channel 0', 'idn':'dec_mfm_chan_data'},
+		{'id': 'extra', 'type': 107, 'name': 'Extra pulses', 'desc': 'channel 1', 'idn':'dec_mfm_chan_extra'},
+		{'id': 'suppress', 'type': 107, 'name': 'Suppress pulses', 'desc': 'channel 2', 'idn':'dec_mfm_chan_suppress'},
 	)
+
 	annotations = (
 		('erw', 'erw'),
 		('unk', 'unknown'),
@@ -1024,9 +1025,9 @@ class Decoder(srd.Decoder):
 			# extra pulses on channel 1, and disable/suppress signal on channel 2.
 
 			if self.rising_edge:
-				pin = self.wait([{0: 'r', 2: 'l'}, {1: 'r', 2: 'l'}])
+				(data_pin, extra_pin, suppress_pin) = self.wait([{0: 'r', 2: 'l'}, {1: 'r', 2: 'l'}])
 			else:
-				pin = self.wait([{0: 'f', 2: 'l'}, {1: 'r', 2: 'l'}])
+				(data_pin, extra_pin, suppress_pin) = self.wait([{0: 'f', 2: 'l'}, {1: 'r', 2: 'l'}])
 
 			# Display summary report on last annotation row.  Reporting
 			# sample number must be on or before last leading edge.
