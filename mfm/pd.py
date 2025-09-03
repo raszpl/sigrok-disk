@@ -1,24 +1,39 @@
-﻿## ---------------------------------------------------------------------------
+## ---------------------------------------------------------------------------
 ## FILE: decoders\mfm\pd.py
-## PURPOSE: Decode a floppy disk FM or MFM pulse stream.
+## PURPOSE: Decode floppy and hard disk FM or MFM pulse stream.
 ##
 ## Copyright (C) 2017 David C. Wiens <dcwiens@sardis-technologies.com>
+## Copyright (c) 2025 MajenkoProjects
+## Copyright (C) 2025 Rasz_pl <https://github.com/raszpl>
 ## Initial version created 2017-Mar-14.
-## Last modified 2018-Mar-24 21:36 PDT.
+## Last modified 2025-Sep-2
+## ---------------------------------------------------------------------------
+## Sample command line usage:
+## sigrok-cli.exe -D -I csv:logic_channels=3:column_formats=t,l,l,l -i Pulse.csv -P mfm -A mfm=fields
+## sigrok-cli.exe -D -i sector.sr -P mfm -A mfm=fields
+##
+## ---------------------------------------------------------------------------
+## Changelog:
+## 2025-Sep-2
+## - Fixed DSView compatibility, still fragile: crashes when zooming in during data 
+##	 load/processing.
+## - Fixed sigrok-cli comptibility, metadata() and start() call order is undetermined
+## 	 depending on things like input file size, cant rely on data present from one to another.
+## - Added HDD support, 32 bit CRCs, custom CRC polynomials. All only in MFM mode.
 ## ---------------------------------------------------------------------------
 ## To Do:
-##  - create user instructions
-##  - specify folder and file name for decoded output file
-##	 - create folder if it doesn't exist
-##	 - Windows vs. Linux vs. Macintosh
-##  - make sure all decoder features work with both PulseView and sigrok-cli
-##  - how to display output to stderr with Release version of PulseView?
-##  - include example files (raw binary digital, session files with digital+analog)
-##  - include test files and related information for regression testing
+##	- create user instructions
+##	- specify folder and file name for decoded output file
+##	   - create folder if it doesn't exist
+##	   - Windows vs. Linux vs. Macintosh
+##	- make sure all decoder features work with both PulseView and sigrok-cli
+##	- how to display output to stderr with Release version of PulseView?
+##	- include example files (raw binary digital, session files with digital+analog)
+##	- include test files and related information for regression testing
 ## Suggested enhancements:
-##  - create another separate report file for decoded sectors, showing
-##	cyl, sid, sec, DRcrcok
-##  - support MMFM
+##	- create another separate report file for decoded sectors, showing
+##	  cyl, sid, sec, DRcrcok
+##	- support MMFM
 ## ---------------------------------------------------------------------------
 ##
 ## This file is part of the libsigrokdecode project.
@@ -30,7 +45,7 @@
 ##
 ## This program is distributed in the hope that it will be useful,
 ## but WITHOUT ANY WARRANTY; without even the implied warranty of
-## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
 ## GNU General Public License for more details.
 ##
 ## You should have received a copy of the GNU General Public License
@@ -41,8 +56,27 @@ import sigrokdecode as srd
 from collections import deque
 from array import *
 from struct import *
+from enum import Enum#, auto
 import sys
 import os
+
+# sadly those need to be up here, otherwise one has to use self. prefix
+class state(Enum):
+	second_mC2h_prefix	= 0		#auto()
+	third_mC2h_prefix	= 1		#auto()
+	FCh_Index_Mark		= 2		#auto()
+	second_mA1h_prefix	= 3		#auto()
+	third_mA1h_prefix	= 4		#auto()
+	IDData_Address_Mark	= 5		#auto()
+	ID_Record			= 6		#auto()
+	ID_Record_CRC		= 7		#auto()
+	Data_Record			= 8		#auto()
+	Data_Record_CRC		= 9		#auto()
+	first_gap_Byte		= 10	#auto()
+
+class crc(Enum):
+	Header	= 0		#auto()
+	Data	= 1		#auto()
 
 # ----------------------------------------------------------------------------
 # PURPOSE: Handle missing sample rate.
@@ -60,17 +94,16 @@ class Decoder(srd.Decoder):
 	id = 'mfm'
 	name = 'MFM'
 	longname = 'FM/MFM decoding'
-	desc = 'Decode floppy disk FM or MFM pulse stream.'
+	desc = 'Decode floppy and hard disk FM or MFM pulse stream.'
 	license = 'gplv2+'
 	inputs = ['logic']
 	outputs = ['mfm']
 	tags = ['Disk', 'PC']
 	channels = (
-		{'id': 'data', 'type': 0, 'name': 'Read data', 'desc': 'channel 0', 'idn':'dec_mfm_chan_data'},
-		{'id': 'extra', 'type': 107, 'name': 'Extra pulses', 'desc': 'channel 1', 'idn':'dec_mfm_chan_extra'},
-		{'id': 'suppress', 'type': 107, 'name': 'Suppress pulses', 'desc': 'channel 2', 'idn':'dec_mfm_chan_suppress'},
+		{'id': 'data', 'name': 'Read data', 'desc': 'channel 0', 'idn':'dec_mfm_chan_data'},
+		{'id': 'extra', 'name': 'Extra pulses', 'desc': 'channel 1', 'idn':'dec_mfm_chan_extra'},
+		{'id': 'suppress', 'name': 'Suppress pulses', 'desc': 'channel 2', 'idn':'dec_mfm_chan_suppress'},
 	)
-
 	annotations = (
 		('erw', 'erw'),
 		('unk', 'unknown'),
@@ -104,8 +137,7 @@ class Decoder(srd.Decoder):
 			'default': 'rising', 'values': ('rising', 'falling')},
 		{'id': 'data_rate', 'desc': 'Data rate (bps)',
 			'default': '5000000', 'values': ('125000', '150000',
-			'250000', '300000', '500000',
-			'5000000', '10000000')},
+			'250000', '300000', '500000', '5000000', '10000000')},
 		{'id': 'encoding', 'desc': 'Encoding',
 			'default': 'MFM', 'values': ('FM', 'MFM')},
 		{'id': 'type', 'desc': 'Type',
@@ -114,8 +146,45 @@ class Decoder(srd.Decoder):
 			'default': '512', 'values': ('128', '256', '512', '1024')},
 		{'id': 'header_crc_bits', 'desc': 'Header field CRC bits',
 			'default': '16', 'values': ('16', '32')},
+		{'id': 'header_crc_poly', 'desc': 'Header field CRC Polynomial',
+			'default': '0x1021'},		# x16 + x12 + x5 + 1 standard CRC-CCITT
 		{'id': 'data_crc_bits', 'desc': 'Data field CRC bits',
 			'default': '32', 'values': ('16', '32', '56')},
+		{'id': 'data_crc_poly', 'desc': 'Data field CRC Polynomial',
+			'default': '0xA00805', 'values': ('0x1021', '0xA00805', '0x140a0445',
+			'0x0104c981', '0x41044185')},
+		{'id': 'data_crc_poly_custom', 'desc': 'Custom Polynomial (overrides above)',
+			'default': ''},
+
+		# 0xA00805 x32 + x23 + x21 + x11 + x2 + 1 used by SMSC/SMC HDC9224 in VAXstation 2000 ("VAXSTAR" )
+		# It just so happens to be an official CCSDS (Consultative Committee for Space Data Systems) CRC-32 algorithm
+		# and was used by Proximity-1 Space Link Protocol—Coding, thats right folks - SPACE!!1
+		# 0x140a0445 X32 + X28 + X26 + X19 + X17 + X10 + X6 + X2 + 1 WD1003/WD1006/WD1100
+		# Other good candidates: ?0x0104c981, ?0x41044185
+		# 1983_Western_Digital_Components_Catalog.pdf WD1100-06  might have typos claiming:
+		# ? 0x140a0405 X32 + X28 + X26 + X19 + X17 + X10 + X2 + 1
+		# ? 0x140a0444 X32 + X28 + X26 + X19 + X17 + X10 + X6 + X2 + 0
+		# ? (Reciprocal: X32 + X30 + X26 + X22 + X15 + x13 + X6 + X4 + 1)
+		#
+		# How to convert polynomial notations:
+		#	- lets start with easy one, standard CRC-CCITT x16 + x12 + x5 + 1
+		#	- write 1 bits for every X, becomes			0b1000100000010000
+		#	- add the least significant number, becomes	0b10001000000100001 (0x11021)
+		#	- drop most significant bit, becomes			0b1000000100001
+		#	- convert to hex, becomes 0x1021
+		#
+		#	Same CRC-CCITT polynomial might also be written as x16 + x12 + x5 + x0 because any non-zero number ^0 = 1
+		#
+		#	- now try CCSDS x32 + x23 + x21 + x11 + x2 + 1
+		#	- write 1 bits for every X, becomes			0b1000000010100000000010000000010
+		#	- add the least significant number, becomes	0b10000000101000000000100000000101 (0x80A00805)
+		#	- drop most significant bit, becomes				0b101000000000100000000101
+		#	- convert to hex, becomes 0xA00805
+		#
+		# Use https://www.sunshine2k.de/coding/javascript/crc/crc_js.html to validate your CRC
+		# Set custom CRC-16/32 with appropriately sized initial value 0xFFFF/0xFFFFFFFF
+		# Dont forget to append ID/Data Mark bytes before your data
+
 		{'id': 'dsply_pfx', 'desc': 'Display all MFM prefix bytes',
 			'default': 'no', 'values': ('yes', 'no')},
 		{'id': 'dsply_sn', 'desc': 'Display sample numbers',
@@ -136,7 +205,6 @@ class Decoder(srd.Decoder):
 		self.reset()
 
 	def reset(self):
-
 		# Initialize pre-defined variables.
 
 		self.samplerate = None
@@ -146,36 +214,36 @@ class Decoder(srd.Decoder):
 
 		# Define (and initialize) various custom variables.
 
-		self.samplerateMSps = 0.0   # sampling rate in MS/s (15.0, 16.0, 20.0, etc.)
-		self.rising_edge = True	 # True = leading edge is rising, False = falling
-		self.data_rate = 0.0		# 125000.0, 150000.0, 250000.0, 300000.0, 500000.0
-		self.encodingFM = False	 # True = FM encoding, False = MFM encoding
-		self.fdd = True			 # True = FDD, False = HDD
-		self.byte_start = 0		 # start of byte (sample number)
-		self.byte_end = 0		   # end of byte (sample number)
+		self.samplerateMSps = 0.0	# sampling rate in MS/s (15.0, 16.0, 20.0, etc.)
+		self.rising_edge = True		# True = leading edge is rising, False = falling
+		#self.data_rate = 0.0		# 125000.0, 150000.0, 250000.0, 300000.0, 500000.0
+		self.encodingFM = False		# True = FM encoding, False = MFM encoding
+		self.fdd = True				# True = FDD, False = HDD
+		self.byte_start = 0			# start of byte (sample number)
+		self.byte_end = 0			# end of byte (sample number)
 		self.field_start = 0		# start of field (sample number)
-		self.pb_state = 0		   # processing byte state = 1..10
-		self.sector_len = 0		 # 128, 256, 512, 1024
-		self.byte_cnt = 0		   # number of bytes left to process in field (1024/512/256/128/4/2..0)
-		self.dsply_pfx = False	  # True = display all prefix bytes found, False = don't
+		self.pb_state = 0			# processing byte state = 1..10
+		self.sector_len = 0			# 128, 256, 512, 1024
+		self.byte_cnt = 0			# number of bytes left to process in field (1024/512/256/128/4/2..0)
+		self.dsply_pfx = False		# True = display all prefix bytes found, False = don't
 		self.dsply_sn = True		# True = display sample number in window annotation, False = don't
-		self.rpt_sn = 0			 # sample number when the summary report is to be produced and displayed
+		self.rpt_sn = 0				# sample number when the summary report is to be produced and displayed
 		self.std_err = False		# True = write error messages to stderr, False = don't
-		self.write_data = False	 # True = write decoded data to binary file, False = don't
-		self.header_crc_bytes = 2   # 16 or 32 bits for data field CRC/ECC
-		self.data_crc_bytes = 4	 # 16, 32 or 56 bits for data field CRC/ECC
+		self.write_data = False		# True = write decoded data to binary file, False = don't
+		#self.header_crc_bytes = 2	# 16 or 32 bits for data field CRC/ECC
+		#self.data_crc_bytes = 4		# 16, 32 or 56 bits for data field CRC/ECC
 
-		self.samples30usec = 0	  # number of samples in 30 usec.
-		self.IDlastAM = -1		  # sample number of most recent ID Address Mark, -1 = not found or not valid
+		self.samples30usec = 0		# number of samples in 30 usec.
+		self.IDlastAM = -1			# sample number of most recent ID Address Mark, -1 = not found or not valid
 		self.max_id_data_gap = 0	# maximum gap between ID Address Mark and following Data Address Mark (samples)
-		self.IDcyl = 0			  # cylinder number field in ID record (0..244)
-		self.IDsid = 0			  # side number field in ID record (0..1)
-		self.IDsec = 0			  # sector number field in ID record (0..244)
-		self.IDlenc = 0			 # sector length code field in ID record (0..3)
-		self.IDlenv = 0			 # sector length (from code field) in ID record (128/256/512/1024)
-		self.IDcrc = 0			  # ID record 16-bit CRC
-		self.DRmark = 0			 # Data Address Mark (F8h/F9h/FAh/FBh)
-		self.DRcrc = 0			  # Data record 16/32/56-bit CRC/ECC
+		self.IDcyl = 0				# cylinder number field in ID record (0..244)
+		self.IDsid = 0				# side number field in ID record (0..1)
+		self.IDsec = 0				# sector number field in ID record (0..244)
+		self.IDlenc = 0				# sector length code field in ID record (0..3)
+		self.IDlenv = 0				# sector length (from code field) in ID record (128/256/512/1024)
+		self.IDcrc = 0				# ID record 16-bit CRC
+		self.DRmark = 0				# Data Address Mark (F8h/F9h/FAh/FBh)
+		self.DRcrc = 0				# Data record 16/32/56-bit CRC/ECC
 		self.DRcrcok = False		# True = Data record CRC/ECC OK, False = error
 
 		self.DRsec = array('B', [0 for i in range(1024)]) # Data record (128/256/512/1024 bytes)
@@ -191,11 +259,8 @@ class Decoder(srd.Decoder):
 								   0x8108, 0x9129, 0xA14A, 0xB16B,
 								   0xC18C, 0xD1AD, 0xE1CE, 0xF1EF])
 
-		self.crc32_accum = 0
-		self.crc56_accum = 0
-
 		# FIFO (using circular buffers) of starting/ending sample numbers
-		# and data values for 33 half-bit-cell windows.  Data values are
+		# and data values for 33 half-bit-cell windows.	 Data values are
 		# number of leading edges per window (0..n).
 
 		self.fifo_ws = array('l', [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -213,20 +278,20 @@ class Decoder(srd.Decoder):
 								   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 								   0, 0, 0,])
 
-		self.fifo_wp = -1		   # index where last FIFO entry was written (0..32)
+		self.fifo_wp = -1			# index where last FIFO entry was written (0..32)
 		self.fifo_rp = 0			# index where to read next FIFO entry (0..32)
-		self.fifo_cnt = 0		   # number of entries currently in FIFO (0..33)
+		self.fifo_cnt = 0			# number of entries currently in FIFO (0..33)
 
 		# Define and zero statistics counters.
 
-		self.IM = 0				 # number of Index Marks
+		self.IM = 0					# number of Index Marks
 		self.IDR = 0				# number of ID Records
-		self.DR = 0				 # number of Data Records
-		self.CRC_OK = 0			 # number of OK CRCs
+		self.DR = 0					# number of Data Records
+		self.CRC_OK = 0				# number of OK CRCs
 		self.CRC_err = 0			# number of error CRCs
-		self.EiPW = 0			   # number of leading edges found in a previous window
-		self.CkEr = 0			   # number of bits with clocking errors
-		self.OoTI = 0			   # number of out-of-tolerance leading edge intervals
+		self.EiPW = 0				# number of leading edges found in a previous window
+		self.CkEr = 0				# number of bits with clocking errors
+		self.OoTI = 0				# number of out-of-tolerance leading edge intervals
 		self.Intrvls = 0			# number of leading edge intervals
 
 		# Define binary output file.
@@ -234,19 +299,11 @@ class Decoder(srd.Decoder):
 		self.binfile = None
 
 	# ------------------------------------------------------------------------
-	# PURPOSE: Get the data sample rate entered by the user.
-	# ------------------------------------------------------------------------
-
-	def metadata(self, key, value):
-		if key == srd.SRD_CONF_SAMPLERATE:
-			self.samplerate = value
-			self.samplerateMSps = self.samplerate / 1000000.0
-
-	# ------------------------------------------------------------------------
 	# PURPOSE: Various initialization when decoder started.
 	# ------------------------------------------------------------------------
 
 	def start(self):
+		self.out_ann = self.register(srd.OUTPUT_ANN)
 
 		# Initialize options selected by the user in the dialog box.
 
@@ -260,23 +317,23 @@ class Decoder(srd.Decoder):
 		self.rpt_sn = int(self.options['rpt_sn'])
 		self.std_err = True if self.options['std_err'] == 'yes' else False
 		self.write_data = True if self.options['write_data'] == 'yes' else False
-		self.header_crc_bytes = int(self.options['header_crc_bits']) / 8
-		self.data_crc_bytes = int(self.options['data_crc_bits']) / 8
+		self.header_crc_bits = int(self.options['header_crc_bits'])
+		self.header_crc_poly = int(self.options['header_crc_poly'], 0) & ((1 << int(self.options['header_crc_bits'])) -1)
+		self.data_crc_bits = int(self.options['data_crc_bits'])
+		self.data_crc_poly = int(self.options['data_crc_poly'], 0)
+		if self.options['data_crc_poly_custom']:
+			self.data_crc_poly = int(self.options['data_crc_poly_custom'], 0) & ((1 << int(self.options['data_crc_bits'])) -1)
 
-		# Calculate number of samples in 30 usec.
-
-		self.samples30usec = int(self.samplerate / 1000000.0 * 30.0)
-
-		# Calculate maximum number of samples allowed between ID and Data Address Marks.
-
-		if self.encodingFM:
-			self.max_id_data_gap = (self.samplerate / self.data_rate) * 8 * (1 + 4 + 2 + 30 + 10)
-		else:
-			self.max_id_data_gap = (self.samplerate / self.data_rate) * 8 * (4 + 4 + 2 + 43 + 15)
+		# precompute crc constants
+		self.header_crc_bytes = self.header_crc_bits // 8
+		self.header_crc_offset = self.header_crc_bits - 8
+		self.header_crc_mask = (1 << self.header_crc_bits) -1
+		self.data_crc_bytes = self.data_crc_bits // 8
+		self.data_crc_offset = self.data_crc_bits - 8
+		self.data_crc_mask = (1 << self.data_crc_bits) -1
 
 		# Other initialization.
 
-		self.out_ann = self.register(srd.OUTPUT_ANN)
 		self.initial_pins = [1 if self.rising_edge == True else 0]
 
 		# Open the binary output file for decoded data, if enabled.
@@ -290,14 +347,26 @@ class Decoder(srd.Decoder):
 				# Write the 16-byte file header.
 				self.binfile.write(pack('<8sB3BL', b'UFDC6-D1', 0x14, 0,0,0, 0))
 			else:
-				self.err_print('folder %s\n	  does not exist, file diskdata.UFD not written' % fpath, -1)
+				self.err_print('folder %s\n	 does not exist, file diskdata.UFD not written' % fpath, -1)
 				self.write_data = False
+
+	# ------------------------------------------------------------------------
+	# PURPOSE: Get the data sample rate entered by the user.
+	# ------------------------------------------------------------------------
+
+	def metadata(self, key, value):
+		if key == srd.SRD_CONF_SAMPLERATE:
+			self.samplerate = value
+			self.samplerateMSps = self.samplerate / 1000000.0
+
+			# Calculate number of samples in 30 usec.
+			self.samples30usec = int(self.samplerate / 1000000.0 * 30.0)
 
 	# ----------------------------------------------------------------------------
 	# PURPOSE: Write a formatted error message to stderr, if enabled.
 	# IN: msg  error message
-	#	 sn  sample number of beginning of window or bit or field affected,
-	#		  -1 = don't show sample number
+	#	  sn  sample number of beginning of window or bit or field affected,
+	#		   -1 = don't show sample number
 	# ----------------------------------------------------------------------------
 
 	def err_print(self, msg, sn):
@@ -310,45 +379,85 @@ class Decoder(srd.Decoder):
 	# ------------------------------------------------------------------------
 	# PURPOSE: Initialize the CRC accumulator.
 	# ------------------------------------------------------------------------
-	
-	def iniz_crc(self):
-		self.crc_accum = 0xFFFF
-		self.crc32_accum = 0xFFFFFFFF
-		self.crc56_accum = 0xFFFFFFFFFFFFFF
+
+	def init_crc(self):
+		self.header_crc_accum = self.header_crc_mask
+		self.data_crc_accum = self.data_crc_mask
 
 	# ------------------------------------------------------------------------
-	# PURPOSE: Update the 16-bit CRC accumulator with one data byte.
+	# PURPOSE: Update CRC accumulator with one data byte.
 	# NOTES:
-	#  - Processes 4 bits at a time, using table lookup.
-	#  - The CRC-CCITT polynomial is x16 + x12 + x5 + 1.
-	# IN: byte  00h..FFh
+	#  - Special CRC-16-CCITT case processes 4 bits at a time, using table lookup.
+	#  - Dynamically switches between Header/Data processing.
+	# IN: byte		00h..FFh
+	#	  header	True = calculate Header CRC
+	#				False = calculate Data CRC
 	# ------------------------------------------------------------------------
-	
-	def update_crc(self, byte):
-		self.crc_accum = (self.crc_tab[((self.crc_accum >> 12) ^ (byte >>   4)) & 0x0F]
-						  ^ (self.crc_accum << 4)) & 0xFFFF
-		self.crc_accum = (self.crc_tab[((self.crc_accum >> 12) ^ (byte & 0x0F)) & 0x0F]
-						  ^ (self.crc_accum << 4)) & 0xFFFF
 
-	# ------------------------------------------------------------------------
-	# PURPOSE: Update the 32-bit CRC accumulator with one data byte.
-	# NOTES:
-	#  - Processes 4 bits at a time, using table lookup.
-	#  - The CRC-32 polynomial is x32 + x26 + x23 + x22 + x16 + x12 + x11 + x10 + x8 + x7 + x5 + x4 + x2 + x + 1.
-	# IN: byte  00h..FFh
-	# ------------------------------------------------------------------------
+	def update_crc(self, byte, header):
+		if header == crc.Header:
+			crc_accum	= self.header_crc_accum
+			crc_bits	= self.header_crc_bits
+			crc_offset	= self.header_crc_offset
+			crc_mask	= self.header_crc_mask
+			crc_poly	= self.header_crc_poly
+		else:
+			crc_accum	= self.data_crc_accum
+			crc_bits	= self.data_crc_bits
+			crc_offset	= self.data_crc_offset
+			crc_mask	= self.data_crc_mask
+			crc_poly	= self.data_crc_poly
+
+		#self.put(self.field_start, self.byte_end, self.out_ann,
+		#	[9, ['update_crc     %s' % header]])
+		#self.put(self.field_start, self.byte_end, self.out_ann,
+		#	[9, ['pb_state %s' % self.pb_state]])
+		#self.put(self.field_start, self.byte_end, self.out_ann,
+		#	[9, ['crc_accum befo %02X' % crc_accum]])
+		#self.put(self.field_start, self.byte_end, self.out_ann,
+		#	[9, ['self.header_crc_accum befo %02X' % self.header_crc_accum]])
+		#self.put(self.field_start, self.byte_end, self.out_ann,
+		#	[9, ['self.data_crc_accum befo %02X' % self.data_crc_accum]])
+
+		if crc_poly == 0x1021 and crc_bits == 16:
+			# fast lookup table for CRC-16-CCITT. At least in theory, havent measured anything
+			crc_accum = (self.crc_tab[((crc_accum >> 12) ^ (byte >>	4)) & 0x0F]
+							^ (crc_accum << 4)) & 0xFFFF
+			crc_accum = (self.crc_tab[((crc_accum >> 12) ^ (byte & 0x0F)) & 0x0F]
+							^ (crc_accum << 4)) & 0xFFFF
+		else:
+			crc_accum ^= (byte << crc_offset)
+			crc_accum &= crc_mask
+			for i in range(8):
+				check = crc_accum & (1 << (crc_bits -1))
+				crc_accum <<= 1
+				crc_accum &= crc_mask
+				if check:
+					crc_accum ^= crc_poly
+					crc_accum &= crc_mask
+
+		if header == crc.Header:
+			self.header_crc_accum = crc_accum
+		else:
+			self.data_crc_accum = crc_accum
+		self.crc_accum = crc_accum
+
+		#self.put(self.field_start, self.byte_end, self.out_ann,
+		#	[9, ['crc_accum afte %02X' % crc_accum]])
+
 
 	def update_crc32(self, byte):
-		self.crc32_accum ^= byte
+		self.crc32_accum ^= (byte << 24)
 		for i in range(8):
-			odd = self.crc32_accum % 1
-			self.crc32_accum >>= 1
-			if odd:
-				self.crc32_accum ^= 0x140a0445
+			check = self.crc32_accum & 0x80000000
+			self.crc32_accum <<= 1
+			self.crc32_accum &= 0xFFFFFFFF
+			if check:
+				self.crc32_accum ^= self.data_crc_poly
+				self.crc32_accum &= 0xFFFFFFFF
 
 	def update_crc56(self, byt):
-		pass
-		# dont know how yet :)
+		pass # dont know how yet :)
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Increment FIFO read pointer and decrement entry count.
@@ -372,19 +481,19 @@ class Decoder(srd.Decoder):
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Display annotations for 16 windows and 8 bits of one byte, using
-	#   FIFO data.
+	#	FIFO data.
 	# NOTES:
 	#  - On entry the FIFO must have exactly 33 or 17 entries in it, and on
-	#	exit the FIFO will have 16 fewer entries in it (17 or 1).
+	#	 exit the FIFO will have 16 fewer entries in it (17 or 1).
 	#  - Half-bit-cell windows are processed in time order from the last window
-	#	of the previous byte, to the second last window of the current byte.
+	#	 of the previous byte, to the second last window of the current byte.
 	#  - Bits are processed in time order from the first bit (msb, bit 7) to
-	#	the last bit (lsb, bit 0) of the current byte.
+	#	 the last bit (lsb, bit 0) of the current byte.
 	#  - Need to use a while loop instead of a for loop due to some strange bug,
-	#	possibly in Python itself?
-	# IN: spclk  True = special clocking, don't display clock errors to stderr
-	#			False = normal clocking, display clock errors to stderr
-	#	 self.fifo_rp, self.fifo_cnt
+	#	 possibly in Python itself?
+	# IN: spclk	 True = special clocking, don't display clock errors to stderr
+	#			 False = normal clocking, display clock errors to stderr
+	#	  self.fifo_rp, self.fifo_cnt
 	# OUT: self.byte_start, self.byte_end, self.fifo_rp, self.fifo_cnt updated
 	# ------------------------------------------------------------------------
 
@@ -392,13 +501,13 @@ class Decoder(srd.Decoder):
 
 		# Define (and initialize) function variables.
 
-		win_start = 0		   # start of window (sample number)
-		win_end = 0			 # end of window (sample number)
-		win_val = 0			 # window value (0..n)
-		bit_start = 0		   # start of bit (sample number)
-		bit_end = 0			 # end of bit (sample number)
-		bit_val = 0			 # bit value (0..1)
-		shift3 = 0			  # 3-bit shift register of window values
+		win_start = 0			# start of window (sample number)
+		win_end = 0				# end of window (sample number)
+		win_val = 0				# window value (0..n)
+		bit_start = 0			# start of bit (sample number)
+		bit_end = 0				# end of bit (sample number)
+		bit_val = 0				# bit value (0..1)
+		shift3 = 0				# 3-bit shift register of window values
 		self.byte_start = -1	# start of byte (sample number, -1 = not set yet)
 
 		# Process each of the 8 data bits and 17 windows in turn.
@@ -449,7 +558,7 @@ class Decoder(srd.Decoder):
 
 			if bitn < 8:
 				if ((not self.encodingFM) and (shift3 == 0 or shift3 == 3 or shift3 == 6 or shift3 == 7)) \
-				 or (	self.encodingFM  and (shift3 == 0 or shift3 == 1 or shift3 == 4 or shift3 == 5)):
+				 or (	 self.encodingFM  and (shift3 == 0 or shift3 == 1 or shift3 == 4 or shift3 == 5)):
 					if not spclk:
 						self.err_print('clock error for bit', bit_start)
 						self.put(bit_end - 1, bit_end, self.out_ann, [15, ['Err']])
@@ -504,21 +613,15 @@ class Decoder(srd.Decoder):
 	# PURPOSE: Display annotations for one byte and its 8 bits and 16 windows.
 	# NOTES:
 	#  - On entry the FIFO must have exactly 33 or 17 entries in it, and on
-	#	exit the FIFO will have 16 fewer entries in it (17 or 1).
+	#	 exit the FIFO will have 16 fewer entries in it (17 or 1).
 	# IN: val  byte value (00h..FFh)
-	#	 spclk  True = special clocking, don't display clock errors to stderr
-	#			False = normal clocking, display clock errors to stderr
-	#	 self.fifo_rp
-	# OUT: self.byte_start, self.byte_end, self.fifo_rp  updated
+	#	  spclk	 True = special clocking, don't display clock errors to stderr
+	#			 False = normal clocking, display clock errors to stderr
+	#	  self.fifo_rp
+	# OUT: self.byte_start, self.byte_end, self.fifo_rp	 updated
 	# ------------------------------------------------------------------------
 
 	def display_byte(self, val, spclk):
-
-		# Update the CRC accumulators.
-
-		self.update_crc(val)
-		self.update_crc32(val)
-		self.update_crc56(val)
 
 		# Display annotations for windows and bits of this byte.
 
@@ -538,11 +641,11 @@ class Decoder(srd.Decoder):
 	# ------------------------------------------------------------------------
 	# Display an annotation for a field.
 	# IN: typ  type of field = 'x'/'i'/'I'/'d'/'D'/'e'/'c'
-	#	 self.field_start, self.byte_end
-	# OUT: self.field_start  updated
+	#	  self.field_start, self.byte_end
+	# OUT: self.field_start	 updated
 	# ------------------------------------------------------------------------
 
-	def display_field(self, typ):
+	def display_field(self, typ, val=0):
 
 		if typ == 'x':
 			self.put(self.field_start, self.byte_end, self.out_ann,
@@ -563,19 +666,22 @@ class Decoder(srd.Decoder):
 					 [8, ['Data Record', 'Drec', 'R']])
 		elif typ == 'e':
 			self.err_print('CRC error', self.field_start)
-			self.put(self.byte_end - 1, self.byte_end, self.out_ann, [15, ['Err']])
+			self.put(self.byte_end - 1, self.byte_end, self.out_ann, [15, ['Error', 'Err', 'E']])
 			self.put(self.field_start, self.byte_end, self.out_ann,
-					 [9, ['CRC error %02X' % self.crc_accum or self.crc32_accum or self.crc56_accum, 'CRC error', 'CRC', 'C']])
+					 [9, ['CRC error %02X' % self.crc_accum, 'CRC error', 'CRC', 'C']])
 		elif typ == 'c':
 			self.put(self.field_start, self.byte_end, self.out_ann,
-					 [10, ['CRC OK', 'CRC', 'C']])
+					 [10, ['CRC OK %02X' % self.crc_accum, 'CRC OK', 'CRC', 'C']])
+		elif typ == 'err':
+			self.err_print('unexpected byte value %02X' % val, self.byte_end)
+			self.put(self.byte_end - 1, self.byte_end, self.out_ann, [15, ['Error', 'Err', 'E']])
 
 		self.field_start = self.byte_end
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Decode the ID Record subfields.
-	# IN: fld_code  4 = cylinder, 3 = side, 2 = sector, 1 = length code
-	#	 val  8-bit subfield value (00h..FFh)
+	# IN: fld_code	4 = cylinder, 3 = side, 2 = sector, 1 = length code
+	#	  val  8-bit subfield value (00h..FFh)
 	# ------------------------------------------------------------------------
 
 	def decode_id_rec(self, fld_code, val):
@@ -606,15 +712,15 @@ class Decoder(srd.Decoder):
 	# NOTES:
 	#  - Index/Address Marks are preceded by a 00h byte.
 	#  - When called with 0x1FC/0x1FE/0x1F8..0x1FB values, the FIFO must have
-	#	exactly 33 entries in it, otherwise it must have exactly 17 entries.
-	#	On exit the FIFO will have exactly 1 entry in it.
-	# IN: val  00h..FFh  normal byte
-	#		  1FCh = 00h + FCh with D7h clock = Index Mark
-	#		  1FEh = 00h + FEh with C7h clock = ID Address Mark
-	#		  1FBh = 00h + FBh with C7h clock = normal Data Address Mark
-	#		  1F8h..1FAh = 00h + F8h..FAh with C7h clock = deleted Data Address Mark
+	#	 exactly 33 entries in it, otherwise it must have exactly 17 entries.
+	#	 On exit the FIFO will have exactly 1 entry in it.
+	# IN: val  00h..FFh	 normal byte
+	#		   1FCh = 00h + FCh with D7h clock = Index Mark
+	#		   1FEh = 00h + FEh with C7h clock = ID Address Mark
+	#		   1FBh = 00h + FBh with C7h clock = normal Data Address Mark
+	#		   1F8h..1FAh = 00h + F8h..FAh with C7h clock = deleted Data Address Mark
 	# RETURNS: 0 = OK, get next byte
-	#		  -1 = resync (end of Index Mark, end of ID/Data Record, or error)
+	#		   -1 = resync (end of Index Mark, end of ID/Data Record, or error)
 	# ------------------------------------------------------------------------
 
 	def process_byteFM(self, val):
@@ -628,9 +734,9 @@ class Decoder(srd.Decoder):
 			self.pb_state = 5
 			return 0
 
-		elif val == 0x1FE:					  # 00h/mFEh ID Address Mark
+		elif val == 0x1FE:						# 00h/mFEh ID Address Mark
 			self.display_byte(0x00, False)
-			self.iniz_crc()
+			self.init_crc()
 			self.display_byte(0xFE, True)
 			self.field_start = self.byte_start
 			self.display_field('i')
@@ -640,9 +746,9 @@ class Decoder(srd.Decoder):
 			self.byte_cnt = 4
 			return 0
 
-		elif val >= 0x1F8 and val <= 0x1FB:	 # 00h/mF8h..mFBh Data Address Mark
+		elif val >= 0x1F8 and val <= 0x1FB:		# 00h/mF8h..mFBh Data Address Mark
 			self.display_byte(0x00, False)
-			self.iniz_crc()
+			self.init_crc()
 			self.DRmark = (val & 0x0FF)
 			self.display_byte(self.DRmark, True)
 			self.field_start = self.byte_start
@@ -656,7 +762,7 @@ class Decoder(srd.Decoder):
 			self.byte_cnt = self.sector_len
 			return 0
 
-		if self.pb_state == 1:				  # process ID Record byte
+		if self.pb_state == 1:					# process ID Record byte
 			self.display_byte(val, False)
 			self.decode_id_rec(self.byte_cnt, val)
 			self.byte_cnt -= 1
@@ -709,7 +815,7 @@ class Decoder(srd.Decoder):
 
 		elif self.pb_state == 5:				# process first gap byte after CRC or Index Mark
 			self.display_byte(val, False)
-			return -1						   # done, unsync
+			return -1							# done, unsync
 
 		else:
 			return -1
@@ -721,16 +827,16 @@ class Decoder(srd.Decoder):
 	# NOTES:
 	#  - Index/Address Mark prefixes are preceded by a 00h byte.
 	#  - When called with 0x1C2/0x1A1 values, the FIFO must have exactly 33
-	#	entries in it, otherwise it must have exactly 17 entries.  On exit the
-	#	FIFO will have exactly 1 entry in it, unless there is an error, in which
-	#	case it will still have 17 entries.
-	# IN: val  00h..FFh  normal byte
-	#		  1C2h  00h + first mC2h prefix byte (no clock between bits 3/4)
-	#		  2C2h  subsequent mC2h prefix byte (no clock between bits 3/4)
-	#		  1A1h  00h + first mA1h prefix byte (no clock between bits 4/5)
-	#		  2A1h  subsequent mA1h prefix byte (no clock between bits 4/5)
+	#	 entries in it, otherwise it must have exactly 17 entries.	On exit the
+	#	 FIFO will have exactly 1 entry in it, unless there is an error, in which
+	#	 case it will still have 17 entries.
+	# IN: val  00h..FFh	 normal byte
+	#		   1C2h	 00h + first mC2h prefix byte (no clock between bits 3/4)
+	#		   2C2h	 subsequent mC2h prefix byte (no clock between bits 3/4)
+	#		   1A1h	 00h + first mA1h prefix byte (no clock between bits 4/5)
+	#		   2A1h	 subsequent mA1h prefix byte (no clock between bits 4/5)
 	# RETURNS: 0 = OK, get next byte
-	#		  -1 = resync (end of Index Mark, end of ID/Data Record, or error)
+	#		   -1 = resync (end of Index Mark, end of ID/Data Record, or error)
 	# ------------------------------------------------------------------------
 
 	def process_byteMFM(self, val):
@@ -739,39 +845,34 @@ class Decoder(srd.Decoder):
 			self.display_byte(0x00, False)
 			self.display_byte(0xC2, True)
 			self.field_start = self.byte_start
-			self.pb_state = 1
+			self.pb_state = state.second_mC2h_prefix
 			return 0
 
-		elif val == 0x1A1:					  # first 00h/mA1h prefix
+		elif val == 0x1A1:						# first 00h/mA1h prefix
 			self.display_byte(0x00, False)
-			self.iniz_crc()
+			self.init_crc()
 			self.display_byte(0xA1, True)
+			self.update_crc(0xA1, crc.Header)
+			self.update_crc(0xA1, crc.Data)
 			self.field_start = self.byte_start
 			if self.fdd:						# dynamic A1h prefix count
-				self.pb_state = 4
+				self.pb_state = state.second_mA1h_prefix
 			else:
-				self.pb_state = 6
+				self.pb_state = state.IDData_Address_Mark
 			return 0
 
-		if self.pb_state == 1:				  # second mC2h prefix
+		if self.pb_state in (state.second_mC2h_prefix, state.third_mC2h_prefix):
 			if val == 0x2C2:
 				self.display_byte(0xC2, True)
-				self.pb_state = 2
+				if self.pb_state == state.second_mC2h_prefix:
+					self.pb_state = state.third_mC2h_prefix
+				if self.pb_state == state.third_mC2h_prefix:
+					self.pb_state = state.FCh_Index_Mark
 			else:
-				self.err_print('unexpected byte value %02X' % val, self.byte_end)
-				self.put(self.byte_end - 1, self.byte_end, self.out_ann, [15, ['Err']])
+				self.display_field('err', val)
 				return -1
 
-		elif self.pb_state == 2:				# third mC2h prefix
-			if val == 0x2C2:
-				self.display_byte(0xC2, True)
-				self.pb_state = 3
-			else:
-				self.err_print('unexpected byte value %02X' % val, self.byte_end)
-				self.put(self.byte_end - 1, self.byte_end, self.out_ann, [15, ['Err']])
-				return -1
-
-		elif self.pb_state == 3:				# FCh Index Mark
+		elif self.pb_state == state.FCh_Index_Mark:
 			if val == 0xFC:
 				self.display_byte(val, False)
 				self.IM += 1
@@ -781,35 +882,32 @@ class Decoder(srd.Decoder):
 				self.err_print('unexpected byte value %02X' % val, self.byte_end)
 				self.put(self.byte_end - 1, self.byte_end, self.out_ann, [15, ['Err']])
 				return -1
-				
-		elif self.pb_state == 4:				# second mA1h prefix
+
+		elif self.pb_state in (state.second_mA1h_prefix, state.third_mA1h_prefix):
 			if val == 0x2A1:
 				self.display_byte(0xA1, True)
-				self.pb_state = 5
+				self.update_crc(0xA1, crc.Header)
+				self.update_crc(0xA1, crc.Data)
+				if self.pb_state == state.second_mA1h_prefix:
+					self.pb_state = state.third_mA1h_prefix
+				if self.pb_state == state.third_mA1h_prefix:
+					self.pb_state = state.IDData_Address_Mark
 			else:
-				self.err_print('unexpected byte value %02X' % val, self.byte_end)
-				self.put(self.byte_end - 1, self.byte_end, self.out_ann, [15, ['Err']])
+				self.display_field('err', val)
 				return -1
 
-		elif self.pb_state == 5:				# third mA1h prefix
-			if val == 0x2A1:
-				self.display_byte(0xA1, True)
-				self.pb_state = 6
-			else:
-				self.err_print('unexpected byte value %02X' % val, self.byte_end)
-				self.put(self.byte_end - 1, self.byte_end, self.out_ann, [15, ['Err']])
-				return -1
-
-		elif self.pb_state == 6:
-			if val == 0xFE:					 # FEh ID Address Mark
+		elif self.pb_state == state.IDData_Address_Mark:
+			if val == 0xFE:						# FEh ID Address Mark
 				self.display_byte(val, False)
+				self.update_crc(val, crc.Header)
 				self.display_field('i')
 				self.IDlastAM = self.field_start
 				self.IDcrc = 0
 				self.pb_state = 7
 				self.byte_cnt = 4
-			elif val >= 0xF8 and val <= 0xFB:   # F8h..FBh Data Address Mark
+			elif val >= 0xF8 and val <= 0xFB:	# F8h..FBh Data Address Mark
 				self.display_byte(val, False)
+				self.update_crc(val, crc.Data)
 				self.DRmark = val
 				self.display_field('d')
 				if self.IDlastAM > 0 \
@@ -826,6 +924,7 @@ class Decoder(srd.Decoder):
 
 		elif self.pb_state == 7:				# process ID Record byte
 			self.display_byte(val, False)
+			self.update_crc(val, crc.Header)
 			self.decode_id_rec(self.byte_cnt, val)
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
@@ -836,6 +935,7 @@ class Decoder(srd.Decoder):
 
 		elif self.pb_state == 8:				# process Data Record byte
 			self.display_byte(val, False)
+			self.update_crc(val, crc.Data)
 			self.DRsec[self.sector_len - self.byte_cnt] = val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
@@ -850,7 +950,7 @@ class Decoder(srd.Decoder):
 			self.IDcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				if self.crc_accum == 0:
+				if self.crc_accum == self.IDcrc:
 					self.CRC_OK += 1
 					self.display_field('c')
 				else:
@@ -859,42 +959,25 @@ class Decoder(srd.Decoder):
 					self.IDlastAM = -1
 				self.pb_state = 11
 
-		elif self.pb_state == 10:			   # process Data record CRC byte
+		elif self.pb_state == 10:				# process Data record CRC byte
 			self.display_byte(val, False)
 			self.DRcrc <<= 8
 			self.DRcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				if self.data_crc_bytes == 2:
-					if self.crc_accum == 0:
-						self.DRcrcok = True
-						self.CRC_OK += 1
-						self.display_field('c')
-					else:
-						self.CRC_err += 1
-						self.display_field('e')
-				elif self.data_crc_bytes == 4:
-					if self.crc32_accum == 0:
-						self.DRcrcok = True
-						self.CRC_OK += 1
-						self.display_field('c')
-					else:
-						self.CRC_err += 1
-						self.display_field('e')
-				elif self.data_crc_bytes == 7:
-					if self.crc56_accum == 0:
-						self.DRcrcok = True
-						self.CRC_OK += 1
-						self.display_field('c')
-					else:
-						self.CRC_err += 1
-						self.display_field('e')
+				if self.crc_accum == self.DRcrc:
+					self.DRcrcok = True
+					self.CRC_OK += 1
+					self.display_field('c')
+				else:
+					self.CRC_err += 1
+					self.display_field('e')
 				self.write_sector()
 				self.pb_state = 11
 
-		elif self.pb_state == 11:			   # process first gap byte after CRC or Index Mark
+		elif self.pb_state == 11:				# process first gap byte after CRC or Index Mark
 			self.display_byte(val, False)
-			return -1						   # done, unsync
+			return -1							# done, unsync
 
 		else:
 			return -1
@@ -904,15 +987,15 @@ class Decoder(srd.Decoder):
 	# ------------------------------------------------------------------------
 	# PURPOSE: Write one decoded sector to the binary output file.
 	# NOTES: The UFDR C program uses a slightly different format for the output
-	#		file -- it writes the cylinder and side numbers from the track table
-	#		after the 0x7777 magic number, whereas the Python program just repeats
-	#		the cylinder and side numbers from the ID Record.
+	#		 file -- it writes the cylinder and side numbers from the track table
+	#		 after the 0x7777 magic number, whereas the Python program just repeats
+	#		 the cylinder and side numbers from the ID Record.
 	# ------------------------------------------------------------------------
 
 	def write_sector(self):
 
 		if self.IDlastAM > 0 and self.write_data:
-			
+
 			# Write the 16-byte sector header.
 
 			if self.data_crc_bits == 16:
@@ -941,7 +1024,7 @@ class Decoder(srd.Decoder):
 				self.DRsec[:512].tofile(self.binfile)
 			elif self.sector_len == 1024:
 				self.DRsec.tofile(self.binfile)
-			
+
 			self.binfile.flush()
 
 		self.IDlastAM = -1
@@ -953,7 +1036,7 @@ class Decoder(srd.Decoder):
 	def display_report(self):
 		if not self.report_displayed:
 			self.put(0, self.samplenum, self.out_ann,
-					 [11, ["Summary report:  IM=%d, IDR=%d, DR=%d, CRC_OK=%d, " \
+					 [11, ["Summary report:	 IM=%d, IDR=%d, DR=%d, CRC_OK=%d, " \
 						   "CRC_err=%d, EiPW=%d, CkEr=%d, OoTI=%d/%d" \
 							% (self.IM, self.IDR, self.DR, self.CRC_OK, self.CRC_err, \
 							self.EiPW, self.CkEr, self.OoTI, self.Intrvls)]])
@@ -973,48 +1056,55 @@ class Decoder(srd.Decoder):
 	# PURPOSE: Main protocol decoding loop.
 	# NOTES:
 	#  - It automatically terminates when self.wait() requests termination
-	#	due to end-of-data reached before specified condition found.
+	#	 due to end-of-data reached before specified condition found.
 	# ------------------------------------------------------------------------
 
 	def decode(self):
-
 		# --- Verify that a sample rate was specified.
 
 		if not self.samplerate:
 			raise SamplerateError('Cannot decode without samplerate.')
 
+		# Calculate maximum number of samples allowed between ID and Data Address Marks.
+		# Cant put it in start() or metadata() becaue we cant be sure of order those
+		# two are called, one initializes (samplerate) the other user options (data_rate)
+		if self.encodingFM:
+			self.max_id_data_gap = (self.samplerate / self.data_rate) * 8 * (1 + 4 + 2 + 30 + 10)
+		else:
+			self.max_id_data_gap = (self.samplerate / self.data_rate) * 8 * (4 + 4 + 2 + 43 + 15)
+		
 		# --- Initialize various (half-)bit-cell-window and other variables.
 
 		bc10N = self.samplerate / self.data_rate		# nominal 1.0 bit cell window size (in fractional samples)
 
-		bc05L = (bc10N * 0.5) - (bc10N * 0.25 * 0.80)   # lower/upper limits of 0.5 bit cell window size
+		bc05L = (bc10N * 0.5) - (bc10N * 0.25 * 0.80)	# lower/upper limits of 0.5 bit cell window size
 		bc05U = (bc10N * 0.5) + (bc10N * 0.25 * 0.80)
-		bc10L = (bc10N * 1.0) - (bc10N * 0.25 * 0.80)   # lower/upper limits of 1.0 bit cell window size
+		bc10L = (bc10N * 1.0) - (bc10N * 0.25 * 0.80)	# lower/upper limits of 1.0 bit cell window size
 		bc10U = (bc10N * 1.0) + (bc10N * 0.25 * 0.80)
-		bc15L = (bc10N * 1.5) - (bc10N * 0.25 * 0.80)   # lower/upper limits of 1.5 bit cell window size
+		bc15L = (bc10N * 1.5) - (bc10N * 0.25 * 0.80)	# lower/upper limits of 1.5 bit cell window size
 		bc15U = (bc10N * 1.5) + (bc10N * 0.25 * 0.80)
-		bc20L = (bc10N * 2.0) - (bc10N * 0.25 * 0.80)   # lower/upper limits of 2.0 bit cell window size
+		bc20L = (bc10N * 2.0) - (bc10N * 0.25 * 0.80)	# lower/upper limits of 2.0 bit cell window size
 		bc20U = (bc10N * 2.0) + (bc10N * 0.25 * 0.80)
 
-		window_size = bc10N / 2.0					  # current half-bit-cell window size (in fractional samples)
-		window_size_filter_accum = window_size * 32.0  # averaging filter accumulator for window size (in fractional samples)
-		hbcpi = 0.0							  # number of half-bit-cell windows per leading edge interval
-		window_start = 0.0					   # start of current half-bit-cell window (fractional sample number)
-		window_end = window_start + window_size  # end of current half-bit-cell window (fractional sample number)
-		window_adj = 0.0						 # adjustment to window_end (in fractional samples)
+		window_size = bc10N / 2.0						# current half-bit-cell window size (in fractional samples)
+		window_size_filter_accum = window_size * 32.0	# averaging filter accumulator for window size (in fractional samples)
+		hbcpi = 0.0								# number of half-bit-cell windows per leading edge interval
+		window_start = 0.0						# start of current half-bit-cell window (fractional sample number)
+		window_end = window_start + window_size	# end of current half-bit-cell window (fractional sample number)
+		window_adj = 0.0						# adjustment to window_end (in fractional samples)
 		clock_cell = 'c'
 		data_cell = 'd'
-		clock_data = clock_cell				  # current half-bit-cell window is clock_cell vs. data_cell
+		clock_data = clock_cell					# current half-bit-cell window is clock_cell vs. data_cell
 		v = 0									# 1 = edge in current window, 0 = no edge
-		shift31 = 0							  # 31-bit pattern shift register (of half-bit-cells)
+		shift31 = 0								# 31-bit pattern shift register (of half-bit-cells)
 
 		data_byte = 0							# 8-bit data byte shift register (of bit cells)
-		bit_cnt = 0							  # number of bits processed in current byte (0..8)
+		bit_cnt = 0								# number of bits processed in current byte (0..8)
 		byte_sync = False						# True = bit/byte-sync'd, False = not sync'd
-		win_sync = False						 # True = half-bit-cell window sync'd re clock_cell vs. data_cell ?
+		win_sync = False						# True = half-bit-cell window sync'd re clock_cell vs. data_cell ?
 
 		last_interval = 0						# previous interval (in samples, 1..n)
-		interval = 0							 # current interval (in samples, 1..n)
+		interval = 0							# current interval (in samples, 1..n)
 
 
 		# --- Process all input data.
@@ -1073,7 +1163,7 @@ class Decoder(srd.Decoder):
 				else:
 					self.OoTI += 1
 					hbcpi = 0.0
-			else:		 # MFM
+			else:		# MFM
 				if interval >= bc10L and interval <= bc10U:
 					hbcpi = 2.0
 				elif interval >= bc15L and interval <= bc15U:
@@ -1090,12 +1180,12 @@ class Decoder(srd.Decoder):
 				window_size = window_size_filter_accum / 32.0
 				if self.last_samplenum is not None:
 					self.put(self.last_samplenum, self.samplenum, self.out_ann,
-							 [13, ['s%d i%dns' % (self.last_samplenum, interval_nsec)]])
+							 [13, ['s%d i%dns' % (self.last_samplenum, interval_nsec), 'i%dns' % (interval_nsec)]])
 			else:
 				if self.last_samplenum is not None:
 					self.put(self.last_samplenum, self.samplenum, self.out_ann,
 							 [14, ['s%d i%dns OoTI' % (self.last_samplenum, interval_nsec)]])
-					self.put(self.samplenum - 1, self.samplenum, self.out_ann, [15, ['Err']])
+					self.put(self.samplenum - 1, self.samplenum, self.out_ann, [15, ['Error', 'Err', 'E']])
 
 			# --- Process half-bit-cell windows until current edge falls inside.
 
@@ -1105,11 +1195,11 @@ class Decoder(srd.Decoder):
 
 				if self.samplenum >= window_start and self.samplenum < window_end:
 
-					v = 1					   # window value is '1'
+					v = 1						# window value is '1'
 
 					# Shift position of window to put edge closer to centre.
 
-					window_adj = (self.samplenum - ((window_start + window_end) / 2.0)) / 1.75  #//DEBUG - use better algorithm?
+					window_adj = (self.samplenum - ((window_start + window_end) / 2.0)) / 1.75	#//DEBUG - use better algorithm?
 					if window_adj > (window_size / 4.0):	#//DEBUG - use better algorithm?
 						window_adj = window_size / 4.0
 					window_end += window_adj
@@ -1118,7 +1208,7 @@ class Decoder(srd.Decoder):
 
 				elif self.samplenum < window_start:
 
-					self.fifo_wv[self.fifo_wp] += 1	 # incr. number of leading edges in window
+					self.fifo_wv[self.fifo_wp] += 1		# incr. number of leading edges in window
 					self.EiPW += 1
 					byte_sync = False
 					shift31 = 0
@@ -1128,7 +1218,7 @@ class Decoder(srd.Decoder):
 
 				else:
 
-					v = 0					   # window value is '0'
+					v = 0						# window value is '0'
 
 					# end if
 
@@ -1172,29 +1262,29 @@ class Decoder(srd.Decoder):
 
 						# FM Data Address Mark pattern found.
 
-						elif shift31 == 0x2AAAF56F:  # 00h,mFBh bytes
+						elif shift31 == 0x2AAAF56F:	# 00h,mFBh bytes
 							data_byte = 0x1FB
 							byte_sync = True
 							win_sync = True
 
-						elif shift31 == 0x2AAAF56A:  # 00h,mF8h bytes
+						elif shift31 == 0x2AAAF56A:	# 00h,mF8h bytes
 							data_byte = 0x1F8
 							byte_sync = True
 							win_sync = True
 
-						elif shift31 == 0x2AAAF56B:  # 00h,mF9h bytes
+						elif shift31 == 0x2AAAF56B:	# 00h,mF9h bytes
 							data_byte = 0x1F9
 							byte_sync = True
 							win_sync = True
 
-						elif shift31 == 0x2AAAF56E:  # 00h,mFAh bytes
+						elif shift31 == 0x2AAAF56E:	# 00h,mFAh bytes
 							data_byte = 0x1FA
 							byte_sync = True
 							win_sync = True
 
 						# FM Index Mark pattern found.
 
-						elif shift31 == 0x2AAAF77A:  # 00h,mFCh bytes
+						elif shift31 == 0x2AAAF77A:	# 00h,mFCh bytes
 							data_byte = 0x1FC
 							byte_sync = True
 							win_sync = True
@@ -1212,7 +1302,7 @@ class Decoder(srd.Decoder):
 
 						# MFM Index Mark initial pattern found.
 
-						elif shift31 == 0x2AAA5224:  # initial 00h,mC2h prefix bytes
+						elif shift31 == 0x2AAA5224:	# initial 00h,mC2h prefix bytes
 							data_byte = 0x1C2
 							byte_sync = True
 							win_sync = True
@@ -1257,7 +1347,7 @@ class Decoder(srd.Decoder):
 
 							if (shift31 & 0xFFFF) == 0x4489:	# mA1h prefix byte
 								data_byte = 0x2A1
-							elif (shift31 & 0xFFFF) == 0x5224:  # mC2h prefix byte
+							elif (shift31 & 0xFFFF) == 0x5224:	# mC2h prefix byte
 								data_byte = 0x2C2
 
 							if self.process_byteMFM(data_byte) == 0:
@@ -1266,7 +1356,7 @@ class Decoder(srd.Decoder):
 								shift31 = 0
 								byte_sync = False
 
-				# Display one half-bit-cell window annotation.  (If not sync'd,
+				# Display one half-bit-cell window annotation.	(If not sync'd,
 				# display_bits() won't be called to pull entries from the FIFO,
 				# but it needs to have 33-1+1 entries for self.process_byteFM/MFM().)
 
@@ -1327,7 +1417,7 @@ class Decoder(srd.Decoder):
 
 				# If edge processed in current window, get next edge.
 
-				if v == 1:  break
+				if v == 1:	break
 
 				#--- end while
 
