@@ -15,9 +15,11 @@
 ## ---------------------------------------------------------------------------
 ## Changelog:
 ## 2025-Sep-3
-##	- Enums to make state machine/messages more readable.
 ##	- 7 byte Header support (not tested).
+##	- Enums to make state machine/messages more readable.
 ##	- Array CRC routine, faster than calling per byte.
+##	- Fixed DSView crashines while zooming during data load/processing.
+##	- Added Deleted Data Address Mark
 ## 2025-Sep-2
 ##	- Fixed DSView compatibility, still fragile: crashes when zooming in during data
 ##	  load/processing.
@@ -93,11 +95,12 @@ class field(Enum):
 	FCh_Index_Mark		= 1		#auto()
 	ID_Address_Mark		= 2		#auto()
 	Data_Address_Mark	= 3		#auto()
-	ID_Record			= 4		#auto()
-	Data_Record			= 5		#auto()
-	CRC_Ok				= 6		#auto()
-	CRC_Error			= 7		#auto()
-	Unknown_Byte		= 8		#auto()
+	Deleted_Data_Mark	= 4		#auto()
+	ID_Record			= 5		#auto()
+	Data_Record			= 6		#auto()
+	CRC_Ok				= 7		#auto()
+	CRC_Error			= 8		#auto()
+	Unknown_Byte		= 9		#auto()
 
 # ----------------------------------------------------------------------------
 # PURPOSE: Handle missing sample rate.
@@ -139,20 +142,21 @@ class Decoder(srd.Decoder):
 		('rec', 'record'),
 		('cre', 'crc error'),
 		('crc', 'crc'),
-		('rpt', 'rpt'),
+		('rpt', 'report'),
 		('pfx', 'prefix'),
 		('pul', 'pulse'),
-		('erp', 'erp'),
+		('erp', 'report'),
 		('err', 'error'),
 	)
 	annotation_rows = (
 		('pulses', 'Pulses', (13, 14,)),
-		('wins', 'win', (0, 1, 2, 3,)),
+		('wins', 'Windows', (0, 1, 2, 3,)),
 		('prefixes', 'Prefixes', (12,)),
 		('bits', 'Bits', (4, 5,)),
 		('bytes', 'Bytes', (6,)),
 		('fields', 'Fields', (7, 8, 9, 10,)),
 		('errors', 'Errors', (15,)),
+		('reports', 'Reports', (11,)),
 	)
 	options = (
 		{'id': 'leading_edge', 'desc': 'Leading edge',
@@ -214,12 +218,10 @@ class Decoder(srd.Decoder):
 			'default': 'no', 'values': ('yes', 'no')},
 		{'id': 'dsply_sn', 'desc': 'Display sample numbers',
 			'default': 'yes', 'values': ('yes', 'no')},
-		#{'id': 'rpt_sn', 'desc': 'Sample # to display report',
-		#	'default': '2111111111'},
-		#{'id': 'std_err', 'desc': 'Write errors to stderr',
-		#	'default': 'no', 'values': ('yes', 'no')},
-		#{'id': 'write_data', 'desc': 'Write decoded data to file',
-		#	'default': 'no', 'values': ('yes', 'no')},
+		{'id': 'report', 'desc': 'Display report between Marks',
+			'default': 'ID Address Mark', 'values': ('Disabled', 'Index Mark', 'ID Address Mark', 'Data Address Mark', 'Deleted Data Mark')},
+		{'id': 'report_qty', 'desc': 'Report every x Headers',
+			'default': '9'},
 	)
 
 	# ------------------------------------------------------------------------
@@ -243,7 +245,6 @@ class Decoder(srd.Decoder):
 		self.byte_end = 0			# end of byte (sample number)
 		self.field_start = 0		# start of field (sample number)
 		self.pb_state = 0			# processing byte state = 1..10
-											 
 		self.byte_cnt = 0			# number of bytes left to process in field (1024/512/256/128/4/2..0)
 		self.IDlastAM = -1			# sample number of most recent ID Address Mark, -1 = not found or not valid
 		self.max_id_data_gap = 0	# maximum gap between ID Address Mark and following Data Address Mark (samples)
@@ -255,8 +256,6 @@ class Decoder(srd.Decoder):
 
 		self.IDrec = array('B', [0 for i in range(8)])		# ID record (7-8 bytes)
 		self.DRrec = array('B', [0 for i in range(1024)])	# Data record (128/256/512/1024 bytes)
-
-		#self.report_displayed = False  # True = summary report already displayed, False = not displayed yet
 
 		# FIFO (using circular buffers) of starting/ending sample numbers
 		# and data values for 33 half-bit-cell windows.  Data values are
@@ -283,19 +282,19 @@ class Decoder(srd.Decoder):
 
 		# Define and zero statistics counters.
 
-		self.IM = 0					# number of Index Marks
-		self.IDR = 0				# number of ID Records
-		self.DR = 0					# number of Data Records
-		self.CRC_OK = 0				# number of OK CRCs
+		self.IAMs	= 0				# number of Index Marks
+		self.IDAMs	= 0				# number of ID Address Marks
+		self.DAMs	= 0				# number of Data Address Marks
+		self.DDAMs	= 0				# number of Deleted Data Address Marks
+		self.CRC_OK	= 0				# number of OK CRCs
 		self.CRC_err = 0			# number of error CRCs
 		self.EiPW = 0				# number of leading edges found in a previous window
 		self.CkEr = 0				# number of bits with clocking errors
 		self.OoTI = 0				# number of out-of-tolerance leading edge intervals
 		self.Intrvls = 0			# number of leading edge intervals
 
-		# Define binary output file.
-
-		self.binfile = None
+		self.report_start = 0
+		self.reports_called = 0
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Various initialization when decoder started.
@@ -320,9 +319,13 @@ class Decoder(srd.Decoder):
 			self.data_crc_poly = int(self.options['data_crc_poly_custom'], 0) & ((1 << int(self.options['data_crc_bits'])) -1)
 		self.dsply_pfx = True if self.options['dsply_pfx'] == 'yes' else False
 		self.dsply_sn = True if self.options['dsply_sn'] == 'yes' else False
-		#self.rpt_sn = int(self.options['rpt_sn'])
-		#self.std_err = True if self.options['std_err'] == 'yes' else False
-		#self.write_data = True if self.options['write_data'] == 'yes' else False
+
+		self.report = {'Disabled':'nope', 
+						'Index Mark':field.FCh_Index_Mark,
+						'ID Address Mark':field.ID_Address_Mark,
+						'Data Address Mark':field.Data_Address_Mark,
+						'Deleted Data Mark':field.Deleted_Data_Mark}[self.options['report']]
+		self.report_qty = int(self.options['report_qty'])
 
 		# precompute crc constants
 		self.header_crc_bytes = self.header_crc_bits // 8
@@ -333,7 +336,6 @@ class Decoder(srd.Decoder):
 		self.data_crc_mask = (1 << self.data_crc_bits) -1
 
 		# Other initialization.
-
 		self.initial_pins = [1 if self.rising_edge == True else 0]
 
 	# ------------------------------------------------------------------------
@@ -582,35 +584,56 @@ class Decoder(srd.Decoder):
 	# ------------------------------------------------------------------------
 
 	def display_field(self, typ, val=0):
-		if typ == 'x' or typ == field.FCh_Index_Mark:
+		if typ == field.FCh_Index_Mark:
+			self.IAMs += 1
 			self.put(self.field_start, self.byte_end, self.out_ann,
 					 [7, ['Index Mark', 'IAM', 'I']])
-		elif typ == 'i' or typ == field.ID_Address_Mark:
+			if self.report == field.FCh_Index_Mark:
+				self.display_report()
+
+		elif typ == field.ID_Address_Mark:
+			self.IDAMs += 1
 			self.put(self.field_start, self.byte_end, self.out_ann,
 					 [7, ['ID Address Mark', 'IDAM', 'M']])
-		elif typ == 'd' or typ == field.Data_Address_Mark:
+			if self.report == field.ID_Address_Mark:
+				self.display_report()
+
+		elif typ == field.Data_Address_Mark:
 			if self.DRmark == 0xF8 or self.DRmark == 0xF9: 
+				self.DDAMs += 1
 				self.put(self.field_start, self.byte_end, self.out_ann,
 						[7, ['Deleted Data Address Mark', 'Deleted Data Mark', 'DDAM', 'M']])
+				if self.report == field.Deleted_Data_Mark:
+					self.display_report()
 			else:
+				self.DAMs += 1
 				self.put(self.field_start, self.byte_end, self.out_ann,
 						[7, ['Data Address Mark', 'Data Mark', 'DAM', 'M']])
-		elif typ == 'I' or typ == field.ID_Record:
+				if self.report == field.Data_Address_Mark:
+					self.display_report()
+
+		elif typ == field.ID_Record:
 			self.put(self.field_start, self.byte_end, self.out_ann,
 					 [8, ['ID Record: cyl=%d, sid=%d, sec=%d, len=%d' %
 						  (self.IDcyl, self.IDsid, self.IDsec, self.IDlenv),
 						  'ID Record', 'Irec', 'R']])
-		elif typ == 'D' or typ == field.Data_Record:
+
+		elif typ == field.Data_Record:
 			self.put(self.field_start, self.byte_end, self.out_ann,
 					 [8, ['Data Record', 'Drec', 'R']])
-		elif typ == 'c' or typ == field.CRC_Ok:
+
+		elif typ == field.CRC_Ok:
+			self.CRC_OK += 1
 			self.put(self.field_start, self.byte_end, self.out_ann,
 					 [10, ['CRC OK %02X' % self.crc_accum, 'CRC OK', 'CRC', 'C']])
-		elif typ == 'e' or typ == field.CRC_Error:
+
+		elif typ == field.CRC_Error:
+			self.CRC_err += 1
 			self.put(self.byte_end - 1, self.byte_end, self.out_ann, [15, ['Error', 'Err', 'E']])
 			self.put(self.field_start, self.byte_end, self.out_ann,
 					 [9, ['CRC error %02X' % self.crc_accum, 'CRC error', 'CRC', 'C']])
-		elif typ == 'err' or typ == field.Unknown_Byte:
+
+		elif typ == field.Unknown_Byte:
 			self.put(self.byte_end - 1, self.byte_end, self.out_ann, [15, ['Error', 'Err', 'E']])
 
 		self.field_start = self.byte_end
@@ -698,6 +721,7 @@ class Decoder(srd.Decoder):
 		if self.pb_state == state.ID_Address_Mark:
 			self.display_byte(0x00, False)
 			self.display_byte(0xFE, True)
+			self.IDmark = (val & 0x0FF)
 			self.field_start = self.byte_start
 			self.display_field(field.ID_Address_Mark)
 			self.IDlastAM = self.field_start
@@ -711,7 +735,6 @@ class Decoder(srd.Decoder):
 			self.decode_id_rec(self.byte_cnt, val)
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.IDR += 1
 				self.display_field(field.ID_Record)
 				self.byte_cnt = self.header_crc_bytes
 				self.pb_state = state.ID_Record_CRC
@@ -722,12 +745,10 @@ class Decoder(srd.Decoder):
 			self.IDcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc(bytes([0xFE]) + self.IDrec[:self.header_bytes -4], crc.Header)
+				self.calculate_crc(bytes([self.IDmark]) + self.IDrec[:self.header_bytes -4], crc.Header)
 				if self.crc_accum == self.IDcrc:
-					self.CRC_OK += 1
 					self.display_field(field.CRC_Ok)
 				else:
-					self.CRC_err += 1
 					self.IDlastAM = -1
 					self.display_field(field.CRC_Error)
 				self.pb_state = state.first_gap_Byte
@@ -750,38 +771,34 @@ class Decoder(srd.Decoder):
 			self.DRrec[self.sector_len - self.byte_cnt] = val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.DR += 1
-				self.display_field('D')
-				self.byte_cnt = 2
-				self.pb_state = 4
+				self.display_field(field.Data_Record)
+				self.byte_cnt = self.data_crc_bytes
+				self.pb_state = state.Data_Record_CRC
 
 
-		elif self.pb_state == 4:				# process Data record CRC byte
+		elif self.pb_state == state.Data_Record_CRC:
 			self.display_byte(val, False)
 			self.DRcrc <<= 8
 			self.DRcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				if self.crc_accum == 0:
-					self.CRC_OK += 1
-					self.display_field('c')
+				self.calculate_crc(bytes([self.DRmark]) + self.DRrec[:self.sector_len], crc.Data)
+				if self.crc_accum == self.DRcrc:
+					self.display_field(field.CRC_Ok)
 				else:
-					self.CRC_err += 1
-					self.display_field('e')
-				#self.write_sector()
+					self.display_field(field.CRC_Error)
 				self.pb_state = state.first_gap_Byte
 
 		elif self.pb_state == state.FCh_Index_Mark:
 			self.display_byte(0x00, False)
 			self.display_byte(0xFC, True)
 			self.field_start = self.byte_start
-			self.IM += 1
-			self.display_field('x')
+			self.display_field(field.FCh_Index_Mark)
 			self.pb_state = state.first_gap_Byte
 
-		elif self.pb_state == state.first_gap_Byte:				# process first gap byte after CRC or Index Mark
+		elif self.pb_state == state.first_gap_Byte:	# process first gap byte after CRC or Index Mark
 			self.display_byte(val, False)
-			return -1							# done, unsync
+			return -1								# done, unsync
 
 		else:
 			return -1
@@ -814,6 +831,7 @@ class Decoder(srd.Decoder):
 		if self.pb_state == state.first_mA1h_prefix:
 			self.display_byte(0x00, False)
 			self.display_byte(0xA1, True)
+			self.A1 = 0xA1
 			self.field_start = self.byte_start
 			if self.fdd:
 				self.pb_state = state.second_mA1h_prefix
@@ -823,6 +841,8 @@ class Decoder(srd.Decoder):
 		elif self.pb_state in (state.second_mA1h_prefix, state.third_mA1h_prefix):
 			if val == 0x2A1:
 				self.display_byte(0xA1, True)
+				self.A1 <<= 8
+				self.A1 += 0xA1
 				if self.pb_state == state.second_mA1h_prefix:
 					self.pb_state = state.third_mA1h_prefix
 				elif self.pb_state == state.third_mA1h_prefix:
@@ -861,7 +881,6 @@ class Decoder(srd.Decoder):
 			self.decode_id_rec(self.byte_cnt, val)
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.IDR += 1
 				self.display_field(field.ID_Record)
 				self.byte_cnt = self.header_crc_bytes
 				self.pb_state = state.ID_Record_CRC
@@ -872,12 +891,14 @@ class Decoder(srd.Decoder):
 			self.IDcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc(bytes([0xA1, self.IDmark]) + self.IDrec[:self.header_bytes -4], crc.Header)
+				if self.fdd:
+					self.A1 = (self.A1).to_bytes(3, 'big')
+				else:
+					self.A1 = (self.A1).to_bytes(1, 'big')
+				self.calculate_crc(self.A1 + (self.IDmark).to_bytes(1, 'big') + self.IDrec[:self.header_bytes -4], crc.Header)
 				if self.crc_accum == self.IDcrc:
-					self.CRC_OK += 1
 					self.display_field(field.CRC_Ok)
 				else:
-					self.CRC_err += 1
 					self.IDlastAM = -1
 					self.display_field(field.CRC_Error)
 				self.pb_state = state.first_gap_Byte
@@ -887,7 +908,6 @@ class Decoder(srd.Decoder):
 			self.DRrec[self.sector_len - self.byte_cnt] = val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.DR += 1
 				self.display_field(field.Data_Record)
 				self.byte_cnt = self.data_crc_bytes
 				self.pb_state = state.Data_Record_CRC
@@ -898,12 +918,14 @@ class Decoder(srd.Decoder):
 			self.DRcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc(bytes([0xA1, self.DRmark]) + self.DRrec[:self.sector_len], crc.Data)
+				if self.fdd:
+					self.A1 = (self.A1).to_bytes(3, 'big')
+				else:
+					self.A1 = (self.A1).to_bytes(1, 'big')
+				self.calculate_crc(self.A1 + bytes([self.DRmark]) + self.DRrec[:self.sector_len], crc.Data)
 				if self.crc_accum == self.DRcrc:
-					self.CRC_OK += 1
 					self.display_field(field.CRC_Ok)
 				else:
-					self.CRC_err += 1
 					self.display_field(field.CRC_Error)
 				self.pb_state = state.first_gap_Byte
 
@@ -927,21 +949,45 @@ class Decoder(srd.Decoder):
 		elif self.pb_state == state.FCh_Index_Mark:
 			if val == 0xFC:
 				self.display_byte(val, False)
-				self.IM += 1
 				self.display_field(field.FCh_Index_Mark)
 				self.pb_state = state.first_gap_Byte
 			else:
 				self.display_field(field.Unknown_Byte, val)
 				return -1
 
-		elif self.pb_state == state.first_gap_Byte:		# process first gap byte after CRC or Index Mark
+		elif self.pb_state == state.first_gap_Byte:	# process first gap byte after CRC or Index Mark
 			self.display_byte(val, False)
-			return -1									# done, unsync
+			return -1								# done, unsync
 
 		else:
 			return -1
 
 		return 0
+
+	# ------------------------------------------------------------------------
+	# PURPOSE: Display summary every x Headers.
+	# ------------------------------------------------------------------------
+
+	def display_report(self):
+		self.put(0, 0, self.out_ann, [9, ['self.reports_called %02X' % self.reports_called]])
+		self.put(0, 0, self.out_ann, [9, ['self.IDAMs %02X' % self.IDAMs]])
+		self.put(0, 0, self.out_ann, [9, ['self.DAMs %02X' % self.DAMs]])
+		if self.reports_called == 0:
+			self.reports_called += 1
+			(self.IAMs, self.IDAMs, self.DAMs, self.CRC_OK, self.CRC_err, \
+				self.EiPW, self.CkEr, self.OoTI, self.Intrvls) = (0,0,0,0,0,0,0,0,0)
+			return
+		elif self.reports_called < self.report_qty:
+			self.reports_called += 1
+			return
+
+		self.put(self.report_start, self.field_start -1, self.out_ann,
+			[11, ["Summary: IAM=%d, IDAM=%d, DAM=%d, DDAM=%d, CRC_OK=%d, "\
+				"CRC_err=%d, EiPW=%d, CkEr=%d, OoTI=%d/%d" \
+				% (self.IAMs, self.IDAMs, self.DAMs, self.DDAMs, self.CRC_OK,\
+				self.CRC_err, self.EiPW, self.CkEr, self.OoTI, self.Intrvls)]])
+		self.report_start = self.field_start
+		self.reports_called = 0
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Handle processing when end-of-data reached.
