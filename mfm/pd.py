@@ -26,11 +26,13 @@
 ## 2025-Sep-4
 ##	- Reworked report generation. (Rasz)
 ## 2025-Sep-3
-##	- 7 byte Header support (not tested). (Majenko)
+##	- Stripped out stderr output and data writing code. (Majenko)
+##	- Extra and suppress channels optional. (Majenko)
+##	- Possible support for 7 byte headers (not tested). (Majenko)
 ##	- Enums to make state machine/messages more readable. (Rasz)
 ##	- Array CRC routine, faster than calling per byte. (Rasz)
 ##	- Fixed DSView crashines while zooming during data load/processing. (Rasz)
-##	- Added Deleted Data Address Mark. (Rasz)
+##	- Added DDAM (Deleted Data Address Mark). (Rasz)
 ## 2025-Sep-2
 ##	- Fixed DSView compatibility, still fragile: crashes when zooming in during data
 ##	  load/processing. (Majenko)
