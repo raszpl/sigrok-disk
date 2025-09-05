@@ -68,8 +68,6 @@ from collections import deque
 from array import *
 from struct import *
 from enum import Enum#, auto not supported in python34 :|
-import sys
-import os
 import binascii	# only for debugging
 
 # ----------------------------------------------------------------------------
@@ -1040,7 +1038,7 @@ class Decoder(srd.Decoder):
 
 			# Calculate interval since previous leading edge.
 
-			last_interval = interval
+			last_interval = interval # seems unused, what was last_interval supposed to be used for?
 
 			if self.last_samplenum is None:
 				interval = int(bc10N)
