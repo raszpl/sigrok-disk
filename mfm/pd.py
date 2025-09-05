@@ -6,20 +6,28 @@
 ## Copyright (c) 2025 MajenkoProjects
 ## Copyright (C) 2025 Rasz_pl <https://github.com/raszpl>
 ## Initial version created 2017-Mar-14.
-## Last modified 2025-Sep-3
+## Last modified 2025-Sep-4
 ## ---------------------------------------------------------------------------
 ## Sample sigrok-cli command line usage:
 ## sigrok-cli.exe -D -I csv:logic_channels=3:column_formats=t,l,l,l -i Pulse.csv -P mfm -A mfm=fields
 ## sigrok-cli.exe -D -i sector.sr -P mfm -A mfm=fields
 ##
+## sigrok-cli.exe -D -I csv:logic_channels=3:column_formats=t,l,l,l -i "D:\_code\disk mfm\MFMDecoder-main\captures\Pulse.csv" -P mfm  -A mfm=fields:reports
+##
+## sigrok-cli.exe -D -i "D:\_code\disk mfm\MFMDecoder-main\captures\SampleFMdataDig.sr" -P mfm:data_rate=125000:encoding=FM:type=FDD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields
+##
+## sigrok-cli.exe -D -i "D:\_code\disk mfm\MFMDecoder-main\captures\SampleMFMdataDig.sr" -P mfm:data_rate=250000:encoding=MFM:type=FDD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields
+##
 ## ---------------------------------------------------------------------------
 ## Changelog:
+## 2025-Sep-4
+##	- Reworked report generation.
 ## 2025-Sep-3
 ##	- 7 byte Header support (not tested).
 ##	- Enums to make state machine/messages more readable.
 ##	- Array CRC routine, faster than calling per byte.
 ##	- Fixed DSView crashines while zooming during data load/processing.
-##	- Added Deleted Data Address Mark
+##	- Added Deleted Data Address Mark.
 ## 2025-Sep-2
 ##	- Fixed DSView compatibility, still fragile: crashes when zooming in during data
 ##	  load/processing.
@@ -218,9 +226,9 @@ class Decoder(srd.Decoder):
 			'default': 'no', 'values': ('yes', 'no')},
 		{'id': 'dsply_sn', 'desc': 'Display sample numbers',
 			'default': 'yes', 'values': ('yes', 'no')},
-		{'id': 'report', 'desc': 'Display report between Marks',
-			'default': 'ID Address Mark', 'values': ('Disabled', 'Index Mark', 'ID Address Mark', 'Data Address Mark', 'Deleted Data Mark')},
-		{'id': 'report_qty', 'desc': 'Report every x Headers',
+		{'id': 'report', 'desc': 'Display report after',
+			'default': 'Disabled', 'values': ('Disabled', 'IAM (Index Mark)', 'IDAM (ID Address Mark)', 'DAM (Data Address Mark)', 'DDAM (Deleted Data Mark)')},
+		{'id': 'report_qty', 'desc': 'Report every x Marks',
 			'default': '9'},
 	)
 
@@ -294,7 +302,7 @@ class Decoder(srd.Decoder):
 		self.Intrvls = 0			# number of leading edge intervals
 
 		self.report_start = 0
-		self.reports_called = 0
+		#self.reports_called = 0
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Various initialization when decoder started.
@@ -321,11 +329,12 @@ class Decoder(srd.Decoder):
 		self.dsply_sn = True if self.options['dsply_sn'] == 'yes' else False
 
 		self.report = {'Disabled':'nope', 
-						'Index Mark':field.FCh_Index_Mark,
-						'ID Address Mark':field.ID_Address_Mark,
-						'Data Address Mark':field.Data_Address_Mark,
-						'Deleted Data Mark':field.Deleted_Data_Mark}[self.options['report']]
+						'IAM (Index Mark)':field.FCh_Index_Mark,
+						'IDAM (ID Address Mark)':field.ID_Address_Mark,
+						'DAM (Data Address Mark)':field.Data_Address_Mark,
+						'DDAM (Deleted Data Mark)':field.Deleted_Data_Mark}[self.options['report']]
 		self.report_qty = int(self.options['report_qty'])
+		self.reports_called = 0
 
 		# precompute crc constants
 		self.header_crc_bytes = self.header_crc_bits // 8
@@ -588,14 +597,18 @@ class Decoder(srd.Decoder):
 			self.IAMs += 1
 			self.put(self.field_start, self.byte_end, self.out_ann,
 					 [7, ['Index Mark', 'IAM', 'I']])
+			self.report_last = field.FCh_Index_Mark
 			if self.report == field.FCh_Index_Mark:
+				self.reports_called = self.IAMs
 				self.display_report()
 
 		elif typ == field.ID_Address_Mark:
 			self.IDAMs += 1
 			self.put(self.field_start, self.byte_end, self.out_ann,
 					 [7, ['ID Address Mark', 'IDAM', 'M']])
+			self.report_last = field.ID_Address_Mark
 			if self.report == field.ID_Address_Mark:
+				self.reports_called = self.IDAMs
 				self.display_report()
 
 		elif typ == field.Data_Address_Mark:
@@ -603,14 +616,16 @@ class Decoder(srd.Decoder):
 				self.DDAMs += 1
 				self.put(self.field_start, self.byte_end, self.out_ann,
 						[7, ['Deleted Data Address Mark', 'Deleted Data Mark', 'DDAM', 'M']])
+				self.report_last = field.Deleted_Data_Mark
 				if self.report == field.Deleted_Data_Mark:
-					self.display_report()
+					self.reports_called = self.DDAMs
 			else:
 				self.DAMs += 1
 				self.put(self.field_start, self.byte_end, self.out_ann,
 						[7, ['Data Address Mark', 'Data Mark', 'DAM', 'M']])
+				self.report_last = field.Data_Address_Mark
 				if self.report == field.Data_Address_Mark:
-					self.display_report()
+					self.reports_called = self.DAMs
 
 		elif typ == field.ID_Record:
 			self.put(self.field_start, self.byte_end, self.out_ann,
@@ -626,12 +641,16 @@ class Decoder(srd.Decoder):
 			self.CRC_OK += 1
 			self.put(self.field_start, self.byte_end, self.out_ann,
 					 [10, ['CRC OK %02X' % self.crc_accum, 'CRC OK', 'CRC', 'C']])
+			if self.report_last in (field.Deleted_Data_Mark, field.Data_Address_Mark):
+				self.display_report()
 
 		elif typ == field.CRC_Error:
 			self.CRC_err += 1
 			self.put(self.byte_end - 1, self.byte_end, self.out_ann, [15, ['Error', 'Err', 'E']])
 			self.put(self.field_start, self.byte_end, self.out_ann,
 					 [9, ['CRC error %02X' % self.crc_accum, 'CRC error', 'CRC', 'C']])
+			if self.report_last in (field.Deleted_Data_Mark, field.Data_Address_Mark):
+				self.display_report()
 
 		elif typ == field.Unknown_Byte:
 			self.put(self.byte_end - 1, self.byte_end, self.out_ann, [15, ['Error', 'Err', 'E']])
@@ -775,7 +794,6 @@ class Decoder(srd.Decoder):
 				self.byte_cnt = self.data_crc_bytes
 				self.pb_state = state.Data_Record_CRC
 
-
 		elif self.pb_state == state.Data_Record_CRC:
 			self.display_byte(val, False)
 			self.DRcrc <<= 8
@@ -831,7 +849,7 @@ class Decoder(srd.Decoder):
 		if self.pb_state == state.first_mA1h_prefix:
 			self.display_byte(0x00, False)
 			self.display_byte(0xA1, True)
-			self.A1 = 0xA1
+			self.A1 = [0xA1]
 			self.field_start = self.byte_start
 			if self.fdd:
 				self.pb_state = state.second_mA1h_prefix
@@ -841,8 +859,7 @@ class Decoder(srd.Decoder):
 		elif self.pb_state in (state.second_mA1h_prefix, state.third_mA1h_prefix):
 			if val == 0x2A1:
 				self.display_byte(0xA1, True)
-				self.A1 <<= 8
-				self.A1 += 0xA1
+				self.A1.append(0xA1)
 				if self.pb_state == state.second_mA1h_prefix:
 					self.pb_state = state.third_mA1h_prefix
 				elif self.pb_state == state.third_mA1h_prefix:
@@ -891,11 +908,7 @@ class Decoder(srd.Decoder):
 			self.IDcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				if self.fdd:
-					self.A1 = (self.A1).to_bytes(3, 'big')
-				else:
-					self.A1 = (self.A1).to_bytes(1, 'big')
-				self.calculate_crc(self.A1 + (self.IDmark).to_bytes(1, 'big') + self.IDrec[:self.header_bytes -4], crc.Header)
+				self.calculate_crc(bytes(self.A1 + [self.IDmark]) + self.IDrec[:self.header_bytes -4], crc.Header)
 				if self.crc_accum == self.IDcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -918,11 +931,7 @@ class Decoder(srd.Decoder):
 			self.DRcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				if self.fdd:
-					self.A1 = (self.A1).to_bytes(3, 'big')
-				else:
-					self.A1 = (self.A1).to_bytes(1, 'big')
-				self.calculate_crc(self.A1 + bytes([self.DRmark]) + self.DRrec[:self.sector_len], crc.Data)
+				self.calculate_crc(bytes(self.A1 + [self.DRmark]) + self.DRrec[:self.sector_len], crc.Data)
 				if self.crc_accum == self.DRcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -971,22 +980,22 @@ class Decoder(srd.Decoder):
 	def display_report(self):
 		self.put(0, 0, self.out_ann, [9, ['self.reports_called %02X' % self.reports_called]])
 		self.put(0, 0, self.out_ann, [9, ['self.IDAMs %02X' % self.IDAMs]])
-		self.put(0, 0, self.out_ann, [9, ['self.DAMs %02X' % self.DAMs]])
-		if self.reports_called == 0:
-			self.reports_called += 1
-			(self.IAMs, self.IDAMs, self.DAMs, self.CRC_OK, self.CRC_err, \
-				self.EiPW, self.CkEr, self.OoTI, self.Intrvls) = (0,0,0,0,0,0,0,0,0)
-			return
-		elif self.reports_called < self.report_qty:
-			self.reports_called += 1
+		
+		if self.reports_called < self.report_qty:
 			return
 
-		self.put(self.report_start, self.field_start -1, self.out_ann,
+		self.put(0, 0, self.out_ann, [9, ['1self.reports_called %02X' % self.reports_called]])
+		self.put(0, 0, self.out_ann, [9, ['1self.IDAMs %02X' % self.IDAMs]])
+		self.put(0, 0, self.out_ann, [9, ['1self.DAMs %02X' % self.DAMs]])
+
+		self.put(self.report_start, self.byte_end -1, self.out_ann,
 			[11, ["Summary: IAM=%d, IDAM=%d, DAM=%d, DDAM=%d, CRC_OK=%d, "\
 				"CRC_err=%d, EiPW=%d, CkEr=%d, OoTI=%d/%d" \
 				% (self.IAMs, self.IDAMs, self.DAMs, self.DDAMs, self.CRC_OK,\
 				self.CRC_err, self.EiPW, self.CkEr, self.OoTI, self.Intrvls)]])
-		self.report_start = self.field_start
+		(self.IAMs, self.IDAMs, self.DAMs, self.DDAMs, self.CRC_OK,\
+				self.CRC_err, self.EiPW, self.CkEr, self.OoTI, self.Intrvls) = (0,0,0,0,0,0,0,0,0,0)
+		self.report_start = self.byte_end
 		self.reports_called = 0
 
 	# ------------------------------------------------------------------------
