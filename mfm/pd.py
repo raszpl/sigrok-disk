@@ -358,7 +358,7 @@ class Decoder(srd.Decoder):
 
 		#self.put(0, 0, self.out_ann, [9, ['bytearray ' + binascii.hexlify(bytearray).decode('ascii')]])
 
-		if crc_poly == 0x102 and crc_bits == 16:
+		if crc_poly == 0x1021 and crc_bits == 16:
 			# fast lookup table for CRC-16-CCITT
 			for byte in bytearray:
 				crc_accum = (self.CRC16CCITT_tab[((crc_accum >> 12) ^ (byte >>	4)) & 0x0F]
