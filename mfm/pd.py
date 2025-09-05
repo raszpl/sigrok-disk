@@ -6,15 +6,18 @@
 ## Copyright (c) 2025 MajenkoProjects
 ## Copyright (C) 2025 Rasz_pl <https://github.com/raszpl>
 ## Initial version created 2017-Mar-14.
-## Last modified 2025-Sep-4
+## Last modified 2025-Sep-5
 ## ---------------------------------------------------------------------------
 ## Sample sigrok-cli command line usage:
 ## sigrok-cli -D -i sector.sr -P mfm -A mfm=bytes:fields
-## sigrok-cli -D -I csv:logic_channels=3:column_formats=t,l,l,l -i yourHugeSlow.csv -P mfm -A mfm=fields
 ## sigrok-cli -D -i MFM_HDDdataDig.sr -P mfm:report="DAM (Data Address Mark)":report_qty=19 -A mfm=fields:reports
 ## sigrok-cli -D -i SampleFMdataDig.sr -P mfm:data_rate=125000:encoding=FM:type=FDD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields
 ## sigrok-cli -D -i SampleMFMdataDig.sr -P mfm:data_rate=250000:encoding=MFM:type=FDD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields
 ##
+## Explanation
+## sigrok-cli -D -I csv:logic_channels=3:column_formats=t,l,l,l -i YourHugeSlow.csv -P mfm:option1=value1:option2=value2 -A mfm=annotation1:annotation2
+## Available option1=value1:option2=value2 are in options Tuple List in the Decoder class.
+## Available annotation1:annotation2 are in annotation_rows List of Lists in the Decoder class.
 ## ---------------------------------------------------------------------------
 ## Changelog:
 ## 2025-Sep-5
@@ -36,13 +39,7 @@
 ##	- Added HDD support, 32 bit CRCs, custom CRC polynomials. All only in MFM mode. (Majenko/Rasz)
 ## ---------------------------------------------------------------------------
 ## To Do:
-##	- create user instructions
-##	- specify folder and file name for decoded output file
-##		- create folder if it doesn't exist
-##		- Windows vs. Linux vs. Macintosh
-##	- make sure all decoder features work with both PulseView and sigrok-cli
-##	- how to display output to stderr with Release version of PulseView?
-##	- include example files (raw binary digital, session files with digital+analog)
+##	- create more user instructions
 ##	- include test files and related information for regression testing
 ## Suggested enhancements:
 ##	- support MMFM
