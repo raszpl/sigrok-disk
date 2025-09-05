@@ -135,7 +135,9 @@ Available annotations: pulses, windows, prefixes, bits, bytes, fields, errors, r
 - 0x1021 x16 + x12 + x5 + 1. Good old CRC-CCITT.
 - 0xA00805 x32 + x23 + x21 + x11 + x2 + 1. Used by SMSC/SMC HDC9224 in VAXstation 2000 ("VAXSTAR" ). It just so happens to be an official CRC32 algorithm of CCSDS (Consultative Committee for Space Data Systems) used in [Proximity-1 Space Link Protocol](https://ccsds.org/Pubs/211x2b1s.pdf), thats right folks - SPACE!!1
 - 0x140a0445 X32 + X28 + X26 + X19 + X17 + X10 + X6 + X2 + 1 WD1003/WD1006/WD1100
-- Other good candidates: ?0x0104c981, ?0x41044185
+- Other good candidates: ?0x41044185
+- ?0x0104c981 x32 + x24 + x18 + x15 + x14 + x11 + x8 + x7 + x0  initial value 0xd4d7ca20 OMTI_5510??
+- OMTI_5510_Apr85.pdf: ?0x181932081 x32 + x31 + x24 + x23 + x20 + x17 + x16 + x13 + x7 + x0
 - 1983_Western_Digital_Components_Catalog.pdf WD1100-06 might have typos claiming:
   - ? 0x140a0405 X32 + X28 + X26 + X19 + X17 + X10 + X2 + 1
   - ? 0x140a0444 X32 + X28 + X26 + X19 + X17 + X10 + X6 + X2 + 0
