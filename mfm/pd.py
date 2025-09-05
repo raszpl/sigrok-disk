@@ -9,31 +9,31 @@
 ## Last modified 2025-Sep-4
 ## ---------------------------------------------------------------------------
 ## Sample sigrok-cli command line usage:
-## sigrok-cli.exe -D -I csv:logic_channels=3:column_formats=t,l,l,l -i Pulse.csv -P mfm -A mfm=fields
-## sigrok-cli.exe -D -i sector.sr -P mfm -A mfm=fields
-##
-## sigrok-cli.exe -D -I csv:logic_channels=3:column_formats=t,l,l,l -i "D:\_code\disk mfm\MFMDecoder-main\captures\Pulse.csv" -P mfm  -A mfm=fields:reports
-##
-## sigrok-cli.exe -D -i "D:\_code\disk mfm\MFMDecoder-main\captures\SampleFMdataDig.sr" -P mfm:data_rate=125000:encoding=FM:type=FDD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields
-##
-## sigrok-cli.exe -D -i "D:\_code\disk mfm\MFMDecoder-main\captures\SampleMFMdataDig.sr" -P mfm:data_rate=250000:encoding=MFM:type=FDD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields
+## sigrok-cli -D -i sector.sr -P mfm -A mfm=bytes:fields
+## sigrok-cli -D -I csv:logic_channels=3:column_formats=t,l,l,l -i yourHugeSlow.csv -P mfm -A mfm=fields
+## sigrok-cli -D -i MFM_HDDdataDig.sr -P mfm:report="DAM (Data Address Mark)":report_qty=19 -A mfm=fields:reports
+## sigrok-cli -D -i SampleFMdataDig.sr -P mfm:data_rate=125000:encoding=FM:type=FDD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields
+## sigrok-cli -D -i SampleMFMdataDig.sr -P mfm:data_rate=250000:encoding=MFM:type=FDD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields
 ##
 ## ---------------------------------------------------------------------------
 ## Changelog:
+## 2025-Sep-5
+##	- display_bits() no longer reports clock errors on legit Mark prefixes. (Rasz)
+##	- Command line usage examples. (Rasz)
 ## 2025-Sep-4
-##	- Reworked report generation.
+##	- Reworked report generation. (Rasz)
 ## 2025-Sep-3
-##	- 7 byte Header support (not tested).
-##	- Enums to make state machine/messages more readable.
-##	- Array CRC routine, faster than calling per byte.
-##	- Fixed DSView crashines while zooming during data load/processing.
-##	- Added Deleted Data Address Mark.
+##	- 7 byte Header support (not tested). (Majenko)
+##	- Enums to make state machine/messages more readable. (Rasz)
+##	- Array CRC routine, faster than calling per byte. (Rasz)
+##	- Fixed DSView crashines while zooming during data load/processing. (Rasz)
+##	- Added Deleted Data Address Mark. (Rasz)
 ## 2025-Sep-2
 ##	- Fixed DSView compatibility, still fragile: crashes when zooming in during data
-##	  load/processing.
+##	  load/processing. (Majenko)
 ##	- Fixed sigrok-cli comptibility, metadata() and start() call order is undetermined
-##	  depending on things like input file size, cant rely on data present from one to another.
-##	- Added HDD support, 32 bit CRCs, custom CRC polynomials. All only in MFM mode.
+##	  depending on things like input file size, cant rely on data present from one to another. (Rasz)
+##	- Added HDD support, 32 bit CRCs, custom CRC polynomials. All only in MFM mode. (Majenko/Rasz)
 ## ---------------------------------------------------------------------------
 ## To Do:
 ##	- create user instructions
@@ -302,7 +302,7 @@ class Decoder(srd.Decoder):
 		self.Intrvls = 0			# number of leading edge intervals
 
 		self.report_start = 0
-		#self.reports_called = 0
+		self.reports_called = 0
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Various initialization when decoder started.
@@ -514,7 +514,6 @@ class Decoder(srd.Decoder):
 						self.put(bit_end - 1, bit_end, self.out_ann, [15, ['Err']])
 						self.CkEr += 1
 					self.put(bit_start, bit_end, self.out_ann, [4, ['%d (clock error)' % bit_val, '%d' % bit_val]])
-					self.put(bit_end - 1, bit_end, self.out_ann, [15, ['Err']])
 				else:
 					self.put(bit_start, bit_end, self.out_ann, [5, ['%d' % bit_val]])
 
@@ -612,7 +611,7 @@ class Decoder(srd.Decoder):
 				self.display_report()
 
 		elif typ == field.Data_Address_Mark:
-			if self.DRmark == 0xF8 or self.DRmark == 0xF9: 
+			if self.fdd and self.DRmark in (0xF8, 0xF9, 0xFA): 
 				self.DDAMs += 1
 				self.put(self.field_start, self.byte_end, self.out_ann,
 						[7, ['Deleted Data Address Mark', 'Deleted Data Mark', 'DDAM', 'M']])
@@ -716,7 +715,7 @@ class Decoder(srd.Decoder):
 	# ------------------------------------------------------------------------
 	# PURPOSE: Process one byte extracted from FM pulse stream.
 	# NOTES:
-	#  - Index/Address Marks are preceded by a 00h byte.
+	#  - Index/Address Mark prefixes are preceded by a 00h byte.
 	#  - When called with 0x1FC/0x1FE/0x1F8..0x1FB values, the FIFO must have
 	#	 exactly 33 entries in it, otherwise it must have exactly 17 entries.
 	#	 On exit the FIFO will have exactly 1 entry in it.
@@ -733,6 +732,7 @@ class Decoder(srd.Decoder):
 		if val == 0x1FE:
 			self.pb_state = state.ID_Address_Mark
 		elif val >= 0x1F8 and val <= 0x1FB:
+			val &= 0x0FF
 			self.pb_state = state.Data_Address_Mark
 		elif val == 0x1FC:
 			self.pb_state = state.FCh_Index_Mark
@@ -774,8 +774,8 @@ class Decoder(srd.Decoder):
 
 		elif self.pb_state == state.Data_Address_Mark:
 			self.display_byte(0x00, False)
-			self.DRmark = (val & 0x0FF)
-			self.display_byte(self.DRmark, True)
+			self.display_byte(val, True)
+			self.DRmark = val
 			self.field_start = self.byte_start
 			self.display_field(field.Data_Address_Mark)
 			if self.IDlastAM > 0 \
@@ -978,17 +978,10 @@ class Decoder(srd.Decoder):
 	# ------------------------------------------------------------------------
 
 	def display_report(self):
-		self.put(0, 0, self.out_ann, [9, ['self.reports_called %02X' % self.reports_called]])
-		self.put(0, 0, self.out_ann, [9, ['self.IDAMs %02X' % self.IDAMs]])
-		
 		if self.reports_called < self.report_qty:
 			return
 
-		self.put(0, 0, self.out_ann, [9, ['1self.reports_called %02X' % self.reports_called]])
-		self.put(0, 0, self.out_ann, [9, ['1self.IDAMs %02X' % self.IDAMs]])
-		self.put(0, 0, self.out_ann, [9, ['1self.DAMs %02X' % self.DAMs]])
-
-		self.put(self.report_start, self.byte_end -1, self.out_ann,
+		self.put(self.report_start, self.byte_end, self.out_ann,
 			[11, ["Summary: IAM=%d, IDAM=%d, DAM=%d, DDAM=%d, CRC_OK=%d, "\
 				"CRC_err=%d, EiPW=%d, CkEr=%d, OoTI=%d/%d" \
 				% (self.IAMs, self.IDAMs, self.DAMs, self.DDAMs, self.CRC_OK,\
