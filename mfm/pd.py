@@ -8,8 +8,8 @@
 ## Initial version created 2017-Mar-14.
 ## Last modified 2025-Sep-5
 ## ---------------------------------------------------------------------------
-## Sample sigrok-cli command line usage:
-## sigrok-cli -D -i sector.sr -P mfm -A mfm=bytes:fields
+## Example sigrok-cli command line usage:
+## sigrok-cli -D -i MFM_HDDdataOneSector.sr -P mfm -A mfm=bytes:fields
 ## sigrok-cli -D -i MFM_HDDdataDig.sr -P mfm:report="DAM (Data Address Mark)":report_qty=19 -A mfm=fields:reports
 ## sigrok-cli -D -i SampleFMdataDig.sr -P mfm:data_rate=125000:encoding=FM:type=FDD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields
 ## sigrok-cli -D -i SampleMFMdataDig.sr -P mfm:data_rate=250000:encoding=MFM:type=FDD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields
@@ -157,7 +157,7 @@ class Decoder(srd.Decoder):
 	)
 	annotation_rows = (
 		('pulses', 'Pulses', (13, 14,)),
-		('wins', 'Windows', (0, 1, 2, 3,)),
+		('windows', 'Windows', (0, 1, 2, 3,)),
 		('prefixes', 'Prefixes', (12,)),
 		('bits', 'Bits', (4, 5,)),
 		('bytes', 'Bytes', (6,)),
@@ -171,7 +171,6 @@ class Decoder(srd.Decoder):
 		{'id': 'data_rate', 'desc': 'Data rate (bps)',
 			'default': '5000000', 'values': ('125000', '150000',
 			'250000', '300000', '500000', '5000000', '10000000')},
-						   
 		{'id': 'encoding', 'desc': 'Encoding',
 			'default': 'MFM', 'values': ('FM', 'MFM')},
 		{'id': 'type', 'desc': 'Type',
@@ -191,36 +190,6 @@ class Decoder(srd.Decoder):
 			'0x0104c981', '0x41044185')},
 		{'id': 'data_crc_poly_custom', 'desc': 'Custom Data Poly (overrides above)',
 			'default': ''},
-
-		# 0xA00805 x32 + x23 + x21 + x11 + x2 + 1 used by SMSC/SMC HDC9224 in VAXstation 2000 ("VAXSTAR" )
-		# It just so happens to be an official CCSDS (Consultative Committee for Space Data Systems) CRC-32 algorithm
-		# and was used by Proximity-1 Space Link Protocol—Coding, thats right folks - SPACE!!1
-		# 0x140a0445 X32 + X28 + X26 + X19 + X17 + X10 + X6 + X2 + 1 WD1003/WD1006/WD1100
-		# Other good candidates: ?0x0104c981, ?0x41044185
-		# 1983_Western_Digital_Components_Catalog.pdf WD1100-06 might have typos claiming:
-		# ? 0x140a0405 X32 + X28 + X26 + X19 + X17 + X10 + X2 + 1
-		# ? 0x140a0444 X32 + X28 + X26 + X19 + X17 + X10 + X6 + X2 + 0
-		# ? (Reciprocal: X32 + X30 + X26 + X22 + X15 + x13 + X6 + X4 + 1)
-		#
-		# How to convert polynomial notations:
-		#	- lets start with easy one, standard CRC-CCITT x16 + x12 + x5 + 1
-		#	- write 1 bits for every X, becomes			0b1000100000010000
-		#	- add the least significant number, becomes	0b10001000000100001 (0x11021)
-		#	- drop most significant bit, becomes			0b1000000100001
-		#	- convert to hex, becomes 0x1021
-		#
-		#	Same CRC-CCITT polynomial might also be written as x16 + x12 + x5 + x0 because any (non-zero number)^0 = 1
-		#
-		#	- now try CCSDS x32 + x23 + x21 + x11 + x2 + 1
-		#	- write 1 bits for every X, becomes			0b1000000010100000000010000000010
-		#	- add the least significant number, becomes	0b10000000101000000000100000000101 (0x80A00805)
-		#	- drop most significant bit, becomes				0b101000000000100000000101
-		#	- convert to hex, becomes 0xA00805
-		#
-		# Use https://www.sunshine2k.de/coding/javascript/crc/crc_js.html to validate your CRC
-		# Set custom CRC-16/32 with appropriately sized initial value 0xFFFF/0xFFFFFFFF
-		# Dont forget to append ID/Data Mark bytes before your data
-
 		{'id': 'dsply_pfx', 'desc': 'Display all MFM prefix bytes',
 			'default': 'no', 'values': ('yes', 'no')},
 		{'id': 'dsply_sn', 'desc': 'Display sample numbers',
@@ -669,7 +638,7 @@ class Decoder(srd.Decoder):
 
 	def decode_id_rec_7byte(self, fld_code, val):
 		if fld_code == 3:
-			msb = self.block_header_byte ^ 0xFE
+			msb = self.IDmark ^ 0xFE
 			self.IDcyl = val | (msb << 8)
 		elif fld_code == 2:
 			self.IDsid = val & 0x0F
@@ -869,7 +838,7 @@ class Decoder(srd.Decoder):
 
 		elif self.pb_state == state.IDData_Address_Mark:
 			if (self.header_bytes == 8 and val == 0xFE) or \
-			   (self.header_bytes == 7 and (val & 0xFC) == 0xFC ):	# FEh FC-FFh ID Address Mark
+			   (self.header_bytes == 7 and (val & 0xFC) == 0xFC):	# FEh FC-FFh ID Address Mark
 				self.display_byte(val, False)
 				self.IDmark = val
 				self.display_field(field.ID_Address_Mark)
