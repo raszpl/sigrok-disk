@@ -68,11 +68,13 @@ from collections import deque
 from array import *
 from struct import *
 from enum import Enum#, auto not supported in python34, nor are switch statements :|
+from common.srdhelper import SrdIntEnum
 import binascii	# only for debugging
 
 # ----------------------------------------------------------------------------
 # Enums
 # Sadly those need to be up here, otherwise one has to use self. prefix
+# annotations cant be native Enums, using srdhelper
 # ----------------------------------------------------------------------------
 
 class state(Enum):
@@ -107,6 +109,10 @@ class field(Enum):
 	CRC_Error			= 8		#auto()
 	Unknown_Byte		= 9		#auto()
 
+ann = SrdIntEnum.from_str('Ann', 'erw unk clk dat erb bit byt mrk rec cre crc rpt pfx pul erp err ')
+#{ann.erw: 0, unk: 1, clk: 2, dat: 3, erb: 4, bit: 5, byt: 6, mrk: 7,
+#rec: 8, cre: 9, crc: 10, rpt: 11, pfx: 12, pul: 13, erp: 14, err: 15}
+
 # ----------------------------------------------------------------------------
 # PURPOSE: Handle missing sample rate.
 # ----------------------------------------------------------------------------
@@ -136,11 +142,11 @@ class Decoder(srd.Decoder):
 		{'id': 'suppress', 'name': 'Suppress pulses', 'desc': 'channel 2', 'idn':'dec_mfm_chan_suppress'},
 	)
 	annotations = (
-		('erw', 'erw'),
+		('erw', 'bad pulse'),
 		('unk', 'unknown'),
 		('clk', 'clock'),
 		('dat', 'data'),
-		('erb', 'erb'),
+		('erb', 'bad bit'),
 		('bit', 'bit'),
 		('byt', 'byte'),
 		('mrk', 'mark'),
@@ -150,18 +156,18 @@ class Decoder(srd.Decoder):
 		('rpt', 'report'),
 		('pfx', 'prefix'),
 		('pul', 'pulse'),
-		('erp', 'report'),
+		('erp', 'bad pulse'),
 		('err', 'error'),
 	)
 	annotation_rows = (
-		('pulses', 'Pulses', (13, 14,)),
-		('windows', 'Windows', (0, 1, 2, 3,)),
-		('prefixes', 'Prefixes', (12,)),
-		('bits', 'Bits', (4, 5,)),
-		('bytes', 'Bytes', (6,)),
-		('fields', 'Fields', (7, 8, 9, 10,)),
-		('errors', 'Errors', (15,)),
-		('reports', 'Reports', (11,)),
+		('pulses', 'Pulses', (ann.pul, ann.erp,)),
+		('windows', 'Windows', (ann.erw, ann.unk, ann.clk, ann.dat)),
+		('prefixes', 'Prefixes', (ann.pfx,)),
+		('bits', 'Bits', (ann.erb, ann.bit,)),
+		('bytes', 'Bytes', (ann.byt,)),
+		('fields', 'Fields', (ann.mrk, ann.rec, ann.cre, ann.crc,)),
+		('errors', 'Errors', (ann.err,)),
+		('reports', 'Reports', (ann.rpt,)),
 	)
 	options = (
 		{'id': 'leading_edge', 'desc': 'Leading edge',
