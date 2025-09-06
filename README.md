@@ -24,7 +24,7 @@ or add SIGROKDECODE_DIR environment variable.
 
 Old user instructions are in [documentation](PulseView-MFM-Decoder.wri.md) (needs upating).
 
-### Available sample files
+### Available test sample files
  - [SampleFMdataDig.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/SampleFMdataDig.sr) 3 channels, 15000000 sample rate, 125000 bps, FM encoding, FDD, 256 Sectors, Data CRC 16bit, data poly 0x1021
  - [SampleMFMdataDig.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/SampleMFMdataDig.sr) 3 channels, 15000000 sample rate, 250000 bps, MFM encoding, FDD, 256 Sectors, Data CRC 16bit, data poly 0x1021
  - [MFM_HDDdataDig.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/MFM_HDDdataDig.sr) 3 channels, 100000000 sample rate, 5000000 bps, MFM encoding, HDD, 512 Sectors, Data CRC 32bit, data poly 0xA00805. VAX2000 HDD.
@@ -32,104 +32,110 @@ Old user instructions are in [documentation](PulseView-MFM-Decoder.wri.md) (need
  - [MFM_HDDdataOneSector.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/MFM_HDDdataOneSector.sr) one sector (sec=8) from above capture. ID CRC F38D, Data CRC C1847279
 
 ### Example sigrok-cli command line usage
-- sigrok-cli -D -i MFM_HDDdataOneSector.sr -P mfm -A mfm=bytes:fields
-- sigrok-cli -D -i MFM_HDDdataDig.sr -P mfm:report="DAM (Data Address Mark)":report_qty=19 -A mfm=fields:reports
-- sigrok-cli -D -i SampleFMdataDig.sr -P mfm:data_rate=125000:encoding=FM:type=FDD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields
-- sigrok-cli -D -i SampleMFMdataDig.sr -P mfm:data_rate=250000:encoding=MFM:type=FDD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields
+```sigrok-cli -D -i MFM_HDDdataOneSector.sr -P mfm -A mfm=bytes:fields```  
+```sigrok-cli -D -i MFM_HDDdataDig.sr -P mfm:report="DAM (Data Address Mark)":report_qty=19 -A mfm=fields:reports```  
+```sigrok-cli -D -i SampleFMdataDig.sr -P mfm:data_rate=125000:encoding=FM:type=FDD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields```  
+```sigrok-cli -D -i SampleMFMdataDig.sr -P mfm:data_rate=250000:encoding=MFM:type=FDD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields```  
+```sigrok-cli -D -I csv:logic_channels=3:column_formats=t,l,l,l -i YourHugeSlow.csv -P mfm:option1=value1:option2=value2 -A mfm=annotation1:annotation2```
 
-## Explanation
-- sigrok-cli -D -I csv:logic_channels=3:column_formats=t,l,l,l -i YourHugeSlow.csv -P mfm:option1=value1:option2=value2 -A mfm=annotation1:annotation2
+### Option descriptions
 
-## Options List
-
-### 1. Leading Edge
+1. Leading Edge
 - **ID**: `leading_edge`
 - **Description**: Specifies the edge type for signal detection.
 - **Default**: `rising`
 - **Values**: `rising`, `falling`
 
-### 2. Data Rate
+2. Data Rate
 - **ID**: `data_rate`
 - **Description**: Sets the data rate in bits per second (bps).
 - **Default**: `5000000`
 - **Values**: `125000`, `150000`, `250000`, `300000`, `500000`, `5000000`, `10000000`
 
-### 3. Encoding
+3. Encoding
 - **ID**: `encoding`
 - **Description**: Defines the encoding scheme used.
 - **Default**: `MFM`
 - **Values**: `FM`, `MFM`
 
-### 4. Type
+4. Type
 - **ID**: `type`
 - **Description**: Specifies the type of disk drive.
 - **Default**: `HDD`
 - **Values**: `FDD`, `HDD`
 
-### 5. Sector Length
+5. Sector Length
 - **ID**: `sect_len`
 - **Description**: Sets Sector length in bytes.
 - **Default**: `512`
 - **Values**: `128`, `256`, `512`, `1024`
 
-### 6. Header Bytes
+6. Header Bytes
 - **ID**: `header_bytes`
 - **Description**: Defines the Header length in bytes.
 - **Default**: `8`
 - **Values**: `7`, `8`
 
-### 7. Header Field CRC Bits
+7. Header Field CRC Bits
 - **ID**: `header_crc_bits`
 - **Description**: Specifies Header CRC size in bits.
 - **Default**: `16`
 - **Values**: `16`, `32`
 
-### 8. Header Field CRC Polynomial
+8. Header Field CRC Polynomial
 - **ID**: `header_crc_poly`
 - **Description**: Defines the polynomial used for the header field's CRC calculation. The default is the standard CRC-CCITT polynomial (x16 + x12 + x5 + 1).
 - **Default**: `0x1021`
 
-### 9. Data Field CRC Bits
+9. Data Field CRC Bits
 - **ID**: `data_crc_bits`
 - **Description**: Specifies Data CRC size in bits.
 - **Default**: `32`
 - **Values**: `16`, `32`, `56`
 
-### 10. Data Field CRC Polynomial
+10. Data Field CRC Polynomial
 - **ID**: `data_crc_poly`
 - **Description**: Defines the polynomial used for the data field's CRC calculation.
 - **Default**: `0xA00805`
 - **Values**: `0x1021`, `0xA00805`, `0x140a0445`, `0x0104c981`, `0x41044185`
 
-### 11. Custom Data Polynomial
+11. Custom Data Polynomial
 - **ID**: `data_crc_poly_custom`
 - **Description**: Allows specification of a custom polynomial for the data field's CRC, overriding the `data_crc_poly` setting.
 - **Default**: `` (empty string)
 
-### 12. Display All MFM Prefix Bytes
+12. Display All MFM Prefix Bytes
 - **ID**: `dsply_pfx`
 - **Description**: Determines whether all MFM prefix bytes (A1, C2) with special clock glitch are displayed.
 - **Default**: `no`
 - **Values**: `yes`, `no`
 
-### 13. Display Sample Numbers
+13. Display Sample Numbers
 - **ID**: `dsply_sn`
 - **Description**: Controls whether Pulse sample numbers are displayed.
 - **Default**: `yes`
 - **Values**: `yes`, `no`
 
-### 14. Display Report
+14. Display Report
 - **ID**: `report`
 - **Description**: Show report after specific Mark.
 - **Default**: `Disabled`
 - **Values**: `Disabled`, `IAM (Index Mark)`, `IDAM (ID Address Mark)`, `DAM (Data Address Mark)`, `DDAM (Deleted Data Mark)`
 
-### 15. Report Every X Marks
+15. Report Every X Marks
 - **ID**: `report_qty`
 - **Description**: How many Marks between reports.
 - **Default**: `9`
 
-Available annotations: pulses, windows, prefixes, bits, bytes, fields, errors, reports
+### Annotations
+Available: `pulses`, `windows`, `prefixes`, `bits`, `bytes`, `fields`, `errors`, `reports`, `erw`, `unk`, `clk`, `dat`, `erb`, `bit`, `byt`, `mrk`, `rec`, `cre`, `crc`, `rpt`, `pfx`, `pul`, `erp`, `err`.  
+Lets say you want to just display CRC fields and nothing more
+
+```
+sigrok-cli -D -i test\MFM_HDDdataOneSector.sr -P mfm -A mfm=crc
+mfm-1: CRC OK F38D
+mfm-1: CRC OK C1847279
+```
 
 ## Polynomials
 - 0x1021 x16 + x12 + x5 + 1. Good old CRC-CCITT.
