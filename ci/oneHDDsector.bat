@@ -19,6 +19,7 @@ REM generate test.crc
 "C:\Program Files\sigrok\sigrok-cli\sigrok-cli" -D -i ..\test\MFM_HDDdataOneSector.sr -P mfm:dsply_pfx=yes:dsply_sn=yes |"C:\Program Files\7-Zip\7z" h -si |findstr data |for /f "tokens=4 delims= " %%G in ('more') do @echo %%G> test.crc
 set /p test=<test.crc
 set test=%test: =%
+del test.crc
 
 IF "%MFM_HDDdataOneSector%"=="%test%" (
     echo OK %MFM_HDDdataOneSector% = %test%
@@ -36,5 +37,3 @@ IF "%MFM_HDDdataOneSector%"=="%test%" (
 ) ELSE (
     echo OK %MFM_HDDdataOneSector% != %test%
 )
-
-del test.crc
