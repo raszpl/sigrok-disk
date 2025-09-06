@@ -67,7 +67,7 @@ import sigrokdecode as srd
 from collections import deque
 from array import *
 from struct import *
-from enum import Enum#, auto not supported in python34 :|
+from enum import Enum#, auto not supported in python34, nor are switch statements :|
 import binascii	# only for debugging
 
 # ----------------------------------------------------------------------------
