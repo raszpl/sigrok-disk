@@ -127,7 +127,7 @@ class Decoder(srd.Decoder):
 	license = 'gplv3+'
 	inputs = ['logic']
 	outputs = ['mfm']
-	tags = ['Disk', 'PC']
+	tags = ['Disk', 'PC', 'Retro computing']
 	channels = (
 		{'id': 'data', 'name': 'Read data', 'desc': 'channel 0', 'idn':'dec_mfm_chan_data'},
 	)
