@@ -165,6 +165,7 @@ Now try CRC32-CCSDS x32 + x23 + x21 + x11 + x2 + 1
 - https://reveng.sourceforge.io/ CRC RevEng: arbitrary-precision CRC calculator and algorithm finder
 - https://github.com/dgesswein/mfm and https://www.pdp8online.com/mfm/ BeagleBone based MFM Hard Disk Reader/Emulator
 - https://github.com/Tronix286/MFM-Hard-Disk-Dumper Pi Pico MFM Hard Disk Dumper
+- https://github.com/MajenkoProjects/RTmFM Pi Pico based MFM Hard Disk Emulator, early work in progress
 
 ## Caveats
  - some data sets require modifications to the interval thresholds and
