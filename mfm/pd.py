@@ -124,7 +124,7 @@ class Decoder(srd.Decoder):
 	name = 'MFM'
 	longname = 'FM/MFM decoding'
 	desc = 'Decode floppy and hard disk FM or MFM pulse stream.'
-	license = 'gplv2+'
+	license = 'gplv3+'
 	inputs = ['logic']
 	outputs = ['mfm']
 	tags = ['Disk', 'PC']
