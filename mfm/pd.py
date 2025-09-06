@@ -456,22 +456,19 @@ class Decoder(srd.Decoder):
 			shift3 = ((shift3 & 0x03) << 1) + (1 if win_val > 1 else win_val)
 
 			if bitn > 0:
-				if self.dsply_sn:
-					if win_val > 1:
-						self.put(win_end - 1, win_end, self.out_ann, [15, ['Err']])
-						self.put(win_start, win_end, self.out_ann,
-								[0, ['%d d (extra pulse in win) s%d' % (win_val, win_start), '%d' % win_val]])
+				if win_val > 1:
+					self.put(win_end - 1, win_end, self.out_ann, self.error_annotation)
+					if self.dsply_sn:
+						annotate = [ann.erw, ['%d d (extra pulse in win) s%d' % (win_val, win_start), '%d' % win_val]]
 					else:
-						self.put(win_start, win_end, self.out_ann,
-								[3, ['%d d s%d' % (win_val, win_start), '%d' % win_val]])
+						annotate = [ann.erw, ['%d d (extra pulse in win)' % win_val, '%d' % win_val]]
 				else:
-					if win_val > 1:
-						self.put(win_end - 1, win_end, self.out_ann, [15, ['Err']])
-						self.put(win_start, win_end, self.out_ann,
-								[0, ['%d d (extra pulse in win)' % win_val, '%d' % win_val]])
+					if self.dsply_sn:
+						annotate = [ann.dat, ['%d d s%d' % (win_val, win_start), '%d' % win_val]]
 					else:
-						self.put(win_start, win_end, self.out_ann,
-								[3, ['%d d' % win_val, '%d' % win_val]])
+						annotate = [ann.dat, ['%d d' % win_val, '%d' % win_val]]
+						
+				self.put(win_start, win_end, self.out_ann, annotate)
 
 			bit_end = win_end
 			bit_val = 1 if win_val > 1 else win_val
