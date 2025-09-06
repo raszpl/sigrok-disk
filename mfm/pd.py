@@ -607,7 +607,7 @@ class Decoder(srd.Decoder):
 			self.put(self.field_start, self.byte_end, self.out_ann,
 					 [10, ['CRC OK %02X' % self.crc_accum, 'CRC OK', 'CRC', 'C']])
 			if self.report_last in (field.Deleted_Data_Mark, field.Data_Address_Mark):
-				self.display_report()
+				self.display_report() # called in CRC message so we know when Data_Mark ended
 
 		elif typ == field.CRC_Error:
 			self.CRC_err += 1
@@ -615,7 +615,7 @@ class Decoder(srd.Decoder):
 			self.put(self.field_start, self.byte_end, self.out_ann,
 					 [9, ['CRC error %02X' % self.crc_accum, 'CRC error', 'CRC', 'C']])
 			if self.report_last in (field.Deleted_Data_Mark, field.Data_Address_Mark):
-				self.display_report()
+				self.display_report() # called in CRC message so we know when Data_Mark ended
 
 		elif typ == field.Unknown_Byte:
 			self.put(self.byte_end - 1, self.byte_end, self.out_ann, [15, ['Error', 'Err', 'E']])
