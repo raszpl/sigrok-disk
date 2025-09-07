@@ -144,7 +144,7 @@ class Decoder(srd.Decoder):
 	desc = 'Decode floppy and hard disk FM or MFM pulse stream.'
 	license = 'gplv3+'
 	inputs = ['logic']
-	outputs = ['mfm']
+	outputs = []
 	tags = ['Disk', 'PC', 'Retro computing']
 	channels = (
 		{'id': 'data', 'name': 'Read data', 'desc': 'channel 0', 'idn':'dec_mfm_chan_data'},
