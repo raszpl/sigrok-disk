@@ -109,6 +109,18 @@ class field(Enum):
 	CRC_Error			= 8		#auto()
 	Unknown_Byte		= 9		#auto()
 
+# Synchronisation marks implemented by omitting some clock pulses.
+# FM:
+#	FCh with D7h (11010111) clock	IAM		Index Mark
+#	FEh with C7h (11000111) clock	IDAM	ID Address Mark
+#	FBh with C7h clock				DAM		Data Address Mark
+#	F8h..FAh with C7h clock 		DDAM	Deleted Data Address Mark
+# MFM:
+#	C2h no clock between bits 3/4
+#	A1h no clock between bits 4/5
+class special(Enum):
+	clock		= True		
+
 ann = SrdIntEnum.from_str('Ann', 'erw unk clk dat erb bit byt mrk rec cre crc rpt pfx pul erp err ')
 #{ann.erw: 0, unk: 1, clk: 2, dat: 3, erb: 4, bit: 5, byt: 6, mrk: 7,
 #rec: 8, cre: 9, crc: 10, rpt: 11, pfx: 12, pul: 13, erp: 14, err: 15}
@@ -417,13 +429,13 @@ class Decoder(srd.Decoder):
 	#	 the last bit (lsb, bit 0) of the current byte.
 	#  - Need to use a while loop instead of a for loop due to some strange bug,
 	#	 possibly in Python itself?
-	# IN: spclk	 True = special clocking, don't display clock errors to stderr
-	#			 False = normal clocking, display clock errors to stderr
+	# IN: special_clock	True = special clocking, don't generate error
+	#					False or omitted = normal clocking, generate error
 	#	  self.fifo_rp, self.fifo_cnt
 	# OUT: self.byte_start, self.byte_end, self.fifo_rp, self.fifo_cnt updated
 	# ------------------------------------------------------------------------
 
-	def display_bits(self, spclk):
+	def display_bits(self, special_clock):
 		# Define (and initialize) function variables.
 
 		win_start = 0			# start of window (sample number)
@@ -479,7 +491,7 @@ class Decoder(srd.Decoder):
 			if bitn < 8:
 				if ((not self.encodingFM) and (shift3 == 0 or shift3 == 3 or shift3 == 6 or shift3 == 7)) \
 				 or (	 self.encodingFM  and (shift3 == 0 or shift3 == 1 or shift3 == 4 or shift3 == 5)):
-					if not spclk:
+					if not special_clock:
 						self.put(bit_end - 1, bit_end, self.out_ann, [15, ['Err']])
 						self.CkEr += 1
 					self.put(bit_start, bit_end, self.out_ann, [4, ['%d (clock error)' % bit_val, '%d' % bit_val]])
@@ -531,16 +543,16 @@ class Decoder(srd.Decoder):
 	#  - On entry the FIFO must have exactly 33 or 17 entries in it, and on
 	#	 exit the FIFO will have 16 fewer entries in it (17 or 1).
 	# IN: val  byte value (00h..FFh)
-	#	  spclk	 True = special clocking, don't display clock errors to stderr
-	#			 False = normal clocking, display clock errors to stderr
+	#	  special_clock	True = special clocking, don't generate error
+	#					False or omitted = normal clocking, generate error
 	#	  self.fifo_rp
 	# OUT: self.byte_start, self.byte_end, self.fifo_rp	 updated
 	# ------------------------------------------------------------------------
 
-	def display_byte(self, val, spclk):
+	def display_byte(self, val, special_clock = False):
 		# Display annotations for windows and bits of this byte.
 
-		self.display_bits(spclk)
+		self.display_bits(special_clock)
 
 		# Display annotation for this byte.
 
@@ -707,8 +719,8 @@ class Decoder(srd.Decoder):
 			self.pb_state = state.FCh_Index_Mark
 
 		if self.pb_state == state.ID_Address_Mark:
-			self.display_byte(0x00, False)
-			self.display_byte(0xFE, True)
+			self.display_byte(0x00)
+			self.display_byte(0xFE, special.clock)
 			self.IDmark = (val & 0x0FF)
 			self.field_start = self.byte_start
 			self.display_field(field.ID_Address_Mark)
@@ -718,7 +730,7 @@ class Decoder(srd.Decoder):
 			self.pb_state = state.ID_Record
 
 		elif self.pb_state == state.ID_Record:
-			self.display_byte(val, False)
+			self.display_byte(val)
 			self.IDrec[self.header_bytes - 4 - self.byte_cnt] = val
 			self.decode_id_rec(self.byte_cnt, val)
 			self.byte_cnt -= 1
@@ -728,7 +740,7 @@ class Decoder(srd.Decoder):
 				self.pb_state = state.ID_Record_CRC
 
 		elif self.pb_state == state.ID_Record_CRC:
-			self.display_byte(val, False)
+			self.display_byte(val)
 			self.IDcrc <<= 8
 			self.IDcrc += val
 			self.byte_cnt -= 1
@@ -742,8 +754,8 @@ class Decoder(srd.Decoder):
 				self.pb_state = state.first_gap_Byte
 
 		elif self.pb_state == state.Data_Address_Mark:
-			self.display_byte(0x00, False)
-			self.display_byte(val, True)
+			self.display_byte(0x00)
+			self.display_byte(val, special.clock)
 			self.DRmark = val
 			self.field_start = self.byte_start
 			self.display_field(field.Data_Address_Mark)
@@ -755,7 +767,7 @@ class Decoder(srd.Decoder):
 			self.pb_state = state.Data_Record
 
 		elif self.pb_state == state.Data_Record:
-			self.display_byte(val, False)
+			self.display_byte(val)
 			self.DRrec[self.sector_len - self.byte_cnt] = val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
@@ -764,7 +776,7 @@ class Decoder(srd.Decoder):
 				self.pb_state = state.Data_Record_CRC
 
 		elif self.pb_state == state.Data_Record_CRC:
-			self.display_byte(val, False)
+			self.display_byte(val)
 			self.DRcrc <<= 8
 			self.DRcrc += val
 			self.byte_cnt -= 1
@@ -777,14 +789,14 @@ class Decoder(srd.Decoder):
 				self.pb_state = state.first_gap_Byte
 
 		elif self.pb_state == state.FCh_Index_Mark:
-			self.display_byte(0x00, False)
-			self.display_byte(0xFC, True)
+			self.display_byte(0x00)
+			self.display_byte(0xFC, special.clock)
 			self.field_start = self.byte_start
 			self.display_field(field.FCh_Index_Mark)
 			self.pb_state = state.first_gap_Byte
 
 		elif self.pb_state == state.first_gap_Byte:	# process first gap byte after CRC or Index Mark
-			self.display_byte(val, False)
+			self.display_byte(val)
 			return -1								# done, unsync
 
 		else:
@@ -816,8 +828,8 @@ class Decoder(srd.Decoder):
 			self.pb_state = state.first_mC2h_prefix
 
 		if self.pb_state == state.first_mA1h_prefix:
-			self.display_byte(0x00, False)
-			self.display_byte(0xA1, True)
+			self.display_byte(0x00)
+			self.display_byte(0xA1, special.clock)
 			self.A1 = [0xA1]
 			self.field_start = self.byte_start
 			if self.fdd:
@@ -827,7 +839,7 @@ class Decoder(srd.Decoder):
 
 		elif self.pb_state in (state.second_mA1h_prefix, state.third_mA1h_prefix):
 			if val == 0x2A1:
-				self.display_byte(0xA1, True)
+				self.display_byte(0xA1, special.clock)
 				self.A1.append(0xA1)
 				if self.pb_state == state.second_mA1h_prefix:
 					self.pb_state = state.third_mA1h_prefix
@@ -840,7 +852,7 @@ class Decoder(srd.Decoder):
 		elif self.pb_state == state.IDData_Address_Mark:
 			if (self.header_bytes == 8 and val == 0xFE) or \
 			   (self.header_bytes == 7 and (val & 0xFC) == 0xFC):	# FEh FC-FFh ID Address Mark
-				self.display_byte(val, False)
+				self.display_byte(val)
 				self.IDmark = val
 				self.display_field(field.ID_Address_Mark)
 				self.IDlastAM = self.field_start
@@ -848,7 +860,7 @@ class Decoder(srd.Decoder):
 				self.byte_cnt = self.header_bytes - 4
 				self.pb_state = state.ID_Record
 			elif val >= 0xF8 and val <= 0xFB:						# F8h..FBh Data Address Mark
-				self.display_byte(val, False)
+				self.display_byte(val)
 				self.DRmark = val
 				self.display_field(field.Data_Address_Mark)
 				if self.IDlastAM > 0 \
@@ -862,7 +874,7 @@ class Decoder(srd.Decoder):
 				return -1
 
 		elif self.pb_state == state.ID_Record:
-			self.display_byte(val, False)
+			self.display_byte(val)
 			self.IDrec[self.header_bytes - 4 - self.byte_cnt] = val
 			self.decode_id_rec(self.byte_cnt, val)
 			self.byte_cnt -= 1
@@ -872,7 +884,7 @@ class Decoder(srd.Decoder):
 				self.pb_state = state.ID_Record_CRC
 
 		elif self.pb_state == state.ID_Record_CRC:
-			self.display_byte(val, False)
+			self.display_byte(val)
 			self.IDcrc <<= 8
 			self.IDcrc += val
 			self.byte_cnt -= 1
@@ -886,7 +898,7 @@ class Decoder(srd.Decoder):
 				self.pb_state = state.first_gap_Byte
 
 		elif self.pb_state == state.Data_Record:
-			self.display_byte(val, False)
+			self.display_byte(val)
 			self.DRrec[self.sector_len - self.byte_cnt] = val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
@@ -895,7 +907,7 @@ class Decoder(srd.Decoder):
 				self.pb_state = state.Data_Record_CRC
 
 		elif self.pb_state == state.Data_Record_CRC:
-			self.display_byte(val, False)
+			self.display_byte(val)
 			self.DRcrc <<= 8
 			self.DRcrc += val
 			self.byte_cnt -= 1
@@ -908,14 +920,14 @@ class Decoder(srd.Decoder):
 				self.pb_state = state.first_gap_Byte
 
 		elif self.pb_state == state.first_mC2h_prefix:
-			self.display_byte(0x00, False)
-			self.display_byte(0xC2, True)
+			self.display_byte(0x00)
+			self.display_byte(0xC2, special.clock)
 			self.field_start = self.byte_start
 			self.pb_state = state.second_mC2h_prefix
 
 		elif self.pb_state in (state.second_mC2h_prefix, state.third_mC2h_prefix):
 			if val == 0x2C2:
-				self.display_byte(0xC2, True)
+				self.display_byte(0xC2, special.clock)
 				if self.pb_state == state.second_mC2h_prefix:
 					self.pb_state = state.third_mC2h_prefix
 				elif self.pb_state == state.third_mC2h_prefix:
@@ -926,7 +938,7 @@ class Decoder(srd.Decoder):
 
 		elif self.pb_state == state.FCh_Index_Mark:
 			if val == 0xFC:
-				self.display_byte(val, False)
+				self.display_byte(val)
 				self.display_field(field.FCh_Index_Mark)
 				self.pb_state = state.first_gap_Byte
 			else:
@@ -934,7 +946,7 @@ class Decoder(srd.Decoder):
 				return -1
 
 		elif self.pb_state == state.first_gap_Byte:	# process first gap byte after CRC or Index Mark
-			self.display_byte(val, False)
+			self.display_byte(val)
 			return -1								# done, unsync
 
 		else:
