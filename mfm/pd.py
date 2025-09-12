@@ -68,8 +68,8 @@ from collections import deque
 from array import *
 from struct import *
 from enum import Enum#, auto not supported in python34, nor are switch statements :|
+from types import SimpleNamespace # nicer class.key access
 from common.srdhelper import SrdIntEnum
-import binascii	# only for debugging
 
 # ----------------------------------------------------------------------------
 # Enums
@@ -121,9 +121,25 @@ class field(Enum):
 class special(Enum):
 	clock		= True		
 
-ann = SrdIntEnum.from_str('Ann', 'erw unk clk dat erb bit byt mrk rec cre crc rpt pfx pul erp err ')
+ann = SrdIntEnum.from_str('Ann', 'clk dat byt bit mrk rec crc cre rpt pfx pul erp erw unk erb err')
+#ann.clk 0 dat 1 byt 2 bit 3 mrk 4 rec 5 crc 6 cre 7
+#rpt 8 pfx 9 pul 10 erp 11 erw 12 unk 13 erb 14 err 15
+
 #{ann.erw: 0, unk: 1, clk: 2, dat: 3, erb: 4, bit: 5, byt: 6, mrk: 7,
 #rec: 8, cre: 9, crc: 10, rpt: 11, pfx: 12, pul: 13, erp: 14, err: 15}
+
+
+# common messages
+message = SimpleNamespace(
+	error		= [ann.err, ['Error', 'Err', 'E']],
+	iam			= [ann.mrk, ['Index Mark', 'IAM', 'I']],
+	idam		= [ann.mrk, ['ID Address Mark', 'IDAM', 'M']],
+	dam			= [ann.mrk, ['Data Address Mark', 'Data Mark', 'DAM', 'M']],
+	ddam		= [ann.mrk, ['Deleted Data Address Mark', 'Deleted Data Mark', 'DDAM', 'M']],
+	drec		= [ann.rec, ['Data Record', 'Drec', 'R']],
+	prefixA1	= [ann.pfx, ['A1']],
+	prefixC2	= [ann.pfx, ['C2']],
+)
 
 # ----------------------------------------------------------------------------
 # PURPOSE: Handle missing sample rate.
@@ -154,30 +170,30 @@ class Decoder(srd.Decoder):
 		{'id': 'suppress', 'name': 'Suppress pulses', 'desc': 'channel 2', 'idn':'dec_mfm_chan_suppress'},
 	)
 	annotations = (
-		('erw', 'bad pulse'),
-		('unk', 'unknown'),
 		('clk', 'clock'),
 		('dat', 'data'),
-		('erb', 'bad bit'),
-		('bit', 'bit'),
 		('byt', 'byte'),
+		('bit', 'bit'),
 		('mrk', 'mark'),
 		('rec', 'record'),
-		('cre', 'crc error'),
 		('crc', 'crc'),
+		('cre', 'crc error'),
 		('rpt', 'report'),
 		('pfx', 'prefix'),
 		('pul', 'pulse'),
 		('erp', 'bad pulse'),
+		('erw', 'extra pulse'),
+		('unk', 'unknown'),
+		('erb', 'bad bit'),
 		('err', 'error'),
 	)
 	annotation_rows = (
 		('pulses', 'Pulses', (ann.pul, ann.erp,)),
-		('windows', 'Windows', (ann.erw, ann.unk, ann.clk, ann.dat)),
+		('windows', 'Windows', (ann.clk, ann.dat, ann.erw, ann.unk,)),
 		('prefixes', 'Prefixes', (ann.pfx,)),
 		('bits', 'Bits', (ann.erb, ann.bit,)),
 		('bytes', 'Bytes', (ann.byt,)),
-		('fields', 'Fields', (ann.mrk, ann.rec, ann.cre, ann.crc,)),
+		('fields', 'Fields', (ann.mrk, ann.rec, ann.crc, ann.cre,)),
 		('errors', 'Errors', (ann.err,)),
 		('reports', 'Reports', (ann.rpt,)),
 	)
@@ -211,7 +227,7 @@ class Decoder(srd.Decoder):
 		{'id': 'dsply_sn', 'desc': 'Display sample numbers',
 			'default': 'yes', 'values': ('yes', 'no')},
 		{'id': 'report', 'desc': 'Display report after',
-			'default': 'Disabled', 'values': ('Disabled', 'IAM (Index Mark)', 'IDAM (ID Address Mark)', 'DAM (Data Address Mark)', 'DDAM (Deleted Data Mark)')},
+			'default': 'no', 'values': ('no', 'IAM', 'IDAM', 'DAM', 'DDAM')},
 		{'id': 'report_qty', 'desc': 'Report every x Marks',
 			'default': '9'},
 	)
@@ -295,7 +311,7 @@ class Decoder(srd.Decoder):
 	def start(self):
 		self.out_ann = self.register(srd.OUTPUT_ANN)
 
-		# Initialize options selected by the user in the dialog box.
+		# Initialize user options.
 
 		self.rising_edge = True if self.options['leading_edge'] == 'rising' else False
 		self.data_rate = float(self.options['data_rate'])
@@ -312,11 +328,11 @@ class Decoder(srd.Decoder):
 		self.dsply_pfx = True if self.options['dsply_pfx'] == 'yes' else False
 		self.dsply_sn = True if self.options['dsply_sn'] == 'yes' else False
 
-		self.report = {'Disabled':'nope', 
-						'IAM (Index Mark)':field.FCh_Index_Mark,
-						'IDAM (ID Address Mark)':field.ID_Address_Mark,
-						'DAM (Data Address Mark)':field.Data_Address_Mark,
-						'DDAM (Deleted Data Mark)':field.Deleted_Data_Mark}[self.options['report']]
+		self.report = {'no':'no', 
+						'IAM':field.FCh_Index_Mark,
+						'IDAM':field.ID_Address_Mark,
+						'DAM':field.Data_Address_Mark,
+						'DDAM':field.Deleted_Data_Mark}[self.options['report']]
 		self.report_qty = int(self.options['report_qty'])
 		self.reports_called = 0
 
@@ -372,8 +388,6 @@ class Decoder(srd.Decoder):
 			crc_mask	= self.data_crc_mask
 			crc_poly	= self.data_crc_poly
 
-		#self.put(0, 0, self.out_ann, [9, ['bytearray ' + binascii.hexlify(bytearray).decode('ascii')]])
-
 		if crc_poly == 0x1021 and crc_bits == 16:
 			# fast lookup table for CRC-16-CCITT
 			for byte in bytearray:
@@ -393,8 +407,6 @@ class Decoder(srd.Decoder):
 						crc_accum ^= crc_poly
 						crc_accum &= crc_mask
 
-		#self.put(0, 0, self.out_ann, [9, ['crc_accum afte %02X' % crc_accum]])
-		#self.put(0, 0, self.out_ann, [9, ['self.IDcrc %02X' % self.IDcrc]])
 		self.crc_accum = crc_accum
 
 	# ------------------------------------------------------------------------
@@ -469,7 +481,7 @@ class Decoder(srd.Decoder):
 
 			if bitn > 0:
 				if win_val > 1:
-					self.put(win_end - 1, win_end, self.out_ann, self.error_annotation)
+					self.put(win_end - 1, win_end, self.out_ann, message.error)
 					if self.dsply_sn:
 						annotate = [ann.erw, ['%d d (extra pulse in win) s%d' % (win_val, win_start), '%d' % win_val]]
 					else:
@@ -492,11 +504,11 @@ class Decoder(srd.Decoder):
 				if ((not self.encodingFM) and (shift3 == 0 or shift3 == 3 or shift3 == 6 or shift3 == 7)) \
 				 or (	 self.encodingFM  and (shift3 == 0 or shift3 == 1 or shift3 == 4 or shift3 == 5)):
 					if not special_clock:
-						self.put(bit_end - 1, bit_end, self.out_ann, [15, ['Err']])
+						self.put(bit_end - 1, bit_end, self.out_ann, message.error)
 						self.CkEr += 1
-					self.put(bit_start, bit_end, self.out_ann, [4, ['%d (clock error)' % bit_val, '%d' % bit_val]])
+					self.put(bit_start, bit_end, self.out_ann, [ann.erb, ['%d (clock error)' % bit_val, '%d' % bit_val]])
 				else:
-					self.put(bit_start, bit_end, self.out_ann, [5, ['%d' % bit_val]])
+					self.put(bit_start, bit_end, self.out_ann, [ann.bit, ['%d' % bit_val]])
 
 			if bitn == 0:
 				break
@@ -512,20 +524,20 @@ class Decoder(srd.Decoder):
 
 			if self.dsply_sn:
 				if win_val > 1:
-					self.put(win_end - 1, win_end, self.out_ann, [15, ['Err']])
+					self.put(win_end - 1, win_end, self.out_ann, message.error)
 					self.put(win_start, win_end, self.out_ann,
-							 [0, ['%d c (extra pulse in win) s%d' % (win_val, win_start), '%d' % win_val]])
+							 [ann.erw, ['%d c (extra pulse in win) s%d' % (win_val, win_start), '%d' % win_val]])
 				else:
 					self.put(win_start, win_end, self.out_ann,
-							 [2, ['%d c s%d' % (win_val, win_start), '%d' % win_val]])
+							 [ann.clk, ['%d c s%d' % (win_val, win_start), '%d' % win_val]])
 			else:
 				if win_val > 1:
-					self.put(win_end - 1, win_end, self.out_ann, [15, ['Err']])
+					self.put(win_end - 1, win_end, self.out_ann, message.error)
 					self.put(win_start, win_end, self.out_ann,
-							 [0, ['%d c (extra pulse in win)' % win_val, '%d' % win_val]])
+							 [ann.erw, ['%d c (extra pulse in win)' % win_val, '%d' % win_val]])
 				else:
 					self.put(win_start, win_end, self.out_ann,
-							 [2, ['%d c' % win_val, '%d' % win_val]])
+							 [ann.clk, ['%d c' % win_val, '%d' % win_val]])
 
 			bit_start = win_start
 			if self.byte_start == -1:
@@ -563,7 +575,7 @@ class Decoder(srd.Decoder):
 			long_ann = short_ann
 
 		self.put(self.byte_start, self.byte_end, self.out_ann,
-				 [6, [long_ann, short_ann]])
+				 [ann.byt, [long_ann, short_ann]])
 
 	# ------------------------------------------------------------------------
 	# Display an annotation for a field.
@@ -575,8 +587,7 @@ class Decoder(srd.Decoder):
 	def display_field(self, typ, val=0):
 		if typ == field.FCh_Index_Mark:
 			self.IAMs += 1
-			self.put(self.field_start, self.byte_end, self.out_ann,
-					 [7, ['Index Mark', 'IAM', 'I']])
+			self.put(self.field_start, self.byte_end, self.out_ann, message.iam)
 			self.report_last = field.FCh_Index_Mark
 			if self.report == field.FCh_Index_Mark:
 				self.reports_called = self.IAMs
@@ -584,8 +595,7 @@ class Decoder(srd.Decoder):
 
 		elif typ == field.ID_Address_Mark:
 			self.IDAMs += 1
-			self.put(self.field_start, self.byte_end, self.out_ann,
-					 [7, ['ID Address Mark', 'IDAM', 'M']])
+			self.put(self.field_start, self.byte_end, self.out_ann, message.idam)
 			self.report_last = field.ID_Address_Mark
 			if self.report == field.ID_Address_Mark:
 				self.reports_called = self.IDAMs
@@ -594,46 +604,43 @@ class Decoder(srd.Decoder):
 		elif typ == field.Data_Address_Mark:
 			if self.fdd and self.DRmark in (0xF8, 0xF9, 0xFA): 
 				self.DDAMs += 1
-				self.put(self.field_start, self.byte_end, self.out_ann,
-						[7, ['Deleted Data Address Mark', 'Deleted Data Mark', 'DDAM', 'M']])
+				self.put(self.field_start, self.byte_end, self.out_ann, message.ddam)
 				self.report_last = field.Deleted_Data_Mark
 				if self.report == field.Deleted_Data_Mark:
 					self.reports_called = self.DDAMs
 			else:
 				self.DAMs += 1
-				self.put(self.field_start, self.byte_end, self.out_ann,
-						[7, ['Data Address Mark', 'Data Mark', 'DAM', 'M']])
+				self.put(self.field_start, self.byte_end, self.out_ann, message.dam)
 				self.report_last = field.Data_Address_Mark
 				if self.report == field.Data_Address_Mark:
 					self.reports_called = self.DAMs
 
 		elif typ == field.ID_Record:
 			self.put(self.field_start, self.byte_end, self.out_ann,
-					 [8, ['ID Record: cyl=%d, sid=%d, sec=%d, len=%d' %
+					 [ann.rec, ['ID Record: cyl=%d, sid=%d, sec=%d, len=%d' %
 						  (self.IDcyl, self.IDsid, self.IDsec, self.IDlenv),
 						  'ID Record', 'Irec', 'R']])
 
 		elif typ == field.Data_Record:
-			self.put(self.field_start, self.byte_end, self.out_ann,
-					 [8, ['Data Record', 'Drec', 'R']])
+			self.put(self.field_start, self.byte_end, self.out_ann, message.drec)
 
 		elif typ == field.CRC_Ok:
 			self.CRC_OK += 1
 			self.put(self.field_start, self.byte_end, self.out_ann,
-					 [10, ['CRC OK %02X' % self.crc_accum, 'CRC OK', 'CRC', 'C']])
+					 [ann.crc, ['CRC OK %02X' % self.crc_accum, 'CRC OK', 'CRC', 'C']])
 			if self.report_last in (field.Deleted_Data_Mark, field.Data_Address_Mark):
 				self.display_report() # called in CRC message so we know when Data_Mark ended
 
 		elif typ == field.CRC_Error:
 			self.CRC_err += 1
-			self.put(self.byte_end - 1, self.byte_end, self.out_ann, [15, ['Error', 'Err', 'E']])
+			self.put(self.byte_end - 1, self.byte_end, self.out_ann, message.error)
 			self.put(self.field_start, self.byte_end, self.out_ann,
-					 [9, ['CRC error %02X' % self.crc_accum, 'CRC error', 'CRC', 'C']])
+					 [ann.cre, ['CRC error %02X' % self.crc_accum, 'CRC error', 'CRC', 'C']])
 			if self.report_last in (field.Deleted_Data_Mark, field.Data_Address_Mark):
 				self.display_report() # called in CRC message so we know when Data_Mark ended
 
 		elif typ == field.Unknown_Byte:
-			self.put(self.byte_end - 1, self.byte_end, self.out_ann, [15, ['Error', 'Err', 'E']])
+			self.put(self.byte_end - 1, self.byte_end, self.out_ann, message.error)
 
 		self.field_start = self.byte_end
 
@@ -963,7 +970,7 @@ class Decoder(srd.Decoder):
 			return
 
 		self.put(self.report_start, self.byte_end, self.out_ann,
-			[11, ["Summary: IAM=%d, IDAM=%d, DAM=%d, DDAM=%d, CRC_OK=%d, "\
+			[ann.rpt, ["Summary: IAM=%d, IDAM=%d, DAM=%d, DDAM=%d, CRC_OK=%d, "\
 				"CRC_err=%d, EiPW=%d, CkEr=%d, OoTI=%d/%d" \
 				% (self.IAMs, self.IDAMs, self.DAMs, self.DDAMs, self.CRC_OK,\
 				self.CRC_err, self.EiPW, self.CkEr, self.OoTI, self.Intrvls)]])
@@ -1100,12 +1107,12 @@ class Decoder(srd.Decoder):
 				window_size = window_size_filter_accum / 32.0
 				if self.last_samplenum is not None:
 					self.put(self.last_samplenum, self.samplenum, self.out_ann,
-							 [13, ['s%d i%dns' % (self.last_samplenum, interval_nsec), 'i%dns' % (interval_nsec)]])
+							 [ann.pul, ['s%d i%dns' % (self.last_samplenum, interval_nsec), 'i%dns' % (interval_nsec)]])
 			else:
 				if self.last_samplenum is not None:
 					self.put(self.last_samplenum, self.samplenum, self.out_ann,
-							 [14, ['s%d i%dns OoTI' % (self.last_samplenum, interval_nsec)]])
-					self.put(self.samplenum - 1, self.samplenum, self.out_ann, [15, ['Error', 'Err', 'E']])
+							 [ann.erp, ['s%d i%dns OoTI' % (self.last_samplenum, interval_nsec)]])
+					self.put(self.samplenum - 1, self.samplenum, self.out_ann, message.error)
 
 			# --- Process half-bit-cell windows until current edge falls inside.
 
@@ -1153,9 +1160,9 @@ class Decoder(srd.Decoder):
 
 				if (not self.encodingFM) and self.dsply_pfx:
 					if (shift31 & 0xFFFF) == 0x4489:
-						self.put(win_start, win_end, self.out_ann, [12, ['A1']])
+						self.put(win_start, win_end, self.out_ann, message.prefixA1)
 					elif (shift31 & 0xFFFF) == 0x5224:
-						self.put(win_start, win_end, self.out_ann, [12, ['C2']])
+						self.put(win_start, win_end, self.out_ann, message.prefixC2)
 
 				# Store start/end of current window and its value into FIFO.
 
@@ -1291,33 +1298,33 @@ class Decoder(srd.Decoder):
 						if self.dsply_sn:
 							if win_val > 1:
 								self.put(win_start, win_end, self.out_ann,
-										[0, ['%d d (extra pulse in win) s%d' % (win_val, win_start), '%d' % win_val]])
+										[ann.erw, ['%d d (extra pulse in win) s%d' % (win_val, win_start), '%d' % win_val]])
 							else:
 								self.put(win_start, win_end, self.out_ann,
-										[3, ['%d d s%d' % (win_val, win_start), '%d' % win_val]])
+										[ann.dat, ['%d d s%d' % (win_val, win_start), '%d' % win_val]])
 						else:
 							if win_val > 1:
 								self.put(win_start, win_end, self.out_ann,
-										[0, ['%d d (extra pulse in win)' % win_val, '%d' % win_val]])
+										[ann.erw, ['%d d (extra pulse in win)' % win_val, '%d' % win_val]])
 							else:
 								self.put(win_start, win_end, self.out_ann,
-										[3, ['%d d' % win_val, '%d' % win_val]])
+										[ann.dat, ['%d d' % win_val, '%d' % win_val]])
 						win_sync = False
 					else:
 						if self.dsply_sn:
 							if win_val > 1:
 								self.put(win_start, win_end, self.out_ann,
-										[0, ['%d (extra pulse in win) s%d' % (win_val, win_start), '%d' % win_val]])
+										[ann.erw, ['%d (extra pulse in win) s%d' % (win_val, win_start), '%d' % win_val]])
 							else:
 								self.put(win_start, win_end, self.out_ann,
-										[1, ['%d s%d' % (win_val, win_start), '%d' % win_val]])
+										[ann.unk, ['%d s%d' % (win_val, win_start), '%d' % win_val]])
 						else:
 							if win_val > 1:
 								self.put(win_start, win_end, self.out_ann,
-										[0, ['%d (extra pulse in win)' % win_val, '%d' % win_val]])
+										[ann.erw, ['%d (extra pulse in win)' % win_val, '%d' % win_val]])
 							else:
 								self.put(win_start, win_end, self.out_ann,
-										[1, ['%d' % win_val]])
+										[ann.unk, ['%d' % win_val]])
 
 				# Toggle clock vs. data state.
 
