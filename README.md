@@ -73,7 +73,11 @@ Old user instructions are in [documentation](PulseView-MFM-Decoder.wri.md) (need
 `data_crc_poly_custom` Custom Data Field Polynomial, overrides `data_crc_poly` setting.  
 **Default**: `` (empty string)
 
+<<<<<<< HEAD
 `dsply_pfx` Display all MFM C2 and A1 prefix bytes (encoded with special glitched clock) to help with locating damaged records.  
+=======
+`dsply_pfx` Display All MFM Prefix Bytes determines whether all MFM synchronization marks (prefix bytes A1, C2) with special clock glitch are displayed.  
+>>>>>>> 7e31175dac87aff33531185f5013c1cfc4fdb0fb
 **Default**: `no` **Values**: `yes`, `no`
 
 `dsply_sn` Display Sample Numbers controls whether Window (bit/clock) sample numbers are displayed.  
@@ -89,7 +93,11 @@ Old user instructions are in [documentation](PulseView-MFM-Decoder.wri.md) (need
 Can use groupings like 'fields' or individual ones for example just 'crc'.  
 `pulses` includes `pul` (pulse), `erp` (bad pulse = out-of-tolerance leading edge)  
 `windows` includes `clk` (clock), `dat` (data), `erw` (extra pulse in win), `unk`  
+<<<<<<< HEAD
 `prefixes` includes `pfx` (A1, C1 MFM synchronization prefixes)  
+=======
+`prefixes` includes `pfx` (unused)  
+>>>>>>> 7e31175dac87aff33531185f5013c1cfc4fdb0fb
 `bits` includes `erb` (bad bit = encoded using glitched clock with some omitted pulses, usually in synchronization Marks), `bit`  
 `bytes` includes `byt` (byte)  
 `fields` includes `mrk` (mark), `rec` (record), `crc` (crc ok), `cre` (crc bad)  
