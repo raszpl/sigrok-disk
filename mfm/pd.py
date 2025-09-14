@@ -121,13 +121,10 @@ class field(Enum):
 class special(Enum):
 	clock		= True		
 
+# annotations
 ann = SrdIntEnum.from_str('Ann', 'clk dat byt bit mrk rec crc cre rpt pfx pul erp erw unk erb err')
 #ann.clk 0 dat 1 byt 2 bit 3 mrk 4 rec 5 crc 6 cre 7
 #rpt 8 pfx 9 pul 10 erp 11 erw 12 unk 13 erb 14 err 15
-
-#{ann.erw: 0, unk: 1, clk: 2, dat: 3, erb: 4, bit: 5, byt: 6, mrk: 7,
-#rec: 8, cre: 9, crc: 10, rpt: 11, pfx: 12, pul: 13, erp: 14, err: 15}
-
 
 # common messages
 message = SimpleNamespace(
@@ -464,6 +461,25 @@ class Decoder(srd.Decoder):
 
 		bitn = 8
 
+		# --- helper -------------------------------------------------------------
+		def annotate_dataclock_window(target):
+			dataclock = 'd' if target == ann.dat else 'c'
+			if bitn > 0:
+				if win_val > 1:
+					self.put(win_end - 1, win_end, self.out_ann, message.error)
+					if self.dsply_sn:
+						annotate = [ann.erw, ['%d %s (extra pulse in win) s%d' % (win_val, dataclock, win_start), '%d' % win_val]]
+					else:
+						annotate = [ann.erw, ['%d %s (extra pulse in win)' % (win_val, dataclock), '%d' % win_val]]
+				else:
+					if self.dsply_sn:
+						annotate = [target, ['%d %s s%d' % (win_val, dataclock, win_start), '%d' % win_val]]
+					else:
+						annotate = [target, ['%d %s' % (win_val, dataclock), '%d' % win_val]]
+						
+				self.put(win_start, win_end, self.out_ann, annotate)
+		# ------------------------------------------------------------------------
+
 		while True:
 
 			# Display annotation for second (data) half-bit-cell window of a pair,
@@ -479,20 +495,7 @@ class Decoder(srd.Decoder):
 
 			shift3 = ((shift3 & 0x03) << 1) + (1 if win_val > 1 else win_val)
 
-			if bitn > 0:
-				if win_val > 1:
-					self.put(win_end - 1, win_end, self.out_ann, message.error)
-					if self.dsply_sn:
-						annotate = [ann.erw, ['%d d (extra pulse in win) s%d' % (win_val, win_start), '%d' % win_val]]
-					else:
-						annotate = [ann.erw, ['%d d (extra pulse in win)' % win_val, '%d' % win_val]]
-				else:
-					if self.dsply_sn:
-						annotate = [ann.dat, ['%d d s%d' % (win_val, win_start), '%d' % win_val]]
-					else:
-						annotate = [ann.dat, ['%d d' % win_val, '%d' % win_val]]
-						
-				self.put(win_start, win_end, self.out_ann, annotate)
+			annotate_dataclock_window(ann.dat)
 
 			bit_end = win_end
 			bit_val = 1 if win_val > 1 else win_val
@@ -522,22 +525,7 @@ class Decoder(srd.Decoder):
 
 			shift3 = ((shift3 & 0x03) << 1) + (1 if win_val > 1 else win_val)
 
-			if self.dsply_sn:
-				if win_val > 1:
-					self.put(win_end - 1, win_end, self.out_ann, message.error)
-					self.put(win_start, win_end, self.out_ann,
-							 [ann.erw, ['%d c (extra pulse in win) s%d' % (win_val, win_start), '%d' % win_val]])
-				else:
-					self.put(win_start, win_end, self.out_ann,
-							 [ann.clk, ['%d c s%d' % (win_val, win_start), '%d' % win_val]])
-			else:
-				if win_val > 1:
-					self.put(win_end - 1, win_end, self.out_ann, message.error)
-					self.put(win_start, win_end, self.out_ann,
-							 [ann.erw, ['%d c (extra pulse in win)' % win_val, '%d' % win_val]])
-				else:
-					self.put(win_start, win_end, self.out_ann,
-							 [ann.clk, ['%d c' % win_val, '%d' % win_val]])
+			annotate_dataclock_window(ann.clk)
 
 			bit_start = win_start
 			if self.byte_start == -1:
@@ -1055,9 +1043,6 @@ class Decoder(srd.Decoder):
 			else:
 				(data_pin, extra_pin, suppress_pin) = self.wait([{0: 'f', 2: 'l'}, {1: 'r', 2: 'l'}])
 
-			# Display summary report on last annotation row.  Reporting
-			# sample number must be on or before last leading edge.
-
 			# Calculate interval since previous leading edge.
 
 			last_interval = interval # seems unused, what was last_interval supposed to be used for?
@@ -1286,6 +1271,13 @@ class Decoder(srd.Decoder):
 				# Display one half-bit-cell window annotation.	(If not sync'd,
 				# display_bits() won't be called to pull entries from the FIFO,
 				# but it needs to have 33-1+1 entries for self.process_byteFM/MFM().)
+
+				# We are annotating garbage or last bit of "first gap byte after CRC or Index Mark".
+				# win_sync = True can only happen if its last bit of "first gap byte after CRC or Index Mark"
+				# Its because display_bits() starts "with the data window of the last bit of the previous byte.
+				# The last window of the current byte is read but not removed from the FIFO, and isn't displayed."
+				# win_sync = False - unknown bits in unsynced space
+				# Maybe there is a better way than processing 7 bits of current byte and one bit of previous one??
 
 				if self.fifo_cnt >= 33:
 
