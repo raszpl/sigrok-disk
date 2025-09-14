@@ -166,8 +166,8 @@ class Decoder(srd.Decoder):
 		{'id': 'suppress', 'name': 'Suppress pulses', 'desc': 'channel 2', 'idn':'dec_mfm_chan_suppress'},
 	)
 	annotations = (
-		('clk', 'clock'),		# clock half-bit-cell
-		('dat', 'data'),		# data half-bit-cell
+		('clk', 'clock'),		# clock half-bit-cell window
+		('dat', 'data'),		# data half-bit-cell window
 		('byt', 'byte'),
 		('bit', 'bit'),
 		('mrk', 'mark'),
@@ -178,8 +178,8 @@ class Decoder(srd.Decoder):
 		('pfx', 'prefix'),
 		('pul', 'pulse'),
 		('erp', 'bad pulse'),
-		('erw', 'extra pulse'),	# bad half-bit-cell
-		('unk', 'unknown'),
+		('erw', 'extra pulse'),	# bad half-bit-cell window
+		('unk', 'unknown'),		# unknown half-bit-cell window in unsenced stream
 		('erb', 'bad bit'),
 		('err', 'error'),
 	)
@@ -426,13 +426,13 @@ class Decoder(srd.Decoder):
 		self.fifo_cnt += 1
 
 	# ------------------------------------------------------------------------
-	# PURPOSE: Annotate single window cell.
-	# IN: target		target cell
+	# PURPOSE: Annotate single half-bit-cell window.
+	# IN: target		target window
 	#	  start, end	sample numbers
 	#	  value			number of pulses
 	# ------------------------------------------------------------------------
 
-	def annotate_cell(self, target, start, end, value):
+	def annotate_window(self, target, start, end, value):
 		if target == ann.dat:
 			dataclock = 'd '
 		elif target == ann.clk:
@@ -457,7 +457,7 @@ class Decoder(srd.Decoder):
 		self.put(start, end, self.out_ann, annotate)
 
 	# ------------------------------------------------------------------------
-	# PURPOSE: Annotate 8 bits and 16 cells of one byte using FIFO data.
+	# PURPOSE: Annotate 8 bits and 16 windows of one byte using FIFO data.
 	# NOTES:
 	#  - On entry the FIFO must have exactly 33 or 17 entries in it, and on
 	#	 exit the FIFO will have 16 fewer entries in it (17 or 1).
@@ -506,7 +506,7 @@ class Decoder(srd.Decoder):
 			shift3 = ((shift3 & 0x03) << 1) + (1 if win_val > 1 else win_val)
 
 			if bitn > 0:
-				self.annotate_cell(ann.dat, win_start, win_end, win_val)
+				self.annotate_window(ann.dat, win_start, win_end, win_val)
 
 			bit_end = win_end
 			bit_val = 1 if win_val > 1 else win_val
@@ -537,7 +537,7 @@ class Decoder(srd.Decoder):
 			shift3 = ((shift3 & 0x03) << 1) + (1 if win_val > 1 else win_val)
 
 			if bitn > 0:
-				self.annotate_cell(ann.clk, win_start, win_end, win_val)
+				self.annotate_window(ann.clk, win_start, win_end, win_val)
 
 			bit_start = win_start
 			if self.byte_start == -1:
@@ -550,7 +550,7 @@ class Decoder(srd.Decoder):
 		self.byte_end = bit_end
 
 	# ------------------------------------------------------------------------
-	# PURPOSE: Annotate one byte and its 8 bits/16 cells.
+	# PURPOSE: Annotate one byte and its 8 bits/16 windows.
 	# NOTES:
 	#  - On entry the FIFO must have exactly 33 or 17 entries in it, and on
 	#	 exit the FIFO will have 16 fewer entries in it (17 or 1).
@@ -562,7 +562,7 @@ class Decoder(srd.Decoder):
 	# ------------------------------------------------------------------------
 
 	def annotate_byte(self, val, special_clock = False):
-		# Display annotations for bits and cells of this byte.
+		# Display annotations for bits and windows of this byte.
 
 		self.annotate_bits(special_clock)
 
@@ -1297,10 +1297,10 @@ class Decoder(srd.Decoder):
 					self.inc_fifo_rp()
 
 					if win_sync:
-						self.annotate_cell(ann.dat, win_start, win_end, win_val)
+						self.annotate_window(ann.dat, win_start, win_end, win_val)
 						win_sync = False
 					else:
-						self.annotate_cell(ann.unk, win_start, win_end, win_val)
+						self.annotate_window(ann.unk, win_start, win_end, win_val)
 
 				# Toggle clock vs. data state.
 
