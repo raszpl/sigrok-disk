@@ -426,6 +426,37 @@ class Decoder(srd.Decoder):
 		self.fifo_cnt += 1
 
 	# ------------------------------------------------------------------------
+	# PURPOSE: Annotate window cell.
+	# IN: target		target cell
+	#	  start, end	sample numbers
+	#	  value			number of pulses
+	# ------------------------------------------------------------------------
+
+	def annotate_cell(self, target, start, end, value):
+		if target == ann.dat:
+			dataclock = 'd '
+		elif target == ann.clk:
+			dataclock = 'c '
+		elif target == ann.erw:
+			dataclock = ''
+		elif target == ann.unk:
+			dataclock = ''
+		
+		if value > 1:
+			# no need to emit error message, it was already caught by out-of-tolerance leading edge (OoTI) detector
+			if self.dsply_sn:
+				annotate = [ann.erw, ['%d %s(extra pulse in win) s%d' % (value, dataclock, start), '%d' % value]]
+			else:
+				annotate = [ann.erw, ['%d %s(extra pulse in win)' % (value, dataclock), '%d' % value]]
+		else:
+			if self.dsply_sn:
+				annotate = [target, ['%d %ss%d' % (value, dataclock, start), '%d' % value]]
+			else:
+				annotate = [target, ['%d %s' % (value, dataclock), '%d' % value]]
+				
+		self.put(start, end, self.out_ann, annotate)
+
+	# ------------------------------------------------------------------------
 	# PURPOSE: Display annotations for 16 windows and 8 bits of one byte, using
 	#	FIFO data.
 	# NOTES:
@@ -460,25 +491,6 @@ class Decoder(srd.Decoder):
 
 		bitn = 8
 
-		# --- helper -------------------------------------------------------------
-		def annotate_dataclock_window(target):
-			dataclock = 'd' if target == ann.dat else 'c'
-			if bitn > 0:
-				if win_val > 1:
-					self.put(win_end - 1, win_end, self.out_ann, message.error)
-					if self.dsply_sn:
-						annotate = [ann.erw, ['%d %s (extra pulse in win) s%d' % (win_val, dataclock, win_start), '%d' % win_val]]
-					else:
-						annotate = [ann.erw, ['%d %s (extra pulse in win)' % (win_val, dataclock), '%d' % win_val]]
-				else:
-					if self.dsply_sn:
-						annotate = [target, ['%d %s s%d' % (win_val, dataclock, win_start), '%d' % win_val]]
-					else:
-						annotate = [target, ['%d %s' % (win_val, dataclock), '%d' % win_val]]
-						
-				self.put(win_start, win_end, self.out_ann, annotate)
-		# ------------------------------------------------------------------------
-
 		while True:
 
 			# Display annotation for second (data) half-bit-cell window of a pair,
@@ -494,7 +506,8 @@ class Decoder(srd.Decoder):
 
 			shift3 = ((shift3 & 0x03) << 1) + (1 if win_val > 1 else win_val)
 
-			annotate_dataclock_window(ann.dat)
+			if bitn > 0:
+				self.annotate_cell(ann.dat, win_start, win_end, win_val)
 
 			bit_end = win_end
 			bit_val = 1 if win_val > 1 else win_val
@@ -524,7 +537,8 @@ class Decoder(srd.Decoder):
 
 			shift3 = ((shift3 & 0x03) << 1) + (1 if win_val > 1 else win_val)
 
-			annotate_dataclock_window(ann.clk)
+			if bitn > 0:
+				self.annotate_cell(ann.clk, win_start, win_end, win_val)
 
 			bit_start = win_start
 			if self.byte_start == -1:
@@ -1284,36 +1298,10 @@ class Decoder(srd.Decoder):
 					self.inc_fifo_rp()
 
 					if win_sync:
-						if self.dsply_sn:
-							if win_val > 1:
-								self.put(win_start, win_end, self.out_ann,
-										[ann.erw, ['%d d (extra pulse in win) s%d' % (win_val, win_start), '%d' % win_val]])
-							else:
-								self.put(win_start, win_end, self.out_ann,
-										[ann.dat, ['%d d s%d' % (win_val, win_start), '%d' % win_val]])
-						else:
-							if win_val > 1:
-								self.put(win_start, win_end, self.out_ann,
-										[ann.erw, ['%d d (extra pulse in win)' % win_val, '%d' % win_val]])
-							else:
-								self.put(win_start, win_end, self.out_ann,
-										[ann.dat, ['%d d' % win_val, '%d' % win_val]])
+						self.annotate_cell(ann.dat, win_start, win_end, win_val)
 						win_sync = False
 					else:
-						if self.dsply_sn:
-							if win_val > 1:
-								self.put(win_start, win_end, self.out_ann,
-										[ann.erw, ['%d (extra pulse in win) s%d' % (win_val, win_start), '%d' % win_val]])
-							else:
-								self.put(win_start, win_end, self.out_ann,
-										[ann.unk, ['%d s%d' % (win_val, win_start), '%d' % win_val]])
-						else:
-							if win_val > 1:
-								self.put(win_start, win_end, self.out_ann,
-										[ann.erw, ['%d (extra pulse in win)' % win_val, '%d' % win_val]])
-							else:
-								self.put(win_start, win_end, self.out_ann,
-										[ann.unk, ['%d' % win_val]])
+						self.annotate_cell(ann.unk, win_start, win_end, win_val)
 
 				# Toggle clock vs. data state.
 
