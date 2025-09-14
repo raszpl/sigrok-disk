@@ -20,6 +20,9 @@
 ## Available annotation1:annotation2 are in annotation_rows List of Lists in the Decoder class.
 ## ---------------------------------------------------------------------------
 ## Changelog:
+## 2025-Sep-14
+##	- Even more Enums
+##	- dsply_sn option also controls Pulse annotation now
 ## 2025-Sep-5
 ##	- annotate_bits() no longer reports clock errors on legit Mark prefixes. (Rasz)
 ##	- Command line usage examples. (Rasz)
@@ -322,7 +325,7 @@ class Decoder(srd.Decoder):
 		if self.options['data_crc_poly_custom']:
 			self.data_crc_poly = int(self.options['data_crc_poly_custom'], 0) & ((1 << int(self.options['data_crc_bits'])) -1)
 		self.dsply_pfx = True if self.options['dsply_pfx'] == 'yes' else False
-		self.show_sample_no = True if self.options['dsply_sn'] == 'yes' else False
+		self.show_sample_num = True if self.options['dsply_sn'] == 'yes' else False
 
 		self.report = {'no':'no', 
 						'IAM':field.FCh_Index_Mark,
@@ -444,12 +447,12 @@ class Decoder(srd.Decoder):
 		
 		if value > 1:
 			# no need to emit error message, it was already caught by out-of-tolerance leading edge (OoTI) detector
-			if self.show_sample_no:
+			if self.show_sample_num:
 				annotate = [ann.erw, ['%d %s(extra pulse in win) s%d' % (value, dataclock, start), '%d' % value]]
 			else:
 				annotate = [ann.erw, ['%d %s(extra pulse in win)' % (value, dataclock), '%d' % value]]
 		else:
-			if self.show_sample_no:
+			if self.show_sample_num:
 				annotate = [target, ['%d %ss%d' % (value, dataclock, start), '%d' % value]]
 			else:
 				annotate = [target, ['%d %s' % (value, dataclock), '%d' % value]]
@@ -1101,7 +1104,7 @@ class Decoder(srd.Decoder):
 				window_size_filter_accum += interval
 				window_size = window_size_filter_accum / 32.0
 				if self.last_samplenum is not None:
-					if self.show_sample_no:
+					if self.show_sample_num:
 						annotate = ['%dns s%d' % (interval_nsec, self.last_samplenum), '%dns' % interval_nsec]
 					else:
 						annotate = ['%dns' % interval_nsec]
@@ -1109,7 +1112,7 @@ class Decoder(srd.Decoder):
 			else:
 				if self.last_samplenum is not None:
 					self.put(self.samplenum - 1, self.samplenum, self.out_ann, message.error)
-					if self.show_sample_no:
+					if self.show_sample_num:
 						annotate = ['out-of-tolerance leading edge %dns s%d' % (interval_nsec, self.last_samplenum), 'OoTI %dns s%d' % (interval_nsec, self.last_samplenum), '%dns' % interval_nsec]
 					else:
 						annotate = ['out-of-tolerance leading edge %dns' % interval_nsec, 'OoTI %dns' % interval_nsec]
