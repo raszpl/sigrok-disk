@@ -123,8 +123,7 @@ class special(Enum):
 
 # annotations
 ann = SrdIntEnum.from_str('Ann', 'clk dat byt bit mrk rec crc cre rpt pfx pul erp erw unk erb err')
-#ann.clk 0 dat 1 byt 2 bit 3 mrk 4 rec 5 crc 6 cre 7
-#rpt 8 pfx 9 pul 10 erp 11 erw 12 unk 13 erb 14 err 15
+#ann.clk 0 dat 1 byt 2 bit 3 mrk 4 rec 5 crc 6 cre 7 rpt 8 pfx 9 pul 10 erp 11 erw 12 unk 13 erb 14 err 15
 
 # common messages
 message = SimpleNamespace(
@@ -167,8 +166,8 @@ class Decoder(srd.Decoder):
 		{'id': 'suppress', 'name': 'Suppress pulses', 'desc': 'channel 2', 'idn':'dec_mfm_chan_suppress'},
 	)
 	annotations = (
-		('clk', 'clock'),
-		('dat', 'data'),
+		('clk', 'clock'),		# clock half-bit-cell
+		('dat', 'data'),		# data half-bit-cell
 		('byt', 'byte'),
 		('bit', 'bit'),
 		('mrk', 'mark'),
@@ -179,15 +178,15 @@ class Decoder(srd.Decoder):
 		('pfx', 'prefix'),
 		('pul', 'pulse'),
 		('erp', 'bad pulse'),
-		('erw', 'extra pulse'),
+		('erw', 'extra pulse'),	# bad half-bit-cell
 		('unk', 'unknown'),
 		('erb', 'bad bit'),
 		('err', 'error'),
 	)
 	annotation_rows = (
 		('pulses', 'Pulses', (ann.pul, ann.erp,)),
-		('windows', 'Windows', (ann.clk, ann.dat, ann.erw, ann.unk,)),
-		('prefixes', 'Prefixes', (ann.pfx,)),
+		('windows', 'Windows', (ann.clk, ann.dat, ann.erw, ann.unk,)),	# half-bit-cell windows
+		('prefixes', 'Prefixes', (ann.pfx,)),							# special MFM Synchronisation marks A1/C1
 		('bits', 'Bits', (ann.erb, ann.bit,)),
 		('bytes', 'Bytes', (ann.byt,)),
 		('fields', 'Fields', (ann.mrk, ann.rec, ann.crc, ann.cre,)),
@@ -1016,16 +1015,14 @@ class Decoder(srd.Decoder):
 		window_start = 0.0						# start of current half-bit-cell window (fractional sample number)
 		window_end = window_start + window_size	# end of current half-bit-cell window (fractional sample number)
 		window_adj = 0.0						# adjustment to window_end (in fractional samples)
-		clock_cell = 'c'
-		data_cell = 'd'
-		clock_data = clock_cell					# current half-bit-cell window is clock_cell vs. data_cell
+		cell_window = ann.clk					# current half-bit-cell window, can be ann.clk or ann.dat
 		v = 0									# 1 = edge in current window, 0 = no edge
 		shift31 = 0								# 31-bit pattern shift register (of half-bit-cells)
 
 		data_byte = 0							# 8-bit data byte shift register (of bit cells)
 		bit_cnt = 0								# number of bits processed in current byte (0..8)
 		byte_sync = False						# True = bit/byte-sync'd, False = not sync'd
-		win_sync = False						# True = half-bit-cell window sync'd re clock_cell vs. data_cell ?
+		win_sync = False						# True = half-bit-cell window sync'd re ann.clk vs. ann.dat ?
 
 		last_interval = 0						# previous interval (in samples, 1..n)
 		interval = 0							# current interval (in samples, 1..n)
@@ -1228,12 +1225,12 @@ class Decoder(srd.Decoder):
 						else:
 							self.process_byteMFM(data_byte)
 
-						clock_data = data_cell
+						cell_window = ann.dat
 						bit_cnt = 0
 
 				# Already sync'd, process next data bit.
 
-				elif clock_data == data_cell:
+				elif cell_window == ann.dat:
 
 					data_byte = ((data_byte & 0x7F) << 1) + v
 					bit_cnt += 1
@@ -1320,10 +1317,10 @@ class Decoder(srd.Decoder):
 
 				# Toggle clock vs. data state.
 
-				if clock_data == data_cell:
-					clock_data = clock_cell
+				if cell_window == ann.dat:
+					cell_window = ann.clk
 				else:
-					clock_data = data_cell
+					cell_window = ann.dat
 
 				# Calculate next half-bit-cell window location.
 
