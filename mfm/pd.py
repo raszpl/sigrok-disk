@@ -77,7 +77,6 @@ from common.srdhelper import SrdIntEnum
 # ----------------------------------------------------------------------------
 # Enums
 # Sadly those need to be up here, otherwise one has to use self. prefix
-# annotations cant be native Enums, using srdhelper
 # ----------------------------------------------------------------------------
 
 class state(Enum):
@@ -124,7 +123,7 @@ class field(Enum):
 class special(Enum):
 	clock		= True		
 
-# annotations
+# Annotations. Cant be native Enums, using srdhelper
 ann = SrdIntEnum.from_str('Ann', 'clk dat byt bit mrk rec crc cre rpt pfx pul erp erw unk erb err')
 #ann.clk 0 dat 1 byt 2 bit 3 mrk 4 rec 5 crc 6 cre 7 rpt 8 pfx 9 pul 10 erp 11 erw 12 unk 13 erb 14 err 15
 
@@ -365,8 +364,8 @@ class Decoder(srd.Decoder):
 	#	 table. Faster in theory, havent measured actual speed or if it even
 	#	 matters :)
 	#  IN: bytearray
-	#	   type		True = calculate Header CRC
-	#				False = calculate Data CRC
+	#	   type		crc.Header	calculates Header CRC
+	#				anything else calculates Data CRC
 	# ------------------------------------------------------------------------
 	CRC16CCITT_tab = array('I', [0x0000, 0x1021, 0x2042, 0x3063,
 							   0x4084, 0x50A5, 0x60C6, 0x70E7,
@@ -437,9 +436,9 @@ class Decoder(srd.Decoder):
 
 	def annotate_window(self, target, start, end, value):
 		if target == ann.dat:
-			dataclock = 'd '
+			dataclock = ' d'
 		elif target == ann.clk:
-			dataclock = 'c '
+			dataclock = ' c'
 		elif target == ann.erw:
 			dataclock = ''
 		elif target == ann.unk:
@@ -448,14 +447,14 @@ class Decoder(srd.Decoder):
 		if value > 1:
 			# no need to emit error message, it was already caught by out-of-tolerance leading edge (OoTI) detector
 			if self.show_sample_num:
-				annotate = [ann.erw, ['%d %s(extra pulse in win) s%d' % (value, dataclock, start), '%d' % value]]
+				annotate = [ann.erw, ['%d%s (extra pulse in win) s%d' % (value, dataclock, start), '%d' % value]]
 			else:
-				annotate = [ann.erw, ['%d %s(extra pulse in win)' % (value, dataclock), '%d' % value]]
+				annotate = [ann.erw, ['%d%s (extra pulse in win)' % (value, dataclock), '%d' % value]]
 		else:
 			if self.show_sample_num:
-				annotate = [target, ['%d %ss%d' % (value, dataclock, start), '%d' % value]]
+				annotate = [target, ['%d%s s%d' % (value, dataclock, start), '%d' % value]]
 			else:
-				annotate = [target, ['%d %s' % (value, dataclock), '%d' % value]]
+				annotate = [target, ['%d%s' % (value, dataclock), '%d' % value]]
 				
 		self.put(start, end, self.out_ann, annotate)
 
