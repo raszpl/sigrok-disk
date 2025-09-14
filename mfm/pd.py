@@ -177,9 +177,9 @@ class Decoder(srd.Decoder):
 		('rpt', 'report'),
 		('pfx', 'prefix'),
 		('pul', 'pulse'),
-		('erp', 'bad pulse'),
+		('erp', 'bad pulse'),	# out-of-tolerance leading edge
 		('erw', 'extra pulse'),	# bad half-bit-cell window
-		('unk', 'unknown'),		# unknown half-bit-cell window in unsenced stream
+		('unk', 'unknown'),		# unknown half-bit-cell window in unsynced stream
 		('erb', 'bad bit'),
 		('err', 'error'),
 	)
@@ -322,7 +322,7 @@ class Decoder(srd.Decoder):
 		if self.options['data_crc_poly_custom']:
 			self.data_crc_poly = int(self.options['data_crc_poly_custom'], 0) & ((1 << int(self.options['data_crc_bits'])) -1)
 		self.dsply_pfx = True if self.options['dsply_pfx'] == 'yes' else False
-		self.dsply_sn = True if self.options['dsply_sn'] == 'yes' else False
+		self.show_sample_no = True if self.options['dsply_sn'] == 'yes' else False
 
 		self.report = {'no':'no', 
 						'IAM':field.FCh_Index_Mark,
@@ -444,12 +444,12 @@ class Decoder(srd.Decoder):
 		
 		if value > 1:
 			# no need to emit error message, it was already caught by out-of-tolerance leading edge (OoTI) detector
-			if self.dsply_sn:
+			if self.show_sample_no:
 				annotate = [ann.erw, ['%d %s(extra pulse in win) s%d' % (value, dataclock, start), '%d' % value]]
 			else:
 				annotate = [ann.erw, ['%d %s(extra pulse in win)' % (value, dataclock), '%d' % value]]
 		else:
-			if self.dsply_sn:
+			if self.show_sample_no:
 				annotate = [target, ['%d %ss%d' % (value, dataclock, start), '%d' % value]]
 			else:
 				annotate = [target, ['%d %s' % (value, dataclock), '%d' % value]]
@@ -1101,13 +1101,19 @@ class Decoder(srd.Decoder):
 				window_size_filter_accum += interval
 				window_size = window_size_filter_accum / 32.0
 				if self.last_samplenum is not None:
-					self.put(self.last_samplenum, self.samplenum, self.out_ann,
-							 [ann.pul, ['s%d i%dns' % (self.last_samplenum, interval_nsec), 'i%dns' % (interval_nsec)]])
+					if self.show_sample_no:
+						annotate = ['%dns s%d' % (interval_nsec, self.last_samplenum), '%dns' % interval_nsec]
+					else:
+						annotate = ['%dns' % interval_nsec]
+					self.put(self.last_samplenum, self.samplenum, self.out_ann,	[ann.pul, annotate])
 			else:
 				if self.last_samplenum is not None:
-					self.put(self.last_samplenum, self.samplenum, self.out_ann,
-							 [ann.erp, ['s%d i%dns OoTI' % (self.last_samplenum, interval_nsec)]])
 					self.put(self.samplenum - 1, self.samplenum, self.out_ann, message.error)
+					if self.show_sample_no:
+						annotate = ['out-of-tolerance leading edge %dns s%d' % (interval_nsec, self.last_samplenum), 'OoTI %dns s%d' % (interval_nsec, self.last_samplenum), '%dns' % interval_nsec]
+					else:
+						annotate = ['out-of-tolerance leading edge %dns' % interval_nsec, 'OoTI %dns' % interval_nsec]
+					self.put(self.last_samplenum, self.samplenum, self.out_ann,	[ann.erp, annotate])
 
 			# --- Process half-bit-cell windows until current edge falls inside.
 
