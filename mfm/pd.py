@@ -1104,7 +1104,7 @@ class Decoder(srd.Decoder):
 				window_size = window_size_filter_accum / 32.0
 				if self.last_samplenum is not None:
 					if self.show_sample_num:
-						annotate = ['%dns s%d' % (interval_nsec, self.last_samplenum), '%dns' % interval_nsec]
+						annotate = ['s%d i%dns' % (self.last_samplenum, interval_nsec), '%dns' % interval_nsec]
 					else:
 						annotate = ['%dns' % interval_nsec]
 					self.put(self.last_samplenum, self.samplenum, self.out_ann,	[ann.pul, annotate])
@@ -1112,9 +1112,9 @@ class Decoder(srd.Decoder):
 				if self.last_samplenum is not None:
 					self.put(self.samplenum - 1, self.samplenum, self.out_ann, message.error)
 					if self.show_sample_num:
-						annotate = ['out-of-tolerance leading edge %dns s%d' % (interval_nsec, self.last_samplenum), 'OoTI %dns s%d' % (interval_nsec, self.last_samplenum), '%dns' % interval_nsec]
+						annotate = ['s%d i%dns out-of-tolerance leading edge' % (self.last_samplenum, interval_nsec), 's%d i%dns OoTI' % (self.last_samplenum, interval_nsec), 's%d OoTI' % self.last_samplenum, 'OoTI']
 					else:
-						annotate = ['out-of-tolerance leading edge %dns' % interval_nsec, 'OoTI %dns' % interval_nsec]
+						annotate = ['%dns out-of-tolerance leading edge' % interval_nsec, '%dns OoTI' % interval_nsec, 'OoTI']
 					self.put(self.last_samplenum, self.samplenum, self.out_ann,	[ann.erp, annotate])
 
 			# --- Process half-bit-cell windows until current edge falls inside.
@@ -1156,10 +1156,10 @@ class Decoder(srd.Decoder):
 
 				shift31 = ((shift31 & 0x3FFFFFFF) << 1) + v
 
-				# Display all MFM mC2h and mA1h prefix bytes to help with locating damaged records.
-
 				win_start = int(round(window_start))
 				win_end = int(round(window_end))
+
+				# Display all MFM mC2h and mA1h prefix bytes to help with locating damaged records.
 
 				if (not self.encodingFM) and self.dsply_pfx:
 					if (shift31 & 0xFFFF) == 0x4489:
