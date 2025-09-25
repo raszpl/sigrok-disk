@@ -1,0 +1,120 @@
+{
+	"mfm": {
+		"fdd_fm": {
+			"path": "../test",
+			"all": {
+				"options": "data_rate=125000:encoding=FM:type=FDD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256:dsply_pfx=yes:dsply_sn=yes",
+				"size": 1215009,
+				"crc": "0x672d6900",
+				"blake2b": "cbb2a1c6dc0b1a437ada882f5eba4a838c88ca04bf93a07f42aaad9ad3ddbe0674d728c1b0eb68f7c60804c29f1c14d008836d737c782c397e860775b9e4d62a",
+				"sha256": "8869534504dbed1c489a062010afcb437c0d48f285b9ae7f7e05373b11d3cf5c"
+			}
+		},
+		"fdd_mfm": {
+			"path": "../test",
+			"all": {
+				"options": "data_rate=250000:encoding=MFM:type=FDD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256:dsply_pfx=yes:dsply_sn=yes",
+				"size": 3846604,
+				"crc": "0xc7e83abf",
+				"blake2b": "696ece34632a8931d339fed50495cb3734ba9cef9348c4606b57c073a958359deca003249201691d2604aee6b0ee943a9da3d072d70c598783828cab610341ce",
+				"sha256": "1ad30778fa84db9904c8f8b4359dab8ba7314026438ebf0e8095aed8532a311f"
+			}
+		},
+		"hdd_mfm": {
+			"path": "../test",
+			"all": {
+				"options": "dsply_pfx=yes:dsply_sn=yes",
+				"size": 6624860,
+				"crc": "0x43248cad",
+				"blake2b": "c52b821e121b761fbe65ab362d05bb5f1cee22989450ec51425a0407e5a75090ca8daf1f306b35d80d698146616d3dbfeb5c432ed3b7c3dd32e2ad27f9afbfb7",
+				"sha256": "d06b39e53e43b673bab0c5fef102cf18bde51d9e63cd072be8da4905df144f37"
+			}
+		},
+		"hdd_mfm_sector": {
+			"path": "../test",
+			"default": {
+				"size": 287756,
+				"crc": "0xabfc0d02",
+				"blake2b": "ccfa72349513cb62ec72d5782296151f25133962963d8773e16f4bf6b8c06722706f143d5b43fe88e79004b60325bfa5fc43d2698d24f6556ff6f0d1e63fee38",
+				"sha256": "5b599958cde5c28fab86f2a9757c0f94431649e7bc9b7160eb1ec43824b238ce"
+			},
+			"all": {
+				"options": "dsply_pfx=yes:dsply_sn=yes",
+				"size": 287956,
+				"desc": "with prefixes and sample numbers",
+				"crc": "0xd3222a61",
+				"blake2b": "5fe2a8cf13e849ddc75dfd8e78d9917eb4bb237e8e2e1d2d915d55e1d40b9f2f271d1482d5799cabd6bbdfd4851505d0a8bedd22d27f3fc97c76363e8cd7e742",
+				"sha256": "3f034e4edb7ca24c248c89563bcd517840774d48c2ee3ebdc7ae0336372c673b"
+			},
+			"nopfxnosn": {
+				"options": "dsply_pfx=no:dsply_sn=no",
+				"size": 223732,
+				"desc": "no prefixes, no sample numbers. Should be same as default",
+				"crc": "0xc73476fc",
+				"blake2b": "71d0c360b617d3e540730c93091ccfa31f2d84627e14bd2b51a27567b1e98043d22015c218996fe35c9706959a7a2fd03c40a44ffa978f9338676e488c3aef20",
+				"sha256": "45b256759c7ffbbfa506aef08d65c77d66a0d4c98c838f07a7f14d89d12708e7"
+			},
+			"fields": {
+				"annotate": "fields",
+				"size": 156,
+				"desc": "only fields",
+				"crc": "0xe8d51526",
+				"blake2b": "4db646f2829f6c43f9347a515dd3da3a64c5e05e64e7cf5d15da602521d8307147d9fc5962af89a3a8c5b6b461a2f09993f1165a31e05bba2c1c4a22ccb5113f",
+				"sha256": "c67081f381401f90b0cb0445186ac532e842dc3e83ca2eb10433d66e5bce7910"
+			},
+			"reports": {
+				"options": "report=DAM:report_qty=1",
+				"annotate": "reports",
+				"size": 95,
+				"desc": "one Report triggered on Data Address Mark",
+				"crc": "0xfbcc0571",
+				"blake2b": "33336ca32f120a8f9aa3a08727ce829158691b33f51cbdf7e9114867a54d92a7ac95b64e44e1a1f023bd5c65b4e638d7c55019127086b64ea7c45714b450523e",
+				"sha256": "94a6552c2198f21b03ec60d57a48f2baad04a0cfe70f19b8b50dca970bb6a0ac"
+			},
+			"crc": {
+				"annotate": "crc",
+				"size": 42,
+				"desc": "only crc fields",
+				"crc": "0xbd4b4e47",
+				"blake2b": "02eb0fadbf4d14fdf06379577ec34bbb5499cb71dfe55d42c1c973236e205b81b30c83bdd455622ac2aa570a315f1b23402c6532d4e6379b0c623406b4d9b4bb",
+				"sha256": "9c80ff6ac379d1b824a960f9d95d97592e1065c0b3af4e03830aaef14e12e953"
+			},
+			"headcrce": {
+				"options": "header_crc_bits=32",
+				"annotate": "cre",
+				"size": 26,
+				"desc": "deliberately set wrong Header crc size to generate crc error",
+				"crc": "0xd3515a8f",
+				"blake2b": "31f2fb6c25bf110c13e45b3eaa636645c844c5a61b0ed361fbf17b45dfac0b72c40bebbef5acce9f5175156e348d10f51f385c3618aeee69a16cf0f66de563b5",
+				"sha256": "49cc37e4e542e1bc4b14032eb9d34cb63233cdf8543a76be1557244938e5673e"
+			},
+			"headpolycrce": {
+				"options": "header_crc_poly=0x1022",
+				"annotate": "cre",
+				"size": 20,
+				"desc": "deliberately set wrong Header crc poly to generate crc error",
+				"crc": "0xb148abbf",
+				"blake2b": "6aa79129ffcfd0129e19099c30217853512a91b6b9298d68c6e8ad0af6bf826191a5c3124dae8301a4554b83b4b5d1b3069916cbb6f8145881e6ac05ea707fa5",
+				"sha256": "10f57ba3355fc471406a5b5c777aabddf1a0bdd820949a03348b315682a4938a"
+			},
+			"datacrce": {
+				"options": "data_crc_bits=16",
+				"annotate": "cre",
+				"size": 22,
+				"desc": "deliberately set wrong Data crc size to generate crc error",
+				"crc": "0xabb6ca70",
+				"blake2b": "b8d061e56244d7ef7db652f1fea5b41be2c16ea3455084e4da4fdaa8ed9108ffc3a331c4ba0f3ce4c229e5d84d0f6b06aa9ab41f01d846a629270998215f91ba",
+				"sha256": "ad193c13fbf1ec2c95de061cc419347f197d0cfdf0a5cdc6228e71f4fb63313a"
+			},
+			"datapolycrce": {
+				"options": "data_crc_poly=0x1021",
+				"annotate": "cre",
+				"size": 26,
+				"desc": "deliberately set wrong Data crc poly to generate crc error",
+				"crc": "0xe96d45d5",
+				"blake2b": "d07e384b3a0edd1369cd14f81123745a6403aa9386b16f9d14eec98a72892724aa798c2435d38124a91bd758b04bd9bcf50f55fa5b43a287b264ee36c0d4867e",
+				"sha256": "fadf27d0174a6923621604dfaef3481a651a09a42edc920a7d96a813f095e504"
+			}
+		}
+	}
+}
