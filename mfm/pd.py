@@ -220,10 +220,10 @@ class Decoder(srd.Decoder):
 			'0x0104c981', '0x41044185')},
 		{'id': 'data_crc_poly_custom', 'desc': 'Custom Data Poly (overrides above)',
 			'default': ''},
+		{'id': 'dsply_sn', 'desc': 'Display Windows (bit/clock) and Pulses (pul, erp) sample numbers',
+			'default': 'no', 'values': ('yes', 'no')},
 		{'id': 'dsply_pfx', 'desc': 'Display all MFM prefix bytes',
 			'default': 'no', 'values': ('yes', 'no')},
-		{'id': 'dsply_sn', 'desc': 'Display sample numbers',
-			'default': 'yes', 'values': ('yes', 'no')},
 		{'id': 'report', 'desc': 'Display report after',
 			'default': 'no', 'values': ('no', 'IAM', 'IDAM', 'DAM', 'DDAM')},
 		{'id': 'report_qty', 'desc': 'Report every x Marks',
@@ -1334,3 +1334,4 @@ class Decoder(srd.Decoder):
 			self.last_samplenum = self.samplenum
 
 			#--- end while
+
