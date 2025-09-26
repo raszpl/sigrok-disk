@@ -73,11 +73,11 @@ Old user instructions are in [documentation](PulseView-MFM-Decoder.wri.md) (need
 `data_crc_poly_custom` Custom Data Field Polynomial, overrides `data_crc_poly` setting.  
 **Default**: `` (empty string)
 
-`dsply_pfx` Display all MFM C2 and A1 prefix bytes (encoded with special glitched clock) to help with locating damaged records.  
+`dsply_sn` Display Sample Numbers controls whether Windows (bit/clock) and Pulses (pul, erp) sample numbers are displayed.  
 **Default**: `no` **Values**: `yes`, `no`
 
-`dsply_sn` Display Sample Numbers controls whether Window (bit/clock) sample numbers are displayed.  
-**Default**: `yes` **Values**: `yes`, `no`
+`dsply_pfx` Display all MFM C2 and A1 prefix bytes (encoded with special glitched clock) to help with locating damaged records.  
+**Default**: `no` **Values**: `yes`, `no`
 
 `report` Generate Report after specific Mark.  
 **Default**: `no` **Values**: `no`, `IAM` (Index Mark), `IDAM` (ID Address Mark), `DAM` (Data Address Mark), `DDAM` (Deleted Data Mark)
