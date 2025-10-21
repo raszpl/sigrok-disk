@@ -393,9 +393,6 @@ class Decoder(srd.Decoder):
 			self.samplerate = value
 			self.samplerateMSps = self.samplerate / 1000000.0
 
-			# Calculate number of samples in 30 usec.
-			self.samples30usec = int(self.samplerate / 1000000.0 * 30.0)
-
 	# ------------------------------------------------------------------------
 	# PURPOSE: Calculate CRC of a bytearray.
 	# NOTES:
@@ -608,7 +605,6 @@ class Decoder(srd.Decoder):
 		self.annotate_bits(special_clock)
 
 		# Display annotation for this byte.
-
 		short_ann = '%02X' % val
 		if val >= 32 and val < 127:
 			long_ann = '%02X \'%c\'' % (val, val)
@@ -1075,7 +1071,6 @@ class Decoder(srd.Decoder):
 		win_sync = False						# True = half-bit-cell window sync'd re ann.clk vs. ann.dat ?
 
 		interval = 0							# current interval (in samples, 1..n)
-
 
 		# --- Process all input data.
 
