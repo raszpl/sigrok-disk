@@ -6,7 +6,7 @@
 ## Copyright (c) 2025 MajenkoProjects
 ## Copyright (C) 2025 Rasz_pl <https://github.com/raszpl>
 ## Initial version created 2017-Mar-14.
-## Last modified 2025-Sep-5
+## Last modified 2025-Oct-21
 ## ---------------------------------------------------------------------------
 ## Example sigrok-cli command line usage:
 ## sigrok-cli -D -i MFM_HDDdataOneSector.sr -P mfm -A mfm=bytes:fields
@@ -19,35 +19,8 @@
 ## Available option1=value1:option2=value2 are in options Tuple List in the Decoder class.
 ## Available annotation1:annotation2 are in annotation_rows List of Lists in the Decoder class.
 ## ---------------------------------------------------------------------------
-## Changelog:
-## 2025-Sep-14
-##	- Even more Enums
-##	- dsply_sn option also controls Pulse annotation now
-## 2025-Sep-5
-##	- annotate_bits() no longer reports clock errors on legit Mark prefixes. (Rasz)
-##	- Command line usage examples. (Rasz)
-## 2025-Sep-4
-##	- Reworked report generation. (Rasz)
-## 2025-Sep-3
-##	- Stripped out stderr output and data writing code. (Majenko)
-##	- Extra and suppress channels optional. (Majenko)
-##	- Possible support for 7 byte headers (not tested). (Majenko)
-##	- Enums to make state machine/messages more readable. (Rasz)
-##	- Array CRC routine, faster than calling per byte. (Rasz)
-##	- Fixed DSView crashines while zooming during data load/processing. (Rasz)
-##	- Added DDAM (Deleted Data Address Mark). (Rasz)
-## 2025-Sep-2
-##	- Fixed DSView compatibility, still fragile: crashes when zooming in during data
-##	  load/processing. (Majenko)
-##	- Fixed sigrok-cli comptibility, metadata() and start() call order is undetermined
-##	  depending on things like input file size, cant rely on data present from one to another. (Rasz)
-##	- Added HDD support, 32 bit CRCs, custom CRC polynomials. All only in MFM mode. (Majenko/Rasz)
-## ---------------------------------------------------------------------------
 ## To Do:
-##	- create more user instructions
-##	- include test files and related information for regression testing
-## Suggested enhancements:
-##	- support MMFM
+##	- add RLL
 ## ---------------------------------------------------------------------------
 ##
 ## This file is part of the libsigrokdecode project.
@@ -175,7 +148,7 @@ class Decoder(srd.Decoder):
 			'default': 'no', 'values': ('yes', 'no')},
 		{'id': 'dsply_pfx', 'desc': 'Display all MFM prefix bytes',
 			'default': 'no', 'values': ('yes', 'no')},
-		{'id': 'report', 'desc': 'Display report after',
+		{'id': 'report', 'desc': 'Display report after this field',
 			'default': 'no', 'values': ('no', 'IAM', 'IDAM', 'DAM', 'DDAM')},
 		{'id': 'report_qty', 'desc': 'Report every x Marks',
 			'default': '9'},
