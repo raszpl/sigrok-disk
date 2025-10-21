@@ -75,71 +75,6 @@ from types import SimpleNamespace # nicer class.key access
 from common.srdhelper import SrdIntEnum
 
 # ----------------------------------------------------------------------------
-# Enums
-# Sadly those need to be up here, otherwise one has to use self. prefix
-# ----------------------------------------------------------------------------
-
-class state(Enum):
-	first_mC2h_prefix	= 0		#auto()
-	second_mC2h_prefix	= 1		#auto()
-	third_mC2h_prefix	= 2		#auto()
-	FCh_Index_Mark		= 3		#auto()
-	first_mA1h_prefix	= 4		#auto()
-	second_mA1h_prefix	= 5		#auto()
-	third_mA1h_prefix	= 6		#auto()
-	IDData_Address_Mark	= 7		#auto()
-	ID_Address_Mark		= 8		#auto()
-	Data_Address_Mark	= 9		#auto()
-	ID_Record			= 10	#auto()
-	ID_Record_CRC		= 11	#auto()
-	Data_Record			= 12	#auto()
-	Data_Record_CRC		= 13	#auto()
-	first_gap_Byte		= 14	#auto()
-
-class crc(Enum):
-	Header	= 0		#auto()
-	Data	= 1		#auto()
-
-class field(Enum):
-	FCh_Index_Mark		= 1		#auto()
-	ID_Address_Mark		= 2		#auto()
-	Data_Address_Mark	= 3		#auto()
-	Deleted_Data_Mark	= 4		#auto()
-	ID_Record			= 5		#auto()
-	Data_Record			= 6		#auto()
-	CRC_Ok				= 7		#auto()
-	CRC_Error			= 8		#auto()
-	Unknown_Byte		= 9		#auto()
-
-# Synchronisation marks implemented by omitting some clock pulses.
-# FM:
-#	FCh with D7h (11010111) clock	IAM		Index Mark
-#	FEh with C7h (11000111) clock	IDAM	ID Address Mark
-#	FBh with C7h clock				DAM		Data Address Mark
-#	F8h..FAh with C7h clock 		DDAM	Deleted Data Address Mark
-# MFM:
-#	C2h no clock between bits 3/4
-#	A1h no clock between bits 4/5
-class special(Enum):
-	clock		= True		
-
-# Annotations. Cant be native Enums, using srdhelper
-ann = SrdIntEnum.from_str('Ann', 'clk dat byt bit mrk rec crc cre rpt pfx pul erp erw unk erb err')
-#ann.clk 0 dat 1 byt 2 bit 3 mrk 4 rec 5 crc 6 cre 7 rpt 8 pfx 9 pul 10 erp 11 erw 12 unk 13 erb 14 err 15
-
-# common messages
-message = SimpleNamespace(
-	error		= [ann.err, ['Error', 'Err', 'E']],
-	iam			= [ann.mrk, ['Index Mark', 'IAM', 'I']],
-	idam		= [ann.mrk, ['ID Address Mark', 'IDAM', 'M']],
-	dam			= [ann.mrk, ['Data Address Mark', 'Data Mark', 'DAM', 'M']],
-	ddam		= [ann.mrk, ['Deleted Data Address Mark', 'Deleted Data Mark', 'DDAM', 'M']],
-	drec		= [ann.rec, ['Data Record', 'Drec', 'R']],
-	prefixA1	= [ann.pfx, ['A1']],
-	prefixC2	= [ann.pfx, ['C2']],
-)
-
-# ----------------------------------------------------------------------------
 # PURPOSE: Handle missing sample rate.
 # ----------------------------------------------------------------------------
 
@@ -185,6 +120,11 @@ class Decoder(srd.Decoder):
 		('erb', 'bad bit'),
 		('err', 'error'),
 	)
+
+	global ann
+	# create ann dict directly from annotations
+	ann = type('ann', (), {key: i for i, (key, _) in enumerate(annotations)})()
+
 	annotation_rows = (
 		('pulses', 'Pulses', (ann.pul, ann.erp,)),
 		('windows', 'Windows', (ann.clk, ann.dat, ann.erw, ann.unk,)),	# half-bit-cell windows
@@ -229,6 +169,106 @@ class Decoder(srd.Decoder):
 		{'id': 'report_qty', 'desc': 'Report every x Marks',
 			'default': '9'},
 	)
+
+	class Messages(object):
+		class MsgTemplate(object):
+			__slots__ = ("code", "_template", "_rest", "variant")
+			def __init__(self, code, variants):
+				self.code = code
+				self.variant = [code, variants]
+				self._template = variants[0]
+				self._rest = variants[1:]
+
+			def __call__(self, *args):
+				t = self._template
+				if args:
+					return [self.code, [self._template % args] + self._rest]
+				else:
+					return self.variant
+
+		def __init__(self, definitions):
+			for name, val in definitions.items():
+				tmpl = self.MsgTemplate(*val)
+				setattr(self, name, tmpl)
+
+	global message, messageD
+	# messageD.xxx are dynamic, slow so used sporadically, makes code more readable
+	messageD = Messages({
+		'sync'       	: (ann.mrk, ['Sync pattern %d bytes', 'Sync', 'S']),
+		'gap'			: (ann.mrk, ['Gap %d bytes', 'Gap', 'G']),
+		'extraPulse' 	: (ann.erw, ['%d%s (extra pulse in win) s%d', 'Extra Pulse', 'EP']),
+	})
+	# message.xxx is static, fast and readable
+	message = SimpleNamespace(
+		error		= [ann.err, ['Error', 'Err', 'E']],
+		errorOoTIs	= [ann.err, ['Pulse too short Error', 'OoTI Error', 'Err', 'E']],
+		errorOoTIl	= [ann.err, ['Pulse too long Error', 'OoTI Error', 'Err', 'E']],
+		errorUnkByte= [ann.err, ['Unknown byte Error', 'Error', 'Err', 'E']],
+		errorClock	= [ann.err, ['Clock Error', 'Error', 'Err', 'E']],
+		sync		= [ann.mrk, ['Sync pattern', 'Sync', 'S']],
+		gap			= [ann.mrk, ['Gap', 'Gap', 'G']],
+		iam			= [ann.mrk, ['Index Mark', 'IAM', 'I']],
+		idam		= [ann.mrk, ['ID Address Mark', 'IDAM', 'M']],
+		dam			= [ann.mrk, ['Data Address Mark', 'Data Mark', 'DAM', 'M']],
+		ddam		= [ann.mrk, ['Deleted Data Address Mark', 'Deleted Data Mark', 'DDAM', 'M']],
+		drec		= [ann.rec, ['Data Record', 'Drec', 'R']],
+		prefixA1	= [ann.pfx, ['A1']],
+		prefixC2	= [ann.pfx, ['C2']],
+	)
+
+	# ----------------------------------------------------------------------------
+	# Enums
+	# Sadly those need to be up here, otherwise one has to use self. prefix
+	# ----------------------------------------------------------------------------
+
+	global state, crc, field, special
+	class state(Enum):
+		first_mC2h_prefix	= 0		#auto()
+		second_mC2h_prefix	= 1		#auto()
+		third_mC2h_prefix	= 2		#auto()
+		FCh_Index_Mark		= 3
+		first_mA1h_prefix	= 4
+		second_mA1h_prefix	= 5
+		third_mA1h_prefix	= 6
+		IDData_Address_Mark	= 7
+		ID_Address_Mark		= 8
+		Data_Address_Mark	= 9
+		ID_Record			= 10
+		ID_Record_CRC		= 11
+		Data_Record			= 12
+		Data_Record_CRC		= 13
+		first_gap_Byte		= 14
+		sync_mark			= 15
+
+	class crc(Enum):
+		Header	= 0		#auto()
+		Data	= 1		#auto()
+
+	class field(Enum):
+		FCh_Index_Mark		= 1		#auto()
+		ID_Address_Mark		= 2
+		Data_Address_Mark	= 3
+		Deleted_Data_Mark	= 4
+		ID_Record			= 5
+		Data_Record			= 6
+		CRC_Ok				= 7
+		CRC_Error			= 8
+		Unknown_Byte		= 9
+		Sync				= 10
+		Gap					= 11
+
+	# Synchronisation marks implemented by omitting some clock pulses.
+	# Use special.clock to mark those.
+	# FM:
+	#	FCh with D7h (11010111) clock	IAM		Index Mark
+	#	FEh with C7h (11000111) clock	IDAM	ID Address Mark
+	#	FBh with C7h clock				DAM		Data Address Mark
+	#	F8h..FAh with C7h clock			DDAM	Deleted Data Address Mark
+	# MFM:
+	#	C2h no clock between bits 3/4
+	#	A1h no clock between bits 4/5
+	class special(Enum):
+		clock		= True
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Class constructor/initializer.
@@ -1334,4 +1374,3 @@ class Decoder(srd.Decoder):
 			self.last_samplenum = self.samplenum
 
 			#--- end while
-
