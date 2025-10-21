@@ -366,6 +366,8 @@ class Decoder(srd.Decoder):
 		self.data_crc_init = int(self.options['data_crc_init'], 0) & ((1 << int(self.options['data_crc_bits'])) -1)
 		if self.options['data_crc_poly_custom']:
 			self.data_crc_poly = int(self.options['data_crc_poly_custom'], 0) & ((1 << int(self.options['data_crc_bits'])) -1)
+		self.time_unit = self.options['time_unit']
+
 		self.dsply_pfx = True if self.options['dsply_pfx'] == 'yes' else False
 		self.show_sample_num = True if self.options['dsply_sn'] == 'yes' else False
 
