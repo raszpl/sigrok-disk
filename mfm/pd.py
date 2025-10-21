@@ -432,7 +432,7 @@ class Decoder(srd.Decoder):
 								^ (crc_accum << 4)) & 0xFFFF
 				crc_accum = (self.CRC16CCITT_tab[((crc_accum >> 12) ^ (byte & 0x0F)) & 0x0F]
 								^ (crc_accum << 4)) & 0xFFFF
-		else: 
+		else:
 			for byte in bytearray:
 				crc_accum ^= (byte << crc_offset)
 				crc_accum &= crc_mask
@@ -451,20 +451,22 @@ class Decoder(srd.Decoder):
 	# ------------------------------------------------------------------------
 
 	def inc_fifo_rp(self):
-		self.fifo_rp += 1
-		if self.fifo_rp > 32:
-			self.fifo_rp -= 33
+		self.fifo_rp = (self.fifo_rp + 1) % self.fifo_size
 		self.fifo_cnt -= 1
+		if self.fifo_cnt < 0:
+			self.fifo_cnt = 0
+			raise SamplerateError('FIFO below 0!!')
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Increment FIFO write pointer and increment entry count.
 	# ------------------------------------------------------------------------
 
 	def inc_fifo_wp(self):
-		self.fifo_wp += 1
-		if self.fifo_wp > 32:
-			self.fifo_wp -= 33
+		self.fifo_wp = (self.fifo_wp + 1) % self.fifo_size
 		self.fifo_cnt += 1
+		if self.fifo_cnt > self.fifo_size:
+			self.fifo_cnt = self.fifo_size
+			raise SamplerateError('FIFO over 33!!')
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Annotate single half-bit-cell window.
