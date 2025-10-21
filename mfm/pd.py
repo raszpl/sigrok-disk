@@ -360,7 +360,7 @@ class Decoder(srd.Decoder):
 		self.dsply_pfx = True if self.options['dsply_pfx'] == 'yes' else False
 		self.show_sample_num = True if self.options['dsply_sn'] == 'yes' else False
 
-		self.report = {'no':'no', 
+		self.report = {'no':'no',
 						'IAM':field.FCh_Index_Mark,
 						'IDAM':field.ID_Address_Mark,
 						'DAM':field.Data_Address_Mark,
@@ -620,7 +620,7 @@ class Decoder(srd.Decoder):
 	# OUT: self.field_start	 updated
 	# ------------------------------------------------------------------------
 
-	def display_field(self, typ, val=0):
+	def display_field(self, typ):
 		if typ == field.FCh_Index_Mark:
 			self.IAMs += 1
 			self.put(self.field_start, self.byte_end, self.out_ann, message.iam)
@@ -638,7 +638,7 @@ class Decoder(srd.Decoder):
 				self.display_report()
 
 		elif typ == field.Data_Address_Mark:
-			if self.fdd and self.DRmark in (0xF8, 0xF9, 0xFA): 
+			if self.fdd and self.DRmark in (0xF8, 0xF9, 0xFA):
 				self.DDAMs += 1
 				self.put(self.field_start, self.byte_end, self.out_ann, message.ddam)
 				self.report_last = field.Deleted_Data_Mark
@@ -676,7 +676,17 @@ class Decoder(srd.Decoder):
 				self.display_report() # called in CRC message so we know when Data_Mark ended
 
 		elif typ == field.Unknown_Byte:
-			self.put(self.byte_end - 1, self.byte_end, self.out_ann, message.error)
+			self.put(self.byte_start, self.byte_end, self.out_ann, message.errorUnkByte)
+
+		elif typ == field.Sync:
+			sync_len = (self.byte_start - self.pll.locked) // round(self.pll.halfbit * 16)
+			#print(self.byte_start - self.pll.locked, (self.pll.halfbit*16), (self.byte_start - self.pll.locked) / self.pll.halfbit / 16)
+			#print((self.pll.lock_count * 2 + 2) // 16)
+			self.put(self.pll.locked, self.byte_start, self.out_ann, messageD.sync((self.pll.lock_count * 2 + 2) // 16))
+
+		elif typ == field.Gap:
+			gap_len = (self.byte_end - self.gap_start) // round(self.pll.halfbit*16)
+			self.put(self.gap_start, self.byte_end, self.out_ann, messageD.gap(gap_len))
 
 		self.field_start = self.byte_end
 
