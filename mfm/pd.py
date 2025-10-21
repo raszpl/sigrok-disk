@@ -1074,7 +1074,6 @@ class Decoder(srd.Decoder):
 		byte_sync = False						# True = bit/byte-sync'd, False = not sync'd
 		win_sync = False						# True = half-bit-cell window sync'd re ann.clk vs. ann.dat ?
 
-		last_interval = 0						# previous interval (in samples, 1..n)
 		interval = 0							# current interval (in samples, 1..n)
 
 
@@ -1092,7 +1091,6 @@ class Decoder(srd.Decoder):
 
 			# Calculate interval since previous leading edge.
 
-			last_interval = interval # seems unused, what was last_interval supposed to be used for?
 
 			if self.last_samplenum is None:
 				interval = int(bc10N)
