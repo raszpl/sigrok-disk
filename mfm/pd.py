@@ -169,6 +169,8 @@ class Decoder(srd.Decoder):
 			'default': '0xffffffff'},
 		{'id': 'data_crc_poly_custom', 'desc': 'Custom Data Poly (overrides above)',
 			'default': ''},
+		{'id': 'time_unit', 'desc': 'Time units',
+			'default': 'ns', 'values': ('ns', 'us', 'auto')},
 		{'id': 'dsply_sn', 'desc': 'Display Windows (bit/clock) and Pulses (pul, erp) sample numbers',
 			'default': 'no', 'values': ('yes', 'no')},
 		{'id': 'dsply_pfx', 'desc': 'Display all MFM prefix bytes',
@@ -177,6 +179,8 @@ class Decoder(srd.Decoder):
 			'default': 'no', 'values': ('no', 'IAM', 'IDAM', 'DAM', 'DDAM')},
 		{'id': 'report_qty', 'desc': 'Report every x Marks',
 			'default': '9'},
+		{'id': 'decoder', 'desc': 'Pick FM/MFM Decoder',
+			'default': 'new', 'values': ('new', 'legacy')},
 	)
 
 	class Messages(object):
