@@ -305,27 +305,16 @@ class Decoder(srd.Decoder):
 		self.IDlenc = 0				# sector length code field in ID record (0..3)
 		self.IDlenv = 0				# sector length (from code field) in ID record (128/256/512/1024)
 
-		self.IDrec = array('B', [0 for i in range(8)])		# ID record (7-8 bytes)
-		self.DRrec = array('B', [0 for i in range(1024)])	# Data record (128/256/512/1024 bytes)
+		self.IDrec = array('B', [0 for _ in range(8)])		# ID record (7-8 bytes)
+		self.DRrec = array('B', [0 for _ in range(1024)])	# Data record (128/256/512/1024 bytes)
 
 		# FIFO (using circular buffers) of starting/ending sample numbers
 		# and data values for 33 half-bit-cell windows.  Data values are
 		# number of leading edges per window (0..n).
-
-		self.fifo_ws = array('l', [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-								   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-								   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-								   0, 0, 0,])
-
-		self.fifo_we = array('l', [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-								   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-								   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-								   0, 0, 0,])
-
-		self.fifo_wv = array('i', [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-								   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-								   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-								   0, 0, 0,])
+		self.fifo_size = 100
+		self.fifo_ws = array('l', [0 for _ in range(self.fifo_size)])
+		self.fifo_we = array('l', [0 for _ in range(self.fifo_size)])
+		self.fifo_wv = array('l', [0 for _ in range(self.fifo_size)])
 
 		self.fifo_wp = -1			# index where last FIFO entry was written (0..32)
 		self.fifo_rp = 0			# index where to read next FIFO entry (0..32)
