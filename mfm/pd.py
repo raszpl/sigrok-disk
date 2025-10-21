@@ -484,20 +484,18 @@ class Decoder(srd.Decoder):
 			dataclock = ''
 		elif target == ann.unk:
 			dataclock = ''
-		
+
 		if value > 1:
 			# no need to emit error message, it was already caught by out-of-tolerance leading edge (OoTI) detector
 			if self.show_sample_num:
-				annotate = [ann.erw, ['%d%s (extra pulse in win) s%d' % (value, dataclock, start), '%d' % value]]
+				self.put(start, end, self.out_ann, [ann.erw, ['%d%s (extra pulse in win) s%d' % (value, dataclock, start), '%d' % value]])
 			else:
-				annotate = [ann.erw, ['%d%s (extra pulse in win)' % (value, dataclock), '%d' % value]]
+				self.put(start, end, self.out_ann, [ann.erw, ['%d%s (extra pulse in win)' % (value, dataclock), '%d' % value]])
 		else:
 			if self.show_sample_num:
-				annotate = [target, ['%d%s s%d' % (value, dataclock, start), '%d' % value]]
+				self.put(start, end, self.out_ann, [target, ['%d%s s%d' % (value, dataclock, start), '%d' % value]])
 			else:
-				annotate = [target, ['%d%s' % (value, dataclock), '%d' % value]]
-				
-		self.put(start, end, self.out_ann, annotate)
+				self.put(start, end, self.out_ann, [target, ['%d%s' % (value, dataclock), '%d' % value]])
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Annotate 8 bits and 16 windows of one byte using FIFO data.
