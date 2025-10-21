@@ -297,7 +297,6 @@ class Decoder(srd.Decoder):
 		self.field_start = 0		# start of field (sample number)
 		self.pb_state = 0			# processing byte state = 1..10
 		self.byte_cnt = 0			# number of bytes left to process in field (1024/512/256/128/4/2..0)
-		self.IDlastAM = -1			# sample number of most recent ID Address Mark, -1 = not found or not valid
 		self.max_id_data_gap = 0	# maximum gap between ID Address Mark and following Data Address Mark (samples)
 		self.IDcyl = 0				# cylinder number field in ID record (0..244)
 		self.IDsid = 0				# side number field in ID record (0..1)
@@ -719,8 +718,6 @@ class Decoder(srd.Decoder):
 				self.IDlenv = 1024
 			else:
 				self.IDlenv = 0
-			if self.IDlenv != self.sector_len:
-				self.IDlastAM = -1
 		elif fld_code == 1:
 			self.IDsec = val
 
@@ -743,8 +740,6 @@ class Decoder(srd.Decoder):
 				self.IDlenv = 1024
 			else:
 				self.IDlenv = 0
-			if self.IDlenv != self.sector_len:
-				self.IDlastAM = -1
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Process one byte extracted from FM pulse stream.
@@ -777,7 +772,6 @@ class Decoder(srd.Decoder):
 			self.IDmark = (val & 0x0FF)
 			self.field_start = self.byte_start
 			self.display_field(field.ID_Address_Mark)
-			self.IDlastAM = self.field_start
 			self.IDcrc = 0
 			self.byte_cnt = self.header_bytes - 4
 			self.pb_state = state.ID_Record
@@ -802,7 +796,6 @@ class Decoder(srd.Decoder):
 				if self.crc_accum == self.IDcrc:
 					self.display_field(field.CRC_Ok)
 				else:
-					self.IDlastAM = -1
 					self.display_field(field.CRC_Error)
 				self.pb_state = state.first_gap_Byte
 
@@ -812,9 +805,6 @@ class Decoder(srd.Decoder):
 			self.DRmark = val
 			self.field_start = self.byte_start
 			self.display_field(field.Data_Address_Mark)
-			if self.IDlastAM > 0 \
-			 and (self.field_start - self.IDlastAM) > self.max_id_data_gap:
-				self.IDlastAM = -1
 			self.DRcrc = 0
 			self.byte_cnt = self.sector_len
 			self.pb_state = state.Data_Record
@@ -908,7 +898,6 @@ class Decoder(srd.Decoder):
 				self.annotate_byte(val)
 				self.IDmark = val
 				self.display_field(field.ID_Address_Mark)
-				self.IDlastAM = self.field_start
 				self.IDcrc = 0
 				self.byte_cnt = self.header_bytes - 4
 				self.pb_state = state.ID_Record
@@ -916,9 +905,6 @@ class Decoder(srd.Decoder):
 				self.annotate_byte(val)
 				self.DRmark = val
 				self.display_field(field.Data_Address_Mark)
-				if self.IDlastAM > 0 \
-				 and (self.field_start - self.IDlastAM) > self.max_id_data_gap:
-					self.IDlastAM = -1
 				self.DRcrc = 0
 				self.byte_cnt = self.sector_len
 				self.pb_state = state.Data_Record
@@ -946,7 +932,6 @@ class Decoder(srd.Decoder):
 				if self.crc_accum == self.IDcrc:
 					self.display_field(field.CRC_Ok)
 				else:
-					self.IDlastAM = -1
 					self.display_field(field.CRC_Error)
 				self.pb_state = state.first_gap_Byte
 
@@ -1113,11 +1098,6 @@ class Decoder(srd.Decoder):
 
 			self.chunks += 1
 			self.Intrvls += 1
-
-			# Inter-track quiet gap resets ID/Data record matching.
-
-			if interval > self.samples30usec:
-				self.IDlastAM = -1
 
 			# Update averaged half-bit-cell window size if interval within tolerance.
 			# Also display leading-edge to leading-edge annotation, showing starting
