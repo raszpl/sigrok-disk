@@ -73,7 +73,7 @@ Old user instructions are in [documentation](PulseView-MFM-Decoder.wri.md) (need
 `data_crc_poly_custom` Custom Data Field Polynomial, overrides `data_crc_poly` setting.  
 **Default**: `` (empty string)
 
-`dsply_sn` Display Sample Numbers controls whether Windows (bit/clock) and Pulses (pul, erp) sample numbers are displayed.  
+`dsply_sn` Display Sample Numbers controls whether Windows (bit/clock) and Pulses (pul, erp) sample numbers are displayed.
 **Default**: `no` **Values**: `yes`, `no`
 
 `dsply_pfx` Display all MFM C2 and A1 prefix bytes (encoded with special glitched clock) to help with locating damaged records.  
@@ -107,32 +107,30 @@ mfm-1: CRC OK C1847279
 ## Polynomials
 - 0x1021 x16 + x12 + x5 + 1. Good old CRC-CCITT.
 - 0xA00805 x32 + x23 + x21 + x11 + x2 + 1. Used by SMSC/SMC HDC9224 in VAXstation 2000 ("VAXSTAR" ). It just so happens to be an official CRC32 algorithm of CCSDS (Consultative Committee for Space Data Systems) used in [Proximity-1 Space Link Protocol](https://ccsds.org/Pubs/211x2b1s.pdf), thats right folks - SPACE!!1
-- 0x140a0445 X32 + X28 + X26 + X19 + X17 + X10 + X6 + X2 + 1 WD1003/WD1006/WD1100
-- Other good candidates: ?0x41044185
-- ?0x0104c981 x32 + x24 + x18 + x15 + x14 + x11 + x8 + x7 + x0  initial value 0xd4d7ca20 OMTI_5510??
-- OMTI_5510_Apr85.pdf: ?0x181932081 x32 + x31 + x24 + x23 + x20 + x17 + x16 + x13 + x7 + x0
+- 0x140a0445 X32 + X28 + X26 + X19 + X17 + X10 + X6 + X2 + 1 WD1003/WD1006/WD1100 crc32
+- 0x4440a051 X32 + X30 + X26 + X22 + X15 + x13 + X6 + X4 + 1 WD1003/WD1006/WD1100 crc32 Reciprocal
+- 0x100a0445000101 X56 + X52 + X43 + X41 + X34 + X30 + X26 + X24 + X8 + 1 WD1003/WD1006/WD1100 56bit ecc
+- 0x41044185 x32 + x30 + x24 + x18 + x14 + x8 + x7 + x2 + 1 (0 init) Seagate ST11/21M header/data crc32
+- ?0x0104c981 x32 + x24 + x18 + x15 + x14 + x11 + x8 + x7 + 1 (0xd4d7ca20 init) OMTI_5510?
+- OMTI_5510_Apr85.pdf: ?0x81932081 x32 + x31 + x24 + x23 + x20 + x17 + x16 + x13 + x7 + 1?
 - 1983_Western_Digital_Components_Catalog.pdf WD1100-06 might have typos claiming:
   - ? 0x140a0405 X32 + X28 + X26 + X19 + X17 + X10 + X2 + 1
   - ? 0x140a0444 X32 + X28 + X26 + X19 + X17 + X10 + X6 + X2 + 0
-  - ? (Reciprocal: X32 + X30 + X26 + X22 + X15 + x13 + X6 + X4 + 1)
 
 ### How to convert polynomial notations
-Lets start with easy one, standard CRC-CCITT x16 + x12 + x5 + 1
-1. Write 1 bits for every X, becomes 0b1000100000010000
-2. Shift in from the right bit representing that lone +1, becomes	0b10001000000100001 (0x11021)
-3. Drop most significant bit, becomes 0b1000000100001
-4. Convert to hex, becomes 0x1021
-
-Same CRC-CCITT polynomial might also be written as x16 + x12 + x5 + x0 because any (non-zero number)^0 = 1
+Lets start with easy one, standard CRC-CCITT x16 + x12 + x5 + 1. This CRC-CCITT polynomial might also be written as x16 + x12 + x5 + x0 because any (non-zero number)^0 = 1. We will use that second representation.
+1. Write 1 in position of every X, becomes 0b10001000000100001 (0x11021)
+2. Drop most significant bit, becomes 0b1000000100001 (0x1021)
+3. Thats it, you now have 0x1021 hex representation, its that easy.
 
 Now try CRC32-CCSDS x32 + x23 + x21 + x11 + x2 + 1
-1. Write 1 bits for every X, becomes 0b1000000010100000000010000000010
-2. Shift in from the right bit representing that lone +1, becomes	0b10000000101000000000100000000101 (0x80A00805)
-3. Drop most significant bit, becomes 0b101000000000100000000101
-4. Convert to hex, becomes 0xA00805
+1. Write 1 in position of every X, becomes 0b10000000101000000000100000000101 (0x80A00805)
+2. Drop most significant bit, becomes 0b101000000000100000000101 (0xA00805)
+3. 0xA00805, done!
 
 ## Resources
 - https://www.sunshine2k.de/coding/javascript/crc/crc_js.html CRC calculator. Set custom CRC-16/32 with appropriately sized initial value 0xFFFF/0xFFFFFFFF. Dont forget to prepend ID/Data Mark bytes (FE, A1FE, A1A1A1FE what have you) to your data.
+- https://www.ghsi.de/pages/subpages/online_crc_calculation/ https://rndtool.info/CRC-step-by-step-calculator/ two CRC calculators for converting binary Polynomial to x^ notation.
 - https://www.unige.ch/medecine/nouspikel/ti99/disks.htm#Data%20encoding fantastic resouce on FM/MFM modulation and floppy encoding schemes.
 - https://map.grauw.nl/articles/low-level-disk/ As above, floppy storage primer.
 - https://patents.google.com/patent/US3794987 US3794987A Mfm readout with assymetrical data window patent.
@@ -140,11 +138,3 @@ Now try CRC32-CCSDS x32 + x23 + x21 + x11 + x2 + 1
 - https://github.com/dgesswein/mfm and https://www.pdp8online.com/mfm/ BeagleBone based MFM Hard Disk Reader/Emulator
 - https://github.com/Tronix286/MFM-Hard-Disk-Dumper Pi Pico MFM Hard Disk Dumper
 - https://github.com/MajenkoProjects/RTmFM Pi Pico based MFM Hard Disk Emulator, early work in progress
-
-## Caveats
- - some data sets require modifications to the interval thresholds and
-   software PLL coefficients to eliminate or reduce decoding errors;
-   ideally there would be a GUI to specify these values, allow saving
-   multiple sets of values, and allow selecting which set to use;  currently
-   this requires manually modifying the decoder's source code, which is too
-   clumsy and error-prone
