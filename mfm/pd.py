@@ -158,11 +158,15 @@ class Decoder(srd.Decoder):
 			'default': '16', 'values': ('16', '32')},
 		{'id': 'header_crc_poly', 'desc': 'Header field CRC Polynomial',
 			'default': '0x1021'},		# x16 + x12 + x5 + 1 standard CRC-CCITT
+		{'id': 'header_crc_init', 'desc': 'Header field CRC init',
+			'default': '0xffffffff'},
 		{'id': 'data_crc_bits', 'desc': 'Data field CRC bits',
 			'default': '32', 'values': ('16', '32', '56')},
 		{'id': 'data_crc_poly', 'desc': 'Data field CRC Polynomial',
 			'default': '0xA00805', 'values': ('0x1021', '0xA00805', '0x140a0445',
 			'0x0104c981', '0x41044185')},
+		{'id': 'data_crc_init', 'desc': 'Data field CRC init',
+			'default': '0xffffffff'},
 		{'id': 'data_crc_poly_custom', 'desc': 'Custom Data Poly (overrides above)',
 			'default': ''},
 		{'id': 'dsply_sn', 'desc': 'Display Windows (bit/clock) and Pulses (pul, erp) sample numbers',
@@ -352,8 +356,10 @@ class Decoder(srd.Decoder):
 		self.header_bytes = int(self.options['header_bytes'])
 		self.header_crc_bits = int(self.options['header_crc_bits'])
 		self.header_crc_poly = int(self.options['header_crc_poly'], 0) & ((1 << int(self.options['header_crc_bits'])) -1)
+		self.header_crc_init = int(self.options['header_crc_init'], 0) & ((1 << int(self.options['header_crc_bits'])) -1)
 		self.data_crc_bits = int(self.options['data_crc_bits'])
 		self.data_crc_poly = int(self.options['data_crc_poly'], 0)
+		self.data_crc_init = int(self.options['data_crc_init'], 0) & ((1 << int(self.options['data_crc_bits'])) -1)
 		if self.options['data_crc_poly_custom']:
 			self.data_crc_poly = int(self.options['data_crc_poly_custom'], 0) & ((1 << int(self.options['data_crc_bits'])) -1)
 		self.dsply_pfx = True if self.options['dsply_pfx'] == 'yes' else False
@@ -407,13 +413,13 @@ class Decoder(srd.Decoder):
 
 	def calculate_crc(self, bytearray, type):
 		if type == crc.Header:
-			crc_accum	= self.header_crc_mask
+			crc_accum	= self.header_crc_init
 			crc_bits	= self.header_crc_bits
 			crc_offset	= self.header_crc_offset
 			crc_mask	= self.header_crc_mask
 			crc_poly	= self.header_crc_poly
 		else:
-			crc_accum	= self.data_crc_mask
+			crc_accum	= self.data_crc_init
 			crc_bits	= self.data_crc_bits
 			crc_offset	= self.data_crc_offset
 			crc_mask	= self.data_crc_mask
