@@ -889,7 +889,7 @@ class Decoder(srd.Decoder):
 				elif self.pb_state == state.third_mA1h_prefix:
 					self.pb_state = state.IDData_Address_Mark
 			else:
-				self.display_field(field.Unknown_Byte, val)
+				self.display_field(field.Unknown_Byte)
 				return -1
 
 		elif self.pb_state == state.IDData_Address_Mark:
@@ -909,7 +909,7 @@ class Decoder(srd.Decoder):
 				self.byte_cnt = self.sector_len
 				self.pb_state = state.Data_Record
 			else:
-				self.display_field(field.Unknown_Byte, val)
+				self.display_field(field.Unknown_Byte)
 				return -1
 
 		elif self.pb_state == state.ID_Record:
@@ -971,7 +971,7 @@ class Decoder(srd.Decoder):
 				elif self.pb_state == state.third_mC2h_prefix:
 					self.pb_state = state.FCh_Index_Mark
 			else:
-				self.display_field(field.Unknown_Byte, val)
+				self.display_field(field.Unknown_Byte)
 				return -1
 
 		elif self.pb_state == state.FCh_Index_Mark:
@@ -980,7 +980,7 @@ class Decoder(srd.Decoder):
 				self.display_field(field.FCh_Index_Mark)
 				self.pb_state = state.first_gap_Byte
 			else:
-				self.display_field(field.Unknown_Byte, val)
+				self.display_field(field.Unknown_Byte)
 				return -1
 
 		elif self.pb_state == state.first_gap_Byte:	# process first gap byte after CRC or Index Mark
