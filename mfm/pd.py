@@ -502,6 +502,7 @@ class Decoder(srd.Decoder):
 					self.shift_index = -1
 				else:
 					self.lock_count += 1
+					#print_('self.lock_count', self.lock_count, self.last_samplenum)
 
 			# expected clock position for this transition
 			nearest_clock = self.phase_ref + self.halfbit_cells * self.halfbit
@@ -524,10 +525,10 @@ class Decoder(srd.Decoder):
 
 			# clamp halfbit within reasonable bounds
 			if self.halfbit < 0.5 * self.halfbit_nom:
-				print_('pll -ERRR!!!!!!!!!!!!!!!!!!!!!!!!!!', self.halfbit)
+				print_('pll -ERRR!!!!!!!!!!!!!!!!!!!!!!!!!!', self.halfbit, self.halfbit_nom, 0.5 * self.halfbit_nom)
 				self.halfbit = 0.5 * self.halfbit_nom
 			if self.halfbit > 1.5 * self.halfbit_nom:
-				print_('pll +ERRR!!!!!!!!!!!!!!!!!!!!!!!!!!', self.halfbit)
+				print_('pll +ERRR!!!!!!!!!!!!!!!!!!!!!!!!!!', self.halfbit, self.halfbit_nom, 1.5 * self.halfbit_nom)
 				self.halfbit = 1.5 * self.halfbit_nom
 
 			if not self.locked:
@@ -545,15 +546,16 @@ class Decoder(srd.Decoder):
 
 			#return self.halfbit_cells
 
-			self.shift = ((self.shift << self.halfbit_cells) + 1) & 0xffffffff
+			self.shift = ((self.shift << self.halfbit_cells) + 1) & 0xffffffffff
+			#print_('pll_shift', bin(self.shift)[1:], self.halfbit_cells, self.last_samplenum)
 
 			if not self.byte_synced:
-				# at this point we have a good pulse spanning (2, 3 or 4 in MFM) halfbit_cells
+				# at this point we have a good pulse spanning cells_allowed (2, 3 or 4 in MFM) halfbit_cells
 				return self.halfbit_cells
 			else:
 				# accumulate at least 16 bits, only return 16 bits at a time.
-				print_('pll_shift1', bin(self.shift)[1:], self.shift_index, self.halfbit_cells, self.shift_index +self.halfbit_cells)
 				self.shift_index += self.halfbit_cells
+				#print_('pll_shift1', bin(self.shift)[1:], self.shift_index, self.halfbit_cells, self.shift_index +self.halfbit_cells)
 				if self.shift_index >= 16:
 					self.shift_index -= 16
 					#print_(f'pll_shift2 {self.shift32:08X}')
@@ -916,8 +918,9 @@ class Decoder(srd.Decoder):
 
 		elif typ == field.Sync:
 			sync_len = (self.byte_start - self.pll.locked) // round(self.pll.halfbit * 16)
-			#print(self.byte_start - self.pll.locked, (self.pll.halfbit*16), (self.byte_start - self.pll.locked) / self.pll.halfbit / 16)
-			#print((self.pll.lock_count * 2 + 2) // 16)
+			#print_('sync_', self.byte_start, self.pll.ring_read_offset(- 16 - self.pll.shift_index), self.pll.ring_ws)
+			#print_(self.byte_start - self.pll.locked, (self.pll.halfbit*16), (self.byte_start - self.pll.locked) / self.pll.halfbit / 16)
+			#print_((self.pll.lock_count * 2 + 2) // 16)
 			self.put(self.pll.locked, self.byte_start, self.out_ann, messageD.sync((self.pll.lock_count * 2 + 2) // 16))
 
 		elif typ == field.Gap:
@@ -1408,8 +1411,7 @@ class Decoder(srd.Decoder):
 		#	self.max_id_data_gap = (self.samplerate / self.data_rate) * 8 * (4 + 4 + 2 + 43 + 15)
 
 		# --- Initialize various (half-)bit-cell-window and other variables.
-
-		bc10N = self.samplerate / self.data_rate		# nominal 1.0 bit cell window size (in fractional samples)
+		bc10N = self.samplerate / self.data_rate	# nominal 1.0 bit cell window size (in fractional samples)
 
 		window_size = bc10N / 2.0						# current half-bit-cell window size (in fractional samples)
 		window_size_filter_accum = window_size * 32.0	# averaging filter accumulator for window size (in fractional samples)
