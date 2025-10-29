@@ -136,7 +136,7 @@ class Decoder(srd.Decoder):
 			'default': '32', 'values': ('16', '32', '56')},
 		{'id': 'data_crc_poly', 'desc': 'Data field CRC Polynomial',
 			'default': '0xA00805', 'values': ('0x1021', '0xA00805', '0x140a0445',
-			'0x0104c981', '0x41044185')},
+			'0x0104c981', '0x41044185', '0x140a0445000101')},
 		{'id': 'data_crc_init', 'desc': 'Data field CRC init',
 			'default': '0xffffffffffffff'},
 		{'id': 'data_crc_poly_custom', 'desc': 'Custom Data Poly (overrides above)',
