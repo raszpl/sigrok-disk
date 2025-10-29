@@ -476,8 +476,7 @@ class Decoder(srd.Decoder):
 						self.locked = self.first_short_edge_tick
 						#print_('pll locked', self.locked)
 				elif self.lock_count:
-					# sync pattern interrupted -> reset
-					#print_('pll sync pattern interrupted')
+					#print_('pll sync pattern interrupted -> reset')
 					self.reset()
 					return 0
 				else:
