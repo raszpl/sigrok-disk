@@ -84,6 +84,7 @@ class Decoder(srd.Decoder):
 		('dat', 'data'),		# data half-bit-cell window
 		('byt', 'byte'),
 		('bit', 'bit'),
+		('syn', 'sync'),
 		('mrk', 'mark'),
 		('rec', 'record'),
 		('crc', 'crc'),
@@ -108,7 +109,7 @@ class Decoder(srd.Decoder):
 		('prefixes', 'Prefixes', (ann.pfx,)),							# special MFM Synchronisation marks A1/C1
 		('bits', 'Bits', (ann.erb, ann.bit,)),
 		('bytes', 'Bytes', (ann.byt,)),
-		('fields', 'Fields', (ann.mrk, ann.rec, ann.crc, ann.cre,)),
+		('fields', 'Fields', (ann.syn, ann.mrk, ann.rec, ann.crc, ann.cre,)),
 		('errors', 'Errors', (ann.err,)),
 		('reports', 'Reports', (ann.rpt,)),
 	)
@@ -179,7 +180,7 @@ class Decoder(srd.Decoder):
 	global message, messageD
 	# messageD.xxx are dynamic, slow so used sporadically, makes code more readable
 	messageD = Messages({
-		'sync'       	: (ann.mrk, ['Sync pattern %d bytes', 'Sync', 'S']),
+		'sync'       	: (ann.syn, ['Sync pattern %d bytes', 'Sync', 'S']),
 		'gap'			: (ann.mrk, ['Gap %d bytes', 'Gap', 'G']),
 		'extraPulse' 	: (ann.erw, ['%d%s (extra pulse in win) s%d', 'Extra Pulse', 'EP']),
 	})
@@ -1490,50 +1491,9 @@ class Decoder(srd.Decoder):
 				#print_('data_byte', hex(self.pll.shift_byte), self.pb_state)
 				byte_sync = self.process_byteMFM_new(self.pll.shift_byte)
 				if not byte_sync:
+					print_('not byte_sync')
 					self.pll.reset()
 
-			"""
-
-				# Sync pattern.
-				if (not byte_sync) and False:
-					if sync_start == 0:
-						#if shift31 in (0xAAAAAAAA, 0x55555555):
-						if shift31 == 0xAAAAAAAA:
-							#sync_start = win_start
-							# find win_start 32 bits back in teh fifo
-							x = self.fifo_rp
-							#print_(x, self.fifo_ws)
-							x = x - 32
-							if x <0:
-								x += 33
-							#print_(x, self.fifo_ws[x])
-							sync_start = self.fifo_ws[x]
-							sync_end = 0
-
-							sync_start = []
-							xxx = self.fifo_cnt
-							xx = self.fifo_rp
-							x = self.fifo_rp
-							x = x - 32
-							if x <0:
-								x += 33
-							self.fifo_rp = x
-							for y in range(0,8):
-								sync_start.append(self.fifo_ws[self.fifo_rp])
-								self.inc_fifo_rp()
-								self.inc_fifo_rp()
-							self.fifo_rp = xx
-							self.fifo_cnt = xxx
-
-					else:
-						sync_end += 1
-						if shift31 not in (0xAAAAAAAA, 0x55555555):
-							self.field_start = sync_start[(sync_end - ((sync_end // 8) *8))]
-							self.byte_end = win_start
-							self.display_field(field.Sync)
-							sync_start = 0
-
-			"""
 			#--- end while
 
 	def decode_legacy(self):
