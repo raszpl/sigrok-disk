@@ -558,9 +558,7 @@ class Decoder(srd.Decoder):
 				#print_('pll_shift1', bin(self.shift)[1:], self.shift_index, self.halfbit_cells, self.shift_index +self.halfbit_cells)
 				if self.shift_index >= 16:
 					self.shift_index -= 16
-					#print_(f'pll_shift2 {self.shift32:08X}')
 					self.shift_win = (self.shift >> self.shift_index) & 0xffff
-					#print_(f'pll_shift3 {self.shift32:08X}')
 					self.shift_byte = 0
 					for i in range(8):
 						self.shift_byte |= ((self.shift_win >> 2 * i) & 1) << i
@@ -1405,40 +1403,28 @@ class Decoder(srd.Decoder):
 		# Calculate maximum number of samples allowed between ID and Data Address Marks.
 		# Cant put it in start() or metadata() becaue we cant be sure of order those
 		# two are called, one initializes (samplerate) the other user options (data_rate)
-		#if self.encodingFM:
-		#	self.max_id_data_gap = (self.samplerate / self.data_rate) * 8 * (1 + 4 + 2 + 30 + 10)
-		#else:
-		#	self.max_id_data_gap = (self.samplerate / self.data_rate) * 8 * (4 + 4 + 2 + 43 + 15)
 
 		# --- Initialize various (half-)bit-cell-window and other variables.
 		bc10N = self.samplerate / self.data_rate	# nominal 1.0 bit cell window size (in fractional samples)
-
-		window_size = bc10N / 2.0						# current half-bit-cell window size (in fractional samples)
-		window_size_filter_accum = window_size * 32.0	# averaging filter accumulator for window size (in fractional samples)
-		halfbit_cells = 0.0								# number of half-bit-cell windows per leading edge interval
-		window_start = 0.0						# start of current half-bit-cell window (fractional sample number)
-		window_end = window_start + window_size	# end of current half-bit-cell window (fractional sample number)
-		window_adj = 0.0						# adjustment to window_end (in fractional samples)
-		cell_window = ann.clk					# current half-bit-cell window, can be ann.clk or ann.dat
-		v = 0									# 1 = edge in current window, 0 = no edge
-		shift31 = 0								# 31-bit pattern shift register (of half-bit-cells)
-		shift32 = 0
-
-		data_byte = 0							# 8-bit data byte shift register (of bit cells)
-		bit_cnt = 0								# number of bits processed in current byte (0..8)
-		byte_sync = False						# True = bit/byte-sync'd, False = not sync'd
-		win_sync = False						# True = half-bit-cell window sync'd re ann.clk vs. ann.dat ?
-
-		interval = 0							# current interval (in samples, 1..n)
-
-		sync_start = 0
-		sync_end = 0
+		window_size = bc10N / 2.0	# current half-bit-cell window size (in fractional samples)
 
 		if self.encodingFM:
 			cells_allowed = (1, 2)
 		else:
 			cells_allowed = (2, 3, 4)
 
+		shift31 = 0					# 31-bit pattern shift register (of half-bit-cells)
+		shift32 = 0
+
+		data_byte = 0				# 8-bit data byte shift register (of bit cells)
+		bit_cnt = 0					# number of bits processed in current byte (0..8)
+		byte_sync = False			# True = bit/byte-sync'd, False = not sync'd
+		win_sync = False			# True = half-bit-cell window sync'd re ann.clk vs. ann.dat ?
+
+		interval = 0				# current interval (in samples, 1..n)
+
+		sync_start = 0
+		sync_end = 0
 		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, cells_allowed=cells_allowed)
 
 		interval_unit = self.time_unit
@@ -1473,12 +1459,10 @@ class Decoder(srd.Decoder):
 
 			#print_('main:', self.last_samplenum, self.samplenum, interval, str(round(interval * interval_multi)) + interval_unit, pll_ret)
 
-			#window_size = pll.halfbit
-
 			# Annotate Pulses, leading-edge to leading-edge.
 			# Interval in interval_unit and optional sample number.
 			interval_time = str(round(interval * interval_multi)) + interval_unit
-			#print('mmmmm', message, message.errorOoTIs)
+			#print_('mmmmm', message, message.errorOoTIs)
 			if self.pll.halfbit_cells in cells_allowed:
 				if self.show_sample_num:
 					self.put(last_samplenum, self.samplenum, self.out_ann,	[ann.pul, ['%s s%d - %d' % (interval_time, last_samplenum, self.samplenum), '%s' % interval_time]])
@@ -1498,12 +1482,12 @@ class Decoder(srd.Decoder):
 			if not pll_ret:
 				continue
 			elif pll_ret < 16:
-				#print('pll_ret', pll_ret, self.samplenum)
+				#print_('pll_ret', pll_ret, self.samplenum)
 				#self.annotate_window(ann.unk, win_start, win_end, win_val)
 				pass
 			elif pll_ret == 16:
 
-				#print('data_byte', hex(self.pll.shift_byte), self.pb_state)
+				#print_('data_byte', hex(self.pll.shift_byte), self.pb_state)
 				byte_sync = self.process_byteMFM_new(self.pll.shift_byte)
 				if not byte_sync:
 					self.pll.reset()
