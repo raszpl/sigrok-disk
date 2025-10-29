@@ -125,18 +125,19 @@ mfm-1: CRC OK C1847279
 ## Polynomials
 - 0x1021 x16 + x12 + x5 + 1. Good old CRC-CCITT.
 - 0xA00805 x32 + x23 + x21 + x11 + x2 + 1. Used by SMSC/SMC HDC9224 in VAXstation 2000 ("VAXSTAR" ). It just so happens to be an official CRC32 algorithm of CCSDS (Consultative Committee for Space Data Systems) used in [Proximity-1 Space Link Protocol](https://ccsds.org/Pubs/211x2b1s.pdf). Thats right folks - SPACE!!1
-- 0x140a0445 X32 + X28 + X26 + X19 + X17 + X10 + X6 + X2 + 1 WD1003/WD1006/WD1100 crc32
-- 0x4440a051 X32 + X30 + X26 + X22 + X15 + x13 + X6 + X4 + 1 WD1003/WD1006/WD1100 crc32 Reciprocal
-- 0x100a0445000101 X56 + X52 + X43 + X41 + X34 + X30 + X26 + X24 + X8 + 1 WD1003/WD1006/WD1100 56bit ecc
-- 0x41044185 x32 + x30 + x24 + x18 + x14 + x8 + x7 + x2 + 1 (0 init) Seagate ST11/21M header/data crc32
+- 0x140a0445 X32 + X28 + X26 + X19 + X17 + X10 + X6 + X2 + 1 WD1003/WD1006/WD1100 CRC32
+- 0x140a0445000101 X56 + X52 + X50 + X43 + X41 + X34 + X30 + X26 + X24 + X8 + 1 WD40C22/etc ECC56
+- 0x41044185 x32 + x30 + x24 + x18 + x14 + x8 + x7 + x2 + 1 (0 init) Seagate ST11/21 header/data CRC32
 - ?0x0104c981 x32 + x24 + x18 + x15 + x14 + x11 + x8 + x7 + 1 (0xd4d7ca20 init) OMTI_5510?
 - OMTI_5510_Apr85.pdf: ?0x81932081 x32 + x31 + x24 + x23 + x20 + x17 + x16 + x13 + x7 + 1?
+- 0x4440a051 X32 + X30 + X26 + X22 + X15 + x13 + X6 + X4 + 1 WD1003/WD1006/WD1100 CRC32 reciprocal
+- 0x140a0445000101 X56 + X48 + X32 + X30 + X26 + X22 + X15 + X13 + X15 + X6 + X4 + 1 WD40C22/etc 56bit ecc reciprocal
 - 1983_Western_Digital_Components_Catalog.pdf WD1100-06 might have typos claiming:
   - ? 0x140a0405 X32 + X28 + X26 + X19 + X17 + X10 + X2 + 1
   - ? 0x140a0444 X32 + X28 + X26 + X19 + X17 + X10 + X6 + X2 + 0
 
 ### How to convert polynomial notations
-Lets start with easy one, standard CRC-CCITT x16 + x12 + x5 + 1. This CRC-CCITT polynomial might also be written as x16 + x12 + x5 + x0 because any (non-zero number)^0 = 1. We will use that second representation.
+Lets start with easy one, standard CRC-CCITT x16 + x12 + x5 + 1. This CRC-CCITT polynomial can also be written as x16 + x12 + x5 + x0 because any (non-zero number)^0 is 1. We will use that second representation.
 1. Write 1 in position of every X, becomes 0b10001000000100001 (0x11021)
 2. Drop most significant bit, becomes 0b1000000100001 (0x1021)
 3. Thats it, you now have 0x1021 hex representation, its that easy.
@@ -147,14 +148,27 @@ Now try CRC32-CCSDS x32 + x23 + x21 + x11 + x2 + 1
 3. 0xA00805, done!
 
 ## Resources
+### Tutorials
 - https://www.unige.ch/medecine/nouspikel/ti99/disks.htm#Data%20encoding fantastic resouce on FM/MFM modulation and floppy encoding schemes.
 - https://map.grauw.nl/articles/low-level-disk/ As above, floppy storage primer.
+- Hard Disk Geometry and Low-Level Data Structures https://www.viser.edu.rs/uploads/2018/03/Predavanje%2002c%20-%20Hard%20disk%20geometrija.pdf by School of Electrical and Computer Engineering of Applied Studies in Belgrade (VISER)
+### Patents
 - https://patents.google.com/patent/US3794987 US3794987A Mfm readout with assymetrical data window patent.
+- Address mark generating method and its circuit in a data memory https://patents.google.com/patent/US5062011A
+### Datasheets
+- Adaptec AIC-270 2/7 RLL Endec http://www.bitsavers.org/pdf/adaptec/asic/AIC-270_RLL_Encoder_Decoder.pdf
+- SSI 32D5321/5322, 32D535/5351, 32D5362 2,7 RLL ENDEC https://bitsavers.org/pdf/maxtor/ata/1990_7080AT/data_synchronizer_appnote.pdf https://bitsavers.trailing-edge.com/components/siliconSystems/_dataBooks/1989_Silicon_Systems_Microperipheral_Products.pdf (3-23)
+- WD1100-06 https://bitsavers.org/components/westernDigital/_dataBooks/1983_Western_Digital_Components_Catalog.pdf
+- WD50C12 Winchester Disk Controller (MFM/RLL/NRZ) https://bitsavers.org/components/westernDigital/_dataSheets/WD50C12_Winchester_Disk_Controller_198803.pdf
+### Anecdotes
+- Help with HDD data encoding puzzle: RLL or ... what? (Iomega Alpha-10 / 10H / 20  proprietary RLL(1,8) 2/3 RLLC) https://forum.vcfed.org/index.php?threads/help-with-hdd-data-encoding-puzzle-rll-or-what.1250316/
+### CRC
 - https://www.sunshine2k.de/coding/javascript/crc/crc_js.html CRC calculator. Set custom CRC-16/32 with appropriately sized initial value 0xFFFF/0xFFFFFFFF. Dont forget to prepend ID/Data Mark bytes (FE, A1FE, A1A1A1FE what have you) to your data.
 - https://www.ghsi.de/pages/subpages/online_crc_calculation/ https://rndtool.info/CRC-step-by-step-calculator/ two CRC calculators for converting binary Polynomial to x^ notation.
 - https://reveng.sourceforge.io/ CRC RevEng: arbitrary-precision CRC calculator and algorithm finder
+### Emulation
 - https://github.com/dgesswein/mfm and https://www.pdp8online.com/mfm/ BeagleBone based MFM Hard Disk Reader/Emulator
 - https://github.com/Tronix286/MFM-Hard-Disk-Dumper Pi Pico MFM Hard Disk Dumper
 - https://github.com/MajenkoProjects/RTmFM Pi Pico based MFM Hard Disk Emulator, early work in progress
 
-Old user instructions are in [documentation](doc/PulseView-MFM-Decoder.wri.md) (needs updating).
+Old user instructions are in [documentation](doc/PulseView-MFM-Decoder.wri.md)
