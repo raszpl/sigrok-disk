@@ -118,9 +118,9 @@ class Decoder(srd.Decoder):
 			'default': 'rising', 'values': ('rising', 'falling')},
 		{'id': 'data_rate', 'desc': 'Data rate (bps)',
 			'default': '5000000', 'values': ('125000', '150000',
-			'250000', '300000', '500000', '5000000', '10000000')},
+			'250000', '300000', '500000', '5000000', '7500000', '10000000')},
 		{'id': 'encoding', 'desc': 'Encoding',
-			'default': 'MFM', 'values': ('FM', 'MFM')},
+			'default': 'MFM', 'values': ('FM', 'MFM', 'RLL')},
 		{'id': 'type', 'desc': 'Type',
 			'default': 'HDD', 'values': ('FDD', 'HDD')},
 		{'id': 'sect_len', 'desc': 'Sector length',
@@ -327,7 +327,7 @@ class Decoder(srd.Decoder):
 
 		self.rising_edge = True if self.options['leading_edge'] == 'rising' else False
 		self.data_rate = float(self.options['data_rate'])
-		self.encodingFM = True if self.options['encoding'] == 'FM' else False
+		self.encoding = encoding[self.options['encoding']]
 		self.fdd = True if self.options['type'] == 'FDD' else False
 		self.sector_len = int(self.options['sect_len'])
 		self.header_bytes = int(self.options['header_bytes'])
@@ -486,22 +486,29 @@ class Decoder(srd.Decoder):
 			if self.locked:
 				# check pulse constraints
 				if self.halfbit_cells < self.cells_allowed_min:
-					#print_("pll pulse out-of-tolerance, too short", pulse_ticks, self.halfbit_cells)
+					print_("pll pulse out-of-tolerance, too short", pulse_ticks, self.halfbit_cells)
 					self.reset()
 					return 0
 				elif self.halfbit_cells > self.cells_allowed_max:
-					#print_("pll pulse out-of-tolerance, too long", pulse_ticks, edge_tick)
-					# now handle special case of pulse too long but covering end of good byte
+					print_("pll pulse out-of-tolerance, too long", pulse_ticks, edge_tick)
+					# now handle special case of pulse too long but covering end of last good byte
 					if self.byte_synced and self.shift_index + self.halfbit_cells >= 16:
 					# little rube goldberg here, unsync will set byte_synced = False will trigger pll.reset()
 							self.unsync = True
 					else:
+						print_("pll pulse out-of-tolerance, not in cells_allowed")
 						self.reset()
 						return 0
-				elif not self.byte_synced and self.halfbit_cells == 3:
+				elif not self.byte_synced and self.owner.encoding == encoding.FM and self.halfbit_cells == 1:
+					print_("byte_synced", self.halfbit_cells, self.last_samplenum)
+					self.byte_synced = True
+					self.shift_index = 1
+				elif not self.byte_synced and self.owner.encoding == encoding.MFM and self.halfbit_cells == 3:
+					print_("byte_synced", self.halfbit_cells, self.last_samplenum, edge_tick)
 					self.byte_synced = True
 					self.shift_index = -1
-				else:
+					self.lock_count += 1
+				elif not self.byte_synced:
 					self.lock_count += 1
 					#print_('self.lock_count', self.lock_count, self.last_samplenum)
 
@@ -558,15 +565,21 @@ class Decoder(srd.Decoder):
 				self.shift_index += self.halfbit_cells
 				#print_('pll_shift1', bin(self.shift)[1:], self.shift_index, self.halfbit_cells, self.shift_index +self.halfbit_cells)
 				if self.shift_index >= 16:
-					self.shift_index -= 16
-					self.shift_win = (self.shift >> self.shift_index) & 0xffff
-					self.shift_byte = 0
-					for i in range(8):
-						self.shift_byte |= ((self.shift_win >> 2 * i) & 1) << i
-					#print_('self.shift_byte', bin(self.shift_byte)[1:], hex(self.shift_byte))
+					if self.owner.encoding != encoding.RLL:
+						self.shift_index -= 16
+						self.shift_win = (self.shift >> self.shift_index) & 0xffff
+						self.shift_byte = 0
+						for i in range(8):
+							self.shift_byte |= ((self.shift_win >> 2 * i) & 1) << i
+						#print_('self.shift_byte', bin(self.shift_byte)[1:], hex(self.shift_byte))
+						ret = 16
+					elif self.owner.encoding == encoding.RLL:
+						#ret = self.rll()
+						pass
+
 					if self.unsync:
 						self.byte_synced = False
-					return 16
+					return ret
 			return 0
 
 	# ------------------------------------------------------------------------
@@ -729,8 +742,8 @@ class Decoder(srd.Decoder):
 
 			#print_(bit_start, win_end, win_val)
 			# Display annotation for bit using value in data window.
-			if ((not self.encodingFM) and (shift3 & 0b111) in (0b000, 0b011, 0b110, 0b111)) \
-				or ( self.encodingFM  and not (shift3 &	 0b10)):
+			if (self.encoding == encoding.MFM and (shift3 & 0b111) in (0b000, 0b011, 0b110, 0b111)) \
+				or (self.encoding == encoding.FM and not (shift3 & 0b10)):
 				if not special_clock:
 					self.put(bit_start, win_end, self.out_ann, message.errorClock)
 					self.CkEr += 1
@@ -786,8 +799,8 @@ class Decoder(srd.Decoder):
 			# bit for the previous byte has already been displayed previously.
 
 			if bitn < 8:
-				if ((not self.encodingFM) and (shift3 == 0 or shift3 == 3 or shift3 == 6 or shift3 == 7)) \
-				 or (	 self.encodingFM  and (shift3 == 0 or shift3 == 1 or shift3 == 4 or shift3 == 5)):
+				if (self.encoding == encoding.MFM and (shift3 == 0 or shift3 == 3 or shift3 == 6 or shift3 == 7)) \
+				 or (self.encoding == encoding.FM and (shift3 == 0 or shift3 == 1 or shift3 == 4 or shift3 == 5)):
 					if not special_clock:
 						self.put(bit_end - 1, bit_end, self.out_ann, message.error)
 						self.CkEr += 1
@@ -1409,10 +1422,12 @@ class Decoder(srd.Decoder):
 		bc10N = self.samplerate / self.data_rate	# nominal 1.0 bit cell window size (in fractional samples)
 		window_size = bc10N / 2.0	# current half-bit-cell window size (in fractional samples)
 
-		if self.encodingFM:
+		if self.encoding == encoding.FM:
 			cells_allowed = (1, 2)
-		else:
+		elif self.encoding == encoding.MFM:
 			cells_allowed = (2, 3, 4)
+		elif self.encoding == encoding.RLL:
+			cells_allowed = (3, 4, 5, 6, 7, 8)
 
 		shift31 = 0					# 31-bit pattern shift register (of half-bit-cells)
 		shift32 = 0
@@ -1486,10 +1501,17 @@ class Decoder(srd.Decoder):
 				#print_('pll_ret', pll_ret, self.samplenum)
 				#self.annotate_window(ann.unk, win_start, win_end, win_val)
 				pass
-			elif pll_ret == 16:
+			elif pll_ret >= 16:
 
 				#print_('data_byte', hex(self.pll.shift_byte), self.pb_state)
-				byte_sync = self.process_byteMFM_new(self.pll.shift_byte)
+				if self.encoding == encoding.FM:
+					byte_sync = self.process_byteFM_new(self.pll.shift_byte)
+				elif self.encoding == encoding.MFM:
+					byte_sync = self.process_byteMFM_new(self.pll.shift_byte)
+				else: # todo: RLL here
+					#byte_sync = self.process_byteRLL(self.pll.shift_byte)
+					print_('data_byte', hex(self.pll.shift_byte), self.pb_state, byte_sync)
+
 				if not byte_sync:
 					print_('not byte_sync')
 					self.pll.reset()
@@ -1505,9 +1527,9 @@ class Decoder(srd.Decoder):
 		# Calculate maximum number of samples allowed between ID and Data Address Marks.
 		# Cant put it in start() or metadata() becaue we cant be sure of order those
 		# two are called, one initializes (samplerate) the other user options (data_rate)
-		if self.encodingFM:
+		if self.encoding == encoding.FM:
 			self.max_id_data_gap = (self.samplerate / self.data_rate) * 8 * (1 + 4 + 2 + 30 + 10)
-		else:
+		elif self.encoding == encoding.MFM:
 			self.max_id_data_gap = (self.samplerate / self.data_rate) * 8 * (4 + 4 + 2 + 43 + 15)
 
 		# --- Initialize various (half-)bit-cell-window and other variables.
@@ -1570,7 +1592,7 @@ class Decoder(srd.Decoder):
 			# Also display leading-edge to leading-edge annotation, showing starting
 			# sample number, and interval in nsec.
 
-			if self.encodingFM:
+			if self.encoding == encoding.FM:
 				if interval >= bc05L and interval <= bc05U:
 					hbcpi = 1.0
 				elif interval >= bc10L and interval <= bc10U:
@@ -1652,7 +1674,7 @@ class Decoder(srd.Decoder):
 
 				# Display all MFM mC2h and mA1h prefix bytes to help with locating damaged records.
 
-				if (not self.encodingFM) and self.dsply_pfx:
+				if (self.encoding == encoding.MFM) and self.dsply_pfx:
 					if (shift31 & 0xFFFF) == 0x4489:
 						self.put(win_start, win_end, self.out_ann, message.prefixA1)
 					elif (shift31 & 0xFFFF) == 0x5224:
@@ -1671,18 +1693,15 @@ class Decoder(srd.Decoder):
 				if (not byte_sync) and (self.fifo_cnt == 33):
 
 					# Process FM patterns.
-
-					if self.encodingFM:
+					if self.encoding == encoding.FM:
 
 						# FM ID Address Mark pattern found.
-
 						if shift31 == 0x2AAAF57E:	# 00h,mFEh bytes
 							data_byte = 0x1FE
 							byte_sync = True
 							win_sync = True
 
 						# FM Data Address Mark pattern found.
-
 						elif shift31 == 0x2AAAF56F:	# 00h,mFBh bytes
 							data_byte = 0x1FB
 							byte_sync = True
@@ -1704,35 +1723,30 @@ class Decoder(srd.Decoder):
 							win_sync = True
 
 						# FM Index Mark pattern found.
-
 						elif shift31 == 0x2AAAF77A:	# 00h,mFCh bytes
 							data_byte = 0x1FC
 							byte_sync = True
 							win_sync = True
 
 					# Process MFM patterns.
-
 					else:
 
 						# MFM ID or Data Address Mark initial pattern found.
-
 						if shift31 == 0x2AAA4489:	# initial 00h,mA1h prefix bytes
 							data_byte = 0x1A1
 							byte_sync = True
 							win_sync = True
 
 						# MFM Index Mark initial pattern found.
-
 						elif shift31 == 0x2AAA5224:	# initial 00h,mC2h prefix bytes
 							data_byte = 0x1C2
 							byte_sync = True
 							win_sync = True
 
 					# Process and display (initial) mark pattern.
-
 					if byte_sync:
 
-						if self.encodingFM:
+						if self.encoding == encoding.FM:
 							self.process_byteFM(data_byte)
 						else:
 							self.process_byteMFM(data_byte)
@@ -1741,7 +1755,6 @@ class Decoder(srd.Decoder):
 						bit_cnt = 0
 
 				# Already sync'd, process next data bit.
-
 				elif cell_window == ann.dat:
 
 					data_byte = ((data_byte & 0x7F) << 1) + v
@@ -1749,12 +1762,10 @@ class Decoder(srd.Decoder):
 
 					# Process and display next complete data byte.
 					# The FIFO must have exactly 17 entries in it.
-
 					if bit_cnt == 8 and self.fifo_cnt == 17:
 
 						# Process FM byte.
-
-						if self.encodingFM:
+						if self.encoding == encoding.FM:
 
 							if self.process_byteFM(data_byte) == 0:
 								bit_cnt = 0
@@ -1763,7 +1774,6 @@ class Decoder(srd.Decoder):
 								byte_sync = False
 
 						# Process MFM byte.
-
 						else:
 
 							if (shift31 & 0xFFFF) == 0x4489:	# mA1h prefix byte
@@ -1802,26 +1812,22 @@ class Decoder(srd.Decoder):
 						self.annotate_window(ann.unk, win_start, win_end, win_val)
 
 				# Toggle clock vs. data state.
-
 				if cell_window == ann.dat:
 					cell_window = ann.clk
 				else:
 					cell_window = ann.dat
 
 				# Calculate next half-bit-cell window location.
-
 				window_start = window_end
 				window_end += window_size
 
 				# If edge processed in current window, get next edge.
-
 				if v == 1:	break
 
 				#--- end while
 
 
 			# Store data for next round.
-
 			self.last_samplenum = self.samplenum
 
 			#--- end while
