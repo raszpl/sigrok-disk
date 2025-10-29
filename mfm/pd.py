@@ -275,7 +275,7 @@ class Decoder(srd.Decoder):
 		self.byte_start = 0			# start of byte (sample number)
 		self.byte_end = 0			# end of byte (sample number)
 		self.field_start = 0		# start of field (sample number)
-		self.pb_state = 0			# processing byte state = 1..10
+		self.pb_state = state.sync_mark # init State Machine
 		self.byte_cnt = 0			# number of bytes left to process in field (1024/512/256/128/4/2..0)
 		self.max_id_data_gap = 0	# maximum gap between ID Address Mark and following Data Address Mark (samples)
 		self.IDcyl = 0				# cylinder number field in ID record (0..244)
