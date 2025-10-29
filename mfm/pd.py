@@ -474,7 +474,7 @@ class Decoder(srd.Decoder):
 					elif self.lock_count >= self.lock_threshold:
 						# seen enough clock pulses, PLL locked in
 						self.locked = self.first_short_edge_tick
-						#print_('pll locked', self.locked)
+						#print_('pll locked', self.locked, self.last_samplenum)
 				elif self.lock_count:
 					#print_('pll sync pattern interrupted -> reset')
 					self.reset()
