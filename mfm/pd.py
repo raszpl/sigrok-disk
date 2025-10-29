@@ -45,7 +45,6 @@ from array import *
 from struct import *
 from enum import Enum#, auto not supported in python34, nor are switch statements :|
 from types import SimpleNamespace # nicer class.key access
-from common.srdhelper import SrdIntEnum
 
 # Debug print for switching on/off all in one place
 def print_(*args):
