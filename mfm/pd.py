@@ -278,7 +278,6 @@ class Decoder(srd.Decoder):
 		self.field_start = 0		# start of field (sample number)
 		self.pb_state = state.sync_mark # init State Machine
 		self.byte_cnt = 0			# number of bytes left to process in field (1024/512/256/128/4/2..0)
-		self.max_id_data_gap = 0	# maximum gap between ID Address Mark and following Data Address Mark (samples)
 		self.IDcyl = 0				# cylinder number field in ID record (0..244)
 		self.IDsid = 0				# side number field in ID record (0..1)
 		self.IDsec = 0				# sector number field in ID record (0..244)
@@ -1527,10 +1526,6 @@ class Decoder(srd.Decoder):
 		# Calculate maximum number of samples allowed between ID and Data Address Marks.
 		# Cant put it in start() or metadata() becaue we cant be sure of order those
 		# two are called, one initializes (samplerate) the other user options (data_rate)
-		if self.encoding == encoding.FM:
-			self.max_id_data_gap = (self.samplerate / self.data_rate) * 8 * (1 + 4 + 2 + 30 + 10)
-		elif self.encoding == encoding.MFM:
-			self.max_id_data_gap = (self.samplerate / self.data_rate) * 8 * (4 + 4 + 2 + 43 + 15)
 
 		# --- Initialize various (half-)bit-cell-window and other variables.
 
