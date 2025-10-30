@@ -1,6 +1,9 @@
 # FM/MFM/RLL decoder for Sigrok/PulseView/DSView
 This [plugin](https://github.com/sigrokproject/libsigrokdecode) lets you explore and analyze data stored on floppy disks and MFM/RLL hard drives at a low level using [Sigrok](https://sigrok.org)/[Sigrok-cli](https://sigrok.org/wiki/Sigrok-cli)([github](https://github.com/sigrokproject/sigrok-cli))/[PulseView](https://sigrok.org/wiki/PulseView)([github](https://github.com/sigrokproject/pulseview))/[DSView](https://github.com/DreamSourceLab/DSView) Logic Analyzer software.   
-Start by loading one of available [test sample files](#available-test-sample-files) or capture you own data using Logic Analyzer hardware. Floppy drive requires at least ~12MHz sampling rate meaning ~$60 Hantek 6022 or $5 CY7C68013A dev board (aliexpress/ebay/amazon) as thats pretty much whats inside the Hantek/original Saleae https://sigrok.org/wiki/Lcsoft_Mini_Board. Hard drives are more demanding (5-15Mbit data rate) and require at least 200MHz sampling rate with commercial LAs starting around $200, but you can also go for $5 Pico/Pico2 board using https://github.com/gusmanb/logicanalyzer software.
+Start by loading one of available [test sample files](#available-test-sample-files) or capture you own data using Logic Analyzer hardware.
+
+- Floppy drive requires at least ~12MHz sampling rate meaning ~$60 Hantek 6022 or $5 CY7C68013A dev board (aliexpress/ebay/amazon) as thats pretty much whats inside the Hantek/original Saleae https://sigrok.org/wiki/Lcsoft_Mini_Board.   
+- Hard drives are more demanding (5-15Mbit flux rate) requiring at least 200MHz sampling rate with commercial LAs starting around $200 ... or try your luck with $5 Pico/Pico2 board using open source https://github.com/gusmanb/logicanalyzer.
 
 <details open>
 <summary><h2>Table of Contents</h2></summary>
