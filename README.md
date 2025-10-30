@@ -29,10 +29,12 @@ Start by loading one of available [test sample files](#available-test-sample-fil
 
 ## Screenshots
 #### Full Track view
-![Full Track Decode](doc/pulseview_track.png)
+![Full Track Decode](doc/pulseview_track.png)  
+Typical track on MFM encoded hard drive.
 
 #### Sector Header close-up
-![Sector Close-Up](doc/pulseview_idrecord.png)
+![Sector Close-Up](doc/pulseview_idrecord.png)  
+This is a spare/unused sector created on MFM drive by Seagate ST21 controller at the end of every track. Notice the weird Sector number 254 (0b11111110, for easier hardware filtering?) and absence of GAP3 between end of Header and start of Sync pattern. Without GAP3 this sector is unwriteable without corruption. Every MFM/RLL drive I looked at so far wasted precious space leaving enought unwritten disk surface for one more sector on per track. This translates to never using 6% of the MFM and 3% of RLL disk you paid for, about 2.5MB on typical 40MB MFM drive.
 
 ## Available test sample files
  - [fdd_fm.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/fdd_fm.sr) 3 channels, 15000000 sample rate, FDD, FM encoding, 125000 bps, 256 Sectors, Data CRC 16bit, data poly 0x1021
