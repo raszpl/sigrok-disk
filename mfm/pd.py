@@ -49,7 +49,7 @@ from types import SimpleNamespace # nicer class.key access
 # Debug print for switching on/off all in one place
 def print_(*args):
 	pass
-	print(" ".join(map(str, args)))
+	#print(" ".join(map(str, args)))
 
 # ----------------------------------------------------------------------------
 # PURPOSE: Handle missing sample rate.
@@ -311,22 +311,26 @@ class Decoder(srd.Decoder):
 		encoding.FM: {
 			"table": FM_R,
 			"cells_allowed": (1, 2),
-			"sync": 2
+			"sync": 2,
+			"pb_state": state.sync_mark,
 		},
 		encoding.MFM: {
 			"table": FM_R,
 			"cells_allowed": (2, 3, 4),
 			"sync": 2,
+			"pb_state": state.sync_mark,
 		},
 		encoding.MFM_FD: {
 			"table": FM_R,
 			"cells_allowed": (2, 3, 4),
 			"sync": 2,
+			"pb_state": state.sync_mark,
 		},
 		encoding.MFM_HD: {
 			"table": FM_R,
 			"cells_allowed": (2, 3, 4),
 			"sync": 2,
+			"pb_state": state.sync_mark,
 		},
 		encoding.RLL_SEA: {
 			"table": RLL_IBM_R,
@@ -651,7 +655,7 @@ class Decoder(srd.Decoder):
 					print_("byte_synced", self.halfbit_cells, self.last_samplenum)
 					self.byte_synced = True
 					self.shift_index = 1
-				elif not self.byte_synced and self.owner.encoding == encoding.MFM and self.halfbit_cells == 3:
+				elif not self.byte_synced and self.owner.encoding in (encoding.MFM, encoding.MFM_FD, encoding.MFM_HD) and self.halfbit_cells == 3:
 					print_("byte_synced", self.halfbit_cells, self.last_samplenum, edge_tick)
 					self.byte_synced = True
 					self.shift_index = -1
@@ -726,7 +730,7 @@ class Decoder(srd.Decoder):
 				self.shift_index += self.halfbit_cells
 				#print_('pll_shift1', bin(self.shift)[1:], self.shift_index, self.halfbit_cells, self.shift_index +self.halfbit_cells)
 				if self.shift_index >= 16:
-					if self.owner.encoding != encoding.FM:
+					if self.owner.encoding in (encoding.FM, encoding.MFM, encoding.MFM_FD, encoding.MFM_HD):
 						self.shift_index -= 16
 						self.shift_win = (self.shift >> self.shift_index) & 0xffff
 						self.shift_byte = 0
@@ -902,7 +906,7 @@ class Decoder(srd.Decoder):
 
 			#print_(bit_start, win_end, win_val)
 			# Display annotation for bit using value in data window.
-			if (self.encoding == encoding.MFM and (shift3 & 0b111) in (0b000, 0b011, 0b110, 0b111)) \
+			if (self.encoding in (encoding.MFM, encoding.MFM_FD, encoding.MFM_HD) and (shift3 & 0b111) in (0b000, 0b011, 0b110, 0b111)) \
 				or (self.encoding == encoding.FM and not (shift3 & 0b10)):
 				if not special_clock:
 					self.put(bit_start, win_end, self.out_ann, message.errorClock)
@@ -959,7 +963,7 @@ class Decoder(srd.Decoder):
 			# bit for the previous byte has already been displayed previously.
 
 			if bitn < 8:
-				if (self.encoding == encoding.MFM and (shift3 == 0 or shift3 == 3 or shift3 == 6 or shift3 == 7)) \
+				if (self.encoding in (encoding.MFM, encoding.MFM_FD, encoding.MFM_HD) and (shift3 == 0 or shift3 == 3 or shift3 == 6 or shift3 == 7)) \
 				 or (self.encoding == encoding.FM and (shift3 == 0 or shift3 == 1 or shift3 == 4 or shift3 == 5)):
 					if not special_clock:
 						self.put(bit_end - 1, bit_end, self.out_ann, message.error)
@@ -1769,17 +1773,21 @@ class Decoder(srd.Decoder):
 		bc10N = self.samplerate / self.data_rate	# nominal 1.0 bit cell window size (in fractional samples)
 		window_size = bc10N / 2.0	# current half-bit-cell window size (in fractional samples)
 
-		if self.encoding == encoding.FM:
-			cells_allowed = (1, 2)
-			sync = 2
-		elif self.encoding == encoding.MFM:
-			cells_allowed = (2, 3, 4)
-			sync = 2
-		elif self.encoding in (encoding.RLL_SEA, encoding.RLL_WD):
-			cells_allowed = (3, 4, 5, 6, 7, 8)
-			sync = 3
-			#self.pb_state = state.IDData_Address_Mark
-			self.pb_state = state.sync_mark
+		#if self.encoding == encoding.FM:
+		#	cells_allowed = (1, 2)
+		#	sync = 2
+		#elif self.encoding == encoding.MFM:
+		#	cells_allowed = (2, 3, 4)
+		#	sync = 2
+		#elif self.encoding in (encoding.RLL_SEA, encoding.RLL_WD):
+		#	cells_allowed = (3, 4, 5, 6, 7, 8)
+		#	sync = 3
+		#	#self.pb_state = state.IDData_Address_Mark
+		#	self.pb_state = state.sync_mark
+		cells_allowed = encoding_table[self.encoding]['cells_allowed']
+		sync = encoding_table[self.encoding]['sync']
+		rll_table = encoding_table[self.encoding]['table']
+		self.pb_state = encoding_table[self.encoding]['pb_state']
 
 		shift31 = 0					# 31-bit pattern shift register (of half-bit-cells)
 		shift32 = 0
@@ -1796,7 +1804,7 @@ class Decoder(srd.Decoder):
 
 		#print_(window_size, bc10N)
 		#print(11111111111, encoding_table[self.encoding]['table'])
-		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, cells_allowed=cells_allowed, sync=sync, rll_table=encoding_table[self.encoding]['table'])
+		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, cells_allowed=cells_allowed, sync=sync, rll_table=rll_table)
 
 		interval_unit = self.time_unit
 		if interval_unit == 'ns':
@@ -1860,7 +1868,7 @@ class Decoder(srd.Decoder):
 				#print_('data_byte', hex(self.pll.shift_byte), self.pb_state)
 				if self.encoding == encoding.FM:
 					byte_sync = self.process_byteFM_new(self.pll.shift_byte)
-				elif self.encoding == encoding.MFM:
+				elif self.encoding in (encoding.MFM, encoding.MFM_FD, encoding.MFM_HD):
 					byte_sync = self.process_byteMFM_new(self.pll.shift_byte)
 				else: # todo: RLL here
 					#byte_sync = self.process_byteRLL(self.pll.shift_byte)
