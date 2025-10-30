@@ -1461,6 +1461,7 @@ class Decoder(srd.Decoder):
 
 		sync_start = 0
 		sync_end = 0
+		#print_(window_size, bc10N)
 		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, cells_allowed=cells_allowed, sync=sync)
 
 		interval_unit = self.time_unit
