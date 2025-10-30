@@ -49,7 +49,7 @@ from types import SimpleNamespace # nicer class.key access
 # Debug print for switching on/off all in one place
 def print_(*args):
 	pass
-	#print(" ".join(map(str, args)))
+	print(" ".join(map(str, args)))
 
 # ----------------------------------------------------------------------------
 # PURPOSE: Handle missing sample rate.
@@ -1773,17 +1773,6 @@ class Decoder(srd.Decoder):
 		bc10N = self.samplerate / self.data_rate	# nominal 1.0 bit cell window size (in fractional samples)
 		window_size = bc10N / 2.0	# current half-bit-cell window size (in fractional samples)
 
-		#if self.encoding == encoding.FM:
-		#	cells_allowed = (1, 2)
-		#	sync = 2
-		#elif self.encoding == encoding.MFM:
-		#	cells_allowed = (2, 3, 4)
-		#	sync = 2
-		#elif self.encoding in (encoding.RLL_SEA, encoding.RLL_WD):
-		#	cells_allowed = (3, 4, 5, 6, 7, 8)
-		#	sync = 3
-		#	#self.pb_state = state.IDData_Address_Mark
-		#	self.pb_state = state.sync_mark
 		cells_allowed = encoding_table[self.encoding]['cells_allowed']
 		sync = encoding_table[self.encoding]['sync']
 		rll_table = encoding_table[self.encoding]['table']
@@ -1871,7 +1860,7 @@ class Decoder(srd.Decoder):
 				elif self.encoding in (encoding.MFM, encoding.MFM_FD, encoding.MFM_HD):
 					byte_sync = self.process_byteMFM_new(self.pll.shift_byte)
 				else: # todo: RLL here
-					#byte_sync = self.process_byteRLL(self.pll.shift_byte)
+					byte_sync = self.process_byteRLL(self.pll.shift_byte)
 					print_('data_byte', hex(self.pll.shift_byte), self.pb_state, byte_sync)
 
 				if not byte_sync:
