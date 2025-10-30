@@ -1026,10 +1026,10 @@ mfm-1: Data Address Mark
 **Default**: `rising` **Values**: `rising`, `falling`  
 
 `data_rate` Data Rate in bits per second (bps).  
-**Default**: `5000000` **Values**: `125000`, `150000`, `250000`, `300000`, `500000`, `5000000`, `10000000`
+**Default**: `5000000` **Values**: `125000`, `150000`, `250000`, `300000`, `500000`, `5000000`, `7500000`, `10000000`
 
 `encoding` Encoding scheme.  
-**Default**: `MFM` **Values**: `FM`, `MFM`
+**Default**: `MFM` **Values**: `FM`, `MFM`, `MFM_FD`, `MFM_HD`, `RLL_SEA`, `RLL_WD`
 
 `type` Type of disk drive.  
 **Default**: `HDD` **Values**: `FDD`, `HDD`
