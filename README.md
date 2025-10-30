@@ -1019,6 +1019,7 @@ mfm-1: Sync pattern 12 bytes
 mfm-1: Data Address Mark
 </pre>
 </details>
+<code>sigrok-cli -D -I csv:logic_channels=3:column_formats=t,l,l,l -i YourHugeSlow.csv -P mfm:option1=value1:option2=value2 -A mfm=annotation1:annotation2</code>
 
 ### Options
 
