@@ -376,13 +376,13 @@ class Decoder(srd.Decoder):
 	# ------------------------------------------------------------------------
 
 	class SimplePLL:
-		def __init__(self, owner, halfbit_ticks=10.0, kp=0.5, ki=0.0005, lock_threshold=32, tol_ticks=4, cells_allowed=(2, 3, 4)):
+		def __init__(self, owner, halfbit_ticks=10.0, kp=0.5, ki=0.0005, lock_threshold=32, tol_ticks=6, cells_allowed=(2, 3, 4), sync=2, rll_table={}):
 			self.owner = owner
 			self.halfbit_nom = halfbit_ticks
 			self.kp = kp
 			self.ki = ki
 			self.lock_threshold = int(lock_threshold)
-			self.tol = int(tol_ticks)
+			self.tol = tol_ticks	# fixme: need better tolerance estimator, dynamic percentage of nominal halfbit_ticks?
 			self.cells_allowed = cells_allowed
 			self.cells_allowed_min = min(cells_allowed)
 			self.cells_allowed_max = max(cells_allowed)
