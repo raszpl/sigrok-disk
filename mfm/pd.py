@@ -441,6 +441,9 @@ class Decoder(srd.Decoder):
 			self.ring_cnt = 0
 			# reset Decoder pb_state instance variable directly
 			self.owner.pb_state = state.sync_mark
+			if self.owner.encoding == encoding.RLL:
+				#self.owner.pb_state = state.IDData_Address_Mark
+				self.owner.pb_state = state.sync_mark
 
 		def read(self):
 			return self.last_samplenum, self.pulse_ticks
@@ -1448,6 +1451,8 @@ class Decoder(srd.Decoder):
 		elif self.encoding == encoding.RLL:
 			cells_allowed = (3, 4, 5, 6, 7, 8)
 			sync = 3
+			#self.pb_state = state.IDData_Address_Mark
+			self.pb_state = state.sync_mark
 
 		shift31 = 0					# 31-bit pattern shift register (of half-bit-cells)
 		shift32 = 0
