@@ -195,7 +195,7 @@ Rasz_pl
 Full [Changelog](doc/changelog.md). Biggest changes from original:
 * Fixed for modern PulseView and sigrok-cli
 * Ported to support DSView
-* Added support for hard drives, 32 bit CRCs, custom CRC polynomials
+* Added support for hard drives, 32 bit CRC, 56 bit ECC, custom polynomials
 * Extra and suppress channels optional
 * Reworked report generation
 * Added new PLL based Decoder
