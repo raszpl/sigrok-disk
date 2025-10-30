@@ -1,4 +1,4 @@
-# FM/MFM decoder for Sigrok/PulseView/DSView
+# FM/MFM/RLL decoder for Sigrok/PulseView/DSView
 
 <details open>
 <summary><h2>Table of Contents</h2></summary>
@@ -194,3 +194,4 @@ Full [Changelog](doc/changelog.md). Biggest changes from original:
 * Extra and suppress channels optional
 * Reworked report generation
 * Added new PLL based Decoder
+* Preliminary RLL support
