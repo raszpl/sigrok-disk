@@ -512,6 +512,21 @@ class Decoder(srd.Decoder):
 					self.byte_synced = True
 					self.shift_index = -1
 					self.lock_count += 1
+				#elif not self.byte_synced and self.owner.encoding == encoding.RLL and (self.shift & 0x7FFFF == 0b0010000000100100001):
+				#elif not self.byte_synced and self.owner.encoding == encoding.RLL and (self.shift & 0x7FFFFF == 0b10001001000000010010001):
+				#elif not self.byte_synced and self.owner.encoding == encoding.RLL and (self.shift & 0x7FFFFF == 0b10010000100000100000001):
+				elif not self.byte_synced and self.owner.encoding == encoding.RLL and (self.shift & 0x7FFFFF == 0b00100100100100100100001):
+				# DEA1    00100100100100100100100100100100100100100100001
+				#                       0010010010010010010010010001
+				#                       0010 0100 0010 0000 1000 0000 1001
+				#4 3 8 3 4 6             1 0001 0010 0000 0010 0100 0100 0001
+				#and self.halfbit_cells == 7:
+				#and (self.shift & 0x3FFFF == 0b1000000010010001 or self.shift & 0x3FFFF == 0b10000000100100001):
+					print_("byte_synced", self.halfbit_cells, self.last_samplenum)
+					#self.shift |= 0b10000
+					#self.shift_index = 15
+					self.byte_synced = True
+					self.shift_index = 1
 				elif not self.byte_synced:
 					self.lock_count += 1
 					#print_('self.lock_count', self.lock_count, self.last_samplenum)
