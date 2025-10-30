@@ -386,6 +386,7 @@ class Decoder(srd.Decoder):
 			self.cells_allowed = cells_allowed
 			self.cells_allowed_min = min(cells_allowed)
 			self.cells_allowed_max = max(cells_allowed)
+			self.sync = sync
 
 			# PLL state
 			self.phase_ref = 0		 # float: reference sample for half-bit 0
@@ -464,7 +465,7 @@ class Decoder(srd.Decoder):
 			if not self.locked:
 				#print_('self.locked__', abs(pulse_ticks - self.halfbit * self.sync), abs(pulse_ticks - self.halfbit * self.sync) <= self.tol, self.last_samplenum)
 				#print_('self.locked___', pulse_ticks * (1000000000 / self.owner.samplerate), self.halfbit * self.sync * (1000000000 / self.owner.samplerate), self.halfbit, '=', self.halfbit * (1000000000 / self.owner.samplerate), self.halfbit_cells)
-				if abs(pulse_ticks - 2.0 * self.halfbit) <= self.tol:
+				if abs(pulse_ticks - self.halfbit * self.sync) <= self.tol:
 					self.lock_count += 1
 					#print_('pll sync', pulse_ticks, self.halfbit, self.last_samplenum)
 					#print_('lock_count', self.lock_count)
@@ -1440,10 +1441,13 @@ class Decoder(srd.Decoder):
 
 		if self.encoding == encoding.FM:
 			cells_allowed = (1, 2)
+			sync = 2
 		elif self.encoding == encoding.MFM:
 			cells_allowed = (2, 3, 4)
+			sync = 2
 		elif self.encoding == encoding.RLL:
 			cells_allowed = (3, 4, 5, 6, 7, 8)
+			sync = 3
 
 		shift31 = 0					# 31-bit pattern shift register (of half-bit-cells)
 		shift32 = 0
@@ -1457,7 +1461,7 @@ class Decoder(srd.Decoder):
 
 		sync_start = 0
 		sync_end = 0
-		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, cells_allowed=cells_allowed)
+		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, cells_allowed=cells_allowed, sync=sync)
 
 		interval_unit = self.time_unit
 		if interval_unit == 'ns':
