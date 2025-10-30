@@ -120,7 +120,7 @@ class Decoder(srd.Decoder):
 			'default': '5000000', 'values': ('125000', '150000',
 			'250000', '300000', '500000', '5000000', '7500000', '10000000')},
 		{'id': 'encoding', 'desc': 'Encoding',
-			'default': 'MFM', 'values': ('FM', 'MFM', 'RLL')},
+			'default': 'MFM_HD', 'values': ('FM', 'MFM', 'MFM_FD', 'MFM_HD', 'RLL_SEA', 'RLL_WD')},
 		{'id': 'type', 'desc': 'Type',
 			'default': 'HDD', 'values': ('FDD', 'HDD')},
 		{'id': 'sect_len', 'desc': 'Sector length',
@@ -207,7 +207,7 @@ class Decoder(srd.Decoder):
 	# Sadly those need to be up here, otherwise one has to use self. prefix
 	# ----------------------------------------------------------------------------
 
-	global state, crc, field, special
+	global state, crc, field, special, encoding, encoding_table
 	class state(Enum):
 		first_mC2h_prefix	= 0		#auto()
 		second_mC2h_prefix	= 1		#auto()
@@ -255,6 +255,91 @@ class Decoder(srd.Decoder):
 	#	A1h no clock between bits 4/5
 	class special(Enum):
 		clock		= True
+
+	FM_R = {
+		'11': '1',
+		'10': '0',
+		'01': '1',
+		'00': '0',
+	}
+	RLL_IBM = { # Seagate, SSI
+		'11':	'1000',
+		'10':	'0100',
+		'011':	'001000',
+		'000':	'000100',
+		'010':	'100100',
+		'0011':	'00001000',
+		'0010':	'00100100'
+	}
+	RLL_IBM_R = {
+		'1000': '11',
+		'0100': '10',
+		'100100': '010',
+		'001000': '011',
+		'000100': '000',
+		'00100100': '0010',
+		'00001000': '0011'
+	}
+	RLL_WD = { # WD50C12/WD42C22C/WD5011 etc
+		'11':	'1000',
+		'10':	'0100',
+		'011':	'001000',
+		'010':	'000100',
+		'000':	'100100',
+		'0011':	'00001000',
+		'0010':	'00100100'
+	}
+	RLL_WD_R = {
+		'1000': '11',
+		'0100': '10',
+		'100100': '000',
+		'000100': '010',
+		'001000': '011',
+		'00100100': '0010',
+		'00001000': '0011'
+	}
+	class encoding(Enum):
+		FM		= 0
+		MFM		= 1
+		MFM_FD	= 2
+		MFM_HD	= 3
+		RLL_SEA	= 4
+		RLL_WD	= 5
+
+	encoding_table = {
+		encoding.FM: {
+			"table": FM_R,
+			"cells_allowed": (1, 2),
+			"sync": 2
+		},
+		encoding.MFM: {
+			"table": FM_R,
+			"cells_allowed": (2, 3, 4),
+			"sync": 2,
+		},
+		encoding.MFM_FD: {
+			"table": FM_R,
+			"cells_allowed": (2, 3, 4),
+			"sync": 2,
+		},
+		encoding.MFM_HD: {
+			"table": FM_R,
+			"cells_allowed": (2, 3, 4),
+			"sync": 2,
+		},
+		encoding.RLL_SEA: {
+			"table": RLL_IBM_R,
+			"cells_allowed": (3, 4, 5, 6, 7, 8),
+			"sync": 3,
+			"pb_state": state.sync_mark,
+		},
+		encoding.RLL_WD: {
+			"table": FM_R,
+			"cells_allowed": (3, 4, 5, 6, 7, 8),
+			"sync": 3,
+			"pb_state": state.IDData_Address_Mark,
+		}
+	}
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Class constructor/initializer.
@@ -401,6 +486,8 @@ class Decoder(srd.Decoder):
 			self.shift = 0xfffff
 			self.shift_win = 0xffff
 			self.shift_byte = 0
+			self.shift_decoded = ''
+			self.shift_decoded_1 = 0
 			self.shift_index = 0
 			self.pulse_ticks = 0
 			self.last_samplenum = 0
@@ -412,6 +499,7 @@ class Decoder(srd.Decoder):
 			self.ring_ws = array('l', [0 for _ in range(self.ring_size)])	# win_start
 			self.ring_we = array('l', [0 for _ in range(self.ring_size)])	# win_end
 			self.ring_wv = array('l', [0 for _ in range(self.ring_size)])	# value
+			self.rll_table = rll_table
 
 		def ring_write(self, win_start, win_end, value):
 			self.ring_ptr = (self.ring_ptr + 1) % self.ring_size
@@ -437,16 +525,67 @@ class Decoder(srd.Decoder):
 			self.shift = 0xfffff
 			self.shift_win = 0xffff
 			self.shift_byte = 0
+			self.shift_decoded = ''
+			self.shift_decoded_1 = 0
 			self.ring_ptr = 0
 			self.ring_cnt = 0
 			# reset Decoder pb_state instance variable directly
 			self.owner.pb_state = state.sync_mark
-			if self.owner.encoding == encoding.RLL:
+			if self.owner.encoding in (encoding.RLL_SEA, encoding.RLL_WD):
 				#self.owner.pb_state = state.IDData_Address_Mark
 				self.owner.pb_state = state.sync_mark
 
 		def read(self):
 			return self.last_samplenum, self.pulse_ticks
+
+		def rll(self):
+			RLL_TABLE = self.rll_table
+			self.shift_byte = 0
+
+			#if self.shift == 0b1000000010010001 or self.shift & 0x3FFFF == 0b10000000100100001:
+			#	print_('RLL_mark?', bin(self.shift)[1:])
+			#	self.shift_byte = 69
+			#	self.shift_index -= 16
+			#	return
+			if self.shift & 0xFFF == 0b100000001001:
+				print_('RLL_mark?', bin(self.shift)[1:], bin(self.shift ^ (1 << 7))[1:])
+				self.shift = self.shift ^ (1 << 7)
+
+			#self.shift_index -= 16
+			#self.shift_win = (self.shift >> self.shift_index) & 0x3ffff
+			self.shift_win = self.shift & (2 ** self.shift_index -1)
+
+			#print_('RLL_1', bin(self.shift)[1:], self.shift_index, bin(self.shift_win)[2:].zfill(self.shift_index))
+			#self.shift_win = self.shift & 0x3ffff
+			binary_str = bin(self.shift_win)[2:].zfill(self.shift_index)
+			print_('RLL_2', bin(self.shift_win)[1:], binary_str)
+			decoded = self.shift_decoded
+			i = 0
+			while len(decoded) < 8:
+				matched = False
+				for pattern_length in [8, 6, 4]:
+					if i + pattern_length <= len(binary_str):
+						pattern = binary_str[i:i + pattern_length]
+						if pattern in RLL_TABLE:
+							decoded += RLL_TABLE[pattern]
+							i += pattern_length
+							self.shift_index -= pattern_length
+							self.shift_decoded_1 -= pattern_length
+							print_("RLL_TABLE[pattern]", decoded, RLL_TABLE[pattern], i, pattern)
+							matched = True
+							break
+				if not matched:
+					#print_("RLL Error!!!!", decoded, i, binary_str[i:])
+					self.shift_decoded = decoded
+					return 0
+
+			#print_("RLL decoded", decoded, i)
+			#self.shift_index -= i
+			print_('RLL_shift', bin(self.shift)[1:], decoded[:8], self.shift_index, self.shift_decoded_1, self.last_samplenum)
+			self.shift_byte = int(decoded[:8], 2) if isinstance(decoded, str) and all(c in '01' for c in decoded) else "Error: Invalid decoded string"
+			self.shift_decoded = decoded[8:]
+			self.shift_decoded_1 += 16
+			return 16
 
 		def edge(self, edge_tick):
 			# edge_tick: sample index of rising edge (flux transition)
@@ -519,7 +658,7 @@ class Decoder(srd.Decoder):
 				#elif not self.byte_synced and self.owner.encoding == encoding.RLL and (self.shift & 0x7FFFF == 0b0010000000100100001):
 				#elif not self.byte_synced and self.owner.encoding == encoding.RLL and (self.shift & 0x7FFFFF == 0b10001001000000010010001):
 				#elif not self.byte_synced and self.owner.encoding == encoding.RLL and (self.shift & 0x7FFFFF == 0b10010000100000100000001):
-				elif not self.byte_synced and self.owner.encoding == encoding.RLL and (self.shift & 0x7FFFFF == 0b00100100100100100100001):
+				elif not self.byte_synced and self.owner.encoding in (encoding.RLL_SEA, encoding.RLL_WD) and (self.shift & 0x7FFFFF == 0b00100100100100100100001):
 				# DEA1    00100100100100100100100100100100100100100100001
 				#                       0010010010010010010010010001
 				#                       0010 0100 0010 0000 1000 0000 1001
@@ -586,7 +725,7 @@ class Decoder(srd.Decoder):
 				self.shift_index += self.halfbit_cells
 				#print_('pll_shift1', bin(self.shift)[1:], self.shift_index, self.halfbit_cells, self.shift_index +self.halfbit_cells)
 				if self.shift_index >= 16:
-					if self.owner.encoding != encoding.RLL:
+					if self.owner.encoding != encoding.FM:
 						self.shift_index -= 16
 						self.shift_win = (self.shift >> self.shift_index) & 0xffff
 						self.shift_byte = 0
@@ -594,9 +733,8 @@ class Decoder(srd.Decoder):
 							self.shift_byte |= ((self.shift_win >> 2 * i) & 1) << i
 						#print_('self.shift_byte', bin(self.shift_byte)[1:], hex(self.shift_byte))
 						ret = 16
-					elif self.owner.encoding == encoding.RLL:
-						#ret = self.rll()
-						pass
+					elif self.owner.encoding in (encoding.RLL_SEA, encoding.RLL_WD):
+						ret = self.rll()
 
 					if self.unsync:
 						self.byte_synced = False
@@ -737,12 +875,12 @@ class Decoder(srd.Decoder):
 
 		bitn = 7
 
-		_, self.byte_start, win_val = self.pll.ring_read_offset(- 16 - self.pll.shift_index)
+		_, self.byte_start, win_val = self.pll.ring_read_offset(- 16 + self.pll.shift_decoded_1 - self.pll.shift_index)
 		shift3 = 1 if win_val else 0
 
 		while bitn >= 0:
 			# Display annotation for first (clock) half-bit-cell window of a pair.
-			win_start, win_end, win_val = self.pll.ring_read_offset(- bitn * 2 - 1 - self.pll.shift_index)
+			win_start, win_end, win_val = self.pll.ring_read_offset(- bitn * 2 - 1 + self.pll.shift_decoded_1 - self.pll.shift_index)
 			bit_start = win_start
 			win_val = 1 if win_val else 0
 
@@ -752,7 +890,7 @@ class Decoder(srd.Decoder):
 			self.annotate_window(ann.clk, win_start, win_end, win_val)
 
 			# Display annotation for second (data) half-bit-cell window of a pair,
-			win_start, win_end, win_val = self.pll.ring_read_offset(- bitn * 2 - self.pll.shift_index)
+			win_start, win_end, win_val = self.pll.ring_read_offset(- bitn * 2 + self.pll.shift_decoded_1 - self.pll.shift_index)
 			win_val = 1 if win_val else 0
 
 			shift3 = (shift3 << 1) + win_val
@@ -1448,7 +1586,7 @@ class Decoder(srd.Decoder):
 		elif self.encoding == encoding.MFM:
 			cells_allowed = (2, 3, 4)
 			sync = 2
-		elif self.encoding == encoding.RLL:
+		elif self.encoding in (encoding.RLL_SEA, encoding.RLL_WD):
 			cells_allowed = (3, 4, 5, 6, 7, 8)
 			sync = 3
 			#self.pb_state = state.IDData_Address_Mark
@@ -1528,7 +1666,6 @@ class Decoder(srd.Decoder):
 				#self.annotate_window(ann.unk, win_start, win_end, win_val)
 				pass
 			elif pll_ret >= 16:
-
 				#print_('data_byte', hex(self.pll.shift_byte), self.pb_state)
 				if self.encoding == encoding.FM:
 					byte_sync = self.process_byteFM_new(self.pll.shift_byte)
