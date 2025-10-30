@@ -34,7 +34,7 @@ Typical track on MFM encoded hard drive.
 
 #### Sector Header close-up
 ![Sector Close-Up](doc/pulseview_idrecord.png)  
-This is a spare/unused sector created on MFM drive by Seagate ST21 controller at the end of every track. Notice the weird Sector number 254 (0b11111110, for easier hardware filtering?) and absence of GAP3 between end of Header and start of Sync pattern. Without GAP3 this sector is unwriteable without corruption. Every MFM/RLL drive I looked at so far wasted precious space leaving enought unwritten disk surface for one more sector per track. This translates to never using 6% of the MFM and 3% of RLL disk you paid for, about 2.5MB on typical 40MB MFM drive.
+This is a spare/unused sector created at the end of every track on MFM drive by Seagate ST21 controller. Notice the weird Sector number 254 (0b11111110, for easier hardware filtering?) and absence of GAP3 between end of Header and start of Sync pattern. Without GAP3 this sector is unwriteable without corruption. Every MFM/RLL drive I looked at so far wasted precious space leaving enought unwritten disk surface for one more sector per track. This translates to never using 6% of the MFM and 3% of RLL disk you paid for, about 2.5MB on typical 40MB MFM drive.
 
 ## Available test sample files
  - [fdd_fm.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/fdd_fm.sr) 3 channels, 15000000 sample rate, FDD, FM encoding, 125000 bps, 256 Sectors, Data CRC 16bit, data poly 0x1021
@@ -44,11 +44,981 @@ This is a spare/unused sector created on MFM drive by Seagate ST21 controller at
  - [hdd_mfm_sector.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_mfm_sector.sr) one sector (sec=8) from above capture. ID CRC F38D, Data CRC C1847279
 
 ## Example sigrok-cli command line usage
-```sigrok-cli -D -i hdd_mfm_sector.sr -P mfm -A mfm=bytes:fields```  
-```sigrok-cli -D -i hdd_mfm.sr -P mfm:report=DAM:report_qty=17 -A mfm=fields:reports```  
-```sigrok-cli -D -i fdd_fm.sr -P mfm:data_rate=125000:encoding=FM:type=FDD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields```  
-```sigrok-cli -D -i fdd_mfm.sr -P mfm:data_rate=250000:encoding=MFM:type=FDD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields```  
-```sigrok-cli -D -I csv:logic_channels=3:column_formats=t,l,l,l -i YourHugeSlow.csv -P mfm:option1=value1:option2=value2 -A mfm=annotation1:annotation2```
+<details><summary><code>sigrok-cli -D -i hdd_mfm_sector.sr -P mfm -A mfm=bytes:fields</code></summary>
+<pre>
+mfm-1: A1
+mfm-1: Sync pattern 13 bytes
+mfm-1: FE
+mfm-1: ID Address Mark
+mfm-1: 00
+mfm-1: 00
+mfm-1: 08
+mfm-1: 02
+mfm-1: ID Record: cyl=0, sid=0, sec=8, len=512
+mfm-1: F3
+mfm-1: 8D
+mfm-1: CRC OK F38D
+mfm-1: 4E 'N'
+mfm-1: A1
+mfm-1: Sync pattern 13 bytes
+mfm-1: FB
+mfm-1: Data Address Mark
+mfm-1: 20 ' '
+mfm-1: 3D '='
+mfm-1: 20 ' '
+mfm-1: 98
+mfm-1: 40 '@'
+mfm-1: A1
+mfm-1: 90
+mfm-1: 00
+mfm-1: 00
+mfm-1: 0F
+mfm-1: 07
+mfm-1: 2E '.'
+mfm-1: 20 ' '
+mfm-1: 42 'B'
+mfm-1: 59 'Y'
+mfm-1: 54 'T'
+mfm-1: 45 'E'
+mfm-1: 53 'S'
+mfm-1: 04
+mfm-1: 0F
+mfm-1: 01
+mfm-1: 20 ' '
+mfm-1: 0D
+mfm-1: 08
+mfm-1: 0F
+mfm-1: 10
+mfm-1: 53 'S'
+mfm-1: 4B 'K'
+mfm-1: 49 'I'
+mfm-1: 50 'P'
+mfm-1: 2F '/'
+mfm-1: 53 'S'
+mfm-1: 50 'P'
+mfm-1: 41 'A'
+mfm-1: 43 'C'
+mfm-1: 45 'E'
+mfm-1: 20 ' '
+mfm-1: 43 'C'
+mfm-1: 4F 'O'
+mfm-1: 55 'U'
+mfm-1: 4E 'N'
+mfm-1: 54 'T'
+mfm-1: 0D
+mfm-1: 18
+mfm-1: 1C
+mfm-1: 08
+mfm-1: 04
+mfm-1: 04
+mfm-1: 0F
+mfm-1: 01
+mfm-1: 20 ' '
+mfm-1: 0D
+mfm-1: 28 '('
+mfm-1: 0F
+mfm-1: 0B
+mfm-1: 53 'S'
+mfm-1: 4B 'K'
+mfm-1: 49 'I'
+mfm-1: 50 'P'
+mfm-1: 2F '/'
+mfm-1: 53 'S'
+mfm-1: 50 'P'
+mfm-1: 41 'A'
+mfm-1: 43 'C'
+mfm-1: 45 'E'
+mfm-1: 20 ' '
+mfm-1: 98
+mfm-1: 40 '@'
+mfm-1: 70 'p'
+mfm-1: 90
+mfm-1: 00
+mfm-1: 00
+mfm-1: 0F
+mfm-1: 10
+mfm-1: 2E '.'
+mfm-1: 20 ' '
+mfm-1: 54 'T'
+mfm-1: 41 'A'
+mfm-1: 50 'P'
+mfm-1: 45 'E'
+mfm-1: 20 ' '
+mfm-1: 4D 'M'
+mfm-1: 41 'A'
+mfm-1: 52 'R'
+mfm-1: 4B 'K'
+mfm-1: 53 'S'
+mfm-1: 2F '/'
+mfm-1: 52 'R'
+mfm-1: 45 'E'
+mfm-1: 43 'C'
+mfm-1: 04
+mfm-1: 0F
+mfm-1: 01
+mfm-1: 20 ' '
+mfm-1: 0F
+mfm-1: 18
+mfm-1: 4D 'M'
+mfm-1: 45 'E'
+mfm-1: 53 'S'
+mfm-1: 53 'S'
+mfm-1: 41 'A'
+mfm-1: 47 'G'
+mfm-1: 45 'E'
+mfm-1: 20 ' '
+mfm-1: 42 'B'
+mfm-1: 55 'U'
+mfm-1: 46 'F'
+mfm-1: 46 'F'
+mfm-1: 45 'E'
+mfm-1: 52 'R'
+mfm-1: 20 ' '
+mfm-1: 4E 'N'
+mfm-1: 4F 'O'
+mfm-1: 54 'T'
+mfm-1: 20 ' '
+mfm-1: 56 'V'
+mfm-1: 41 'A'
+mfm-1: 4C 'L'
+mfm-1: 49 'I'
+mfm-1: 44 'D'
+mfm-1: 05
+mfm-1: 04
+mfm-1: 05
+mfm-1: 0F
+mfm-1: 01
+mfm-1: 20 ' '
+mfm-1: 0F
+mfm-1: 0E
+mfm-1: 4D 'M'
+mfm-1: 45 'E'
+mfm-1: 53 'S'
+mfm-1: 53 'S'
+mfm-1: 41 'A'
+mfm-1: 47 'G'
+mfm-1: 45 'E'
+mfm-1: 20 ' '
+mfm-1: 42 'B'
+mfm-1: 55 'U'
+mfm-1: 46 'F'
+mfm-1: 46 'F'
+mfm-1: 45 'E'
+mfm-1: 52 'R'
+mfm-1: 05
+mfm-1: 04
+mfm-1: 0F
+mfm-1: 01
+mfm-1: 20 ' '
+mfm-1: 0D
+mfm-1: 08
+mfm-1: 0F
+mfm-1: 06
+mfm-1: 58 'X'
+mfm-1: 53 'S'
+mfm-1: 54 'T'
+mfm-1: 41 'A'
+mfm-1: 54 'T'
+mfm-1: 31 '1'
+mfm-1: 0D
+mfm-1: 18
+mfm-1: 1C
+mfm-1: 08
+mfm-1: 04
+mfm-1: 04
+mfm-1: 0F
+mfm-1: 01
+mfm-1: 20 ' '
+mfm-1: 0D
+mfm-1: 08
+mfm-1: 0F
+mfm-1: 06
+mfm-1: 58 'X'
+mfm-1: 53 'S'
+mfm-1: 54 'T'
+mfm-1: 41 'A'
+mfm-1: 54 'T'
+mfm-1: 32 '2'
+mfm-1: 0D
+mfm-1: 18
+mfm-1: 1C
+mfm-1: 08
+mfm-1: 04
+mfm-1: 04
+mfm-1: 0F
+mfm-1: 01
+mfm-1: 20 ' '
+mfm-1: 0D
+mfm-1: 28 '('
+mfm-1: 0F
+mfm-1: 13
+mfm-1: 44 'D'
+mfm-1: 45 'E'
+mfm-1: 41 'A'
+mfm-1: 44 'D'
+mfm-1: 20 ' '
+mfm-1: 54 'T'
+mfm-1: 52 'R'
+mfm-1: 41 'A'
+mfm-1: 43 'C'
+mfm-1: 4B 'K'
+mfm-1: 20 ' '
+mfm-1: 43 'C'
+mfm-1: 48 'H'
+mfm-1: 41 'A'
+mfm-1: 4E 'N'
+mfm-1: 4E 'N'
+mfm-1: 45 'E'
+mfm-1: 4C 'L'
+mfm-1: 20 ' '
+mfm-1: 18
+mfm-1: 01
+mfm-1: 0F
+mfm-1: 01
+mfm-1: 2E '.'
+mfm-1: 04
+mfm-1: 0F
+mfm-1: 01
+mfm-1: 20 ' '
+mfm-1: 0D
+mfm-1: 28 '('
+mfm-1: 0F
+mfm-1: 19
+mfm-1: 44 'D'
+mfm-1: 45 'E'
+mfm-1: 41 'A'
+mfm-1: 44 'D'
+mfm-1: 20 ' '
+mfm-1: 54 'T'
+mfm-1: 52 'R'
+mfm-1: 41 'A'
+mfm-1: 43 'C'
+mfm-1: 4B 'K'
+mfm-1: 20 ' '
+mfm-1: 50 'P'
+mfm-1: 41 'A'
+mfm-1: 52 'R'
+mfm-1: 49 'I'
+mfm-1: 54 'T'
+mfm-1: 59 'Y'
+mfm-1: 20 ' '
+mfm-1: 43 'C'
+mfm-1: 48 'H'
+mfm-1: 41 'A'
+mfm-1: 4E 'N'
+mfm-1: 4E 'N'
+mfm-1: 45 'E'
+mfm-1: 4C 'L'
+mfm-1: 04
+mfm-1: 0F
+mfm-1: 01
+mfm-1: 20 ' '
+mfm-1: 0D
+mfm-1: 08
+mfm-1: 0F
+mfm-1: 06
+mfm-1: 58 'X'
+mfm-1: 53 'S'
+mfm-1: 54 'T'
+mfm-1: 41 'A'
+mfm-1: 54 'T'
+mfm-1: 33 '3'
+mfm-1: 0D
+mfm-1: 18
+mfm-1: 1C
+mfm-1: 08
+mfm-1: 04
+mfm-1: 04
+mfm-1: 0F
+mfm-1: 01
+mfm-1: 20 ' '
+mfm-1: 0D
+mfm-1: 28 '('
+mfm-1: 0F
+mfm-1: 1C
+mfm-1: 4D 'M'
+mfm-1: 49 'I'
+mfm-1: 43 'C'
+mfm-1: 52 'R'
+mfm-1: 4F 'O'
+mfm-1: 20 ' '
+mfm-1: 44 'D'
+mfm-1: 49 'I'
+mfm-1: 41 'A'
+mfm-1: 47 'G'
+mfm-1: 4E 'N'
+mfm-1: 4F 'O'
+mfm-1: 53 'S'
+mfm-1: 54 'T'
+mfm-1: 49 'I'
+mfm-1: 43 'C'
+mfm-1: 20 ' '
+mfm-1: 45 'E'
+mfm-1: 52 'R'
+mfm-1: 52 'R'
+mfm-1: 4F 'O'
+mfm-1: 52 'R'
+mfm-1: 20 ' '
+mfm-1: 43 'C'
+mfm-1: 4F 'O'
+mfm-1: 44 'D'
+mfm-1: 45 'E'
+mfm-1: 20 ' '
+mfm-1: 1A
+mfm-1: 03
+mfm-1: 03
+mfm-1: 04
+mfm-1: 0F
+mfm-1: 01
+mfm-1: 20 ' '
+mfm-1: 07
+mfm-1: 04
+mfm-1: 00
+mfm-1: 00
+mfm-1: 05
+mfm-1: 00
+mfm-1: 00
+mfm-1: 00
+mfm-1: 01
+mfm-1: 00
+mfm-1: 00
+mfm-1: 00
+mfm-1: 00
+mfm-1: 00
+mfm-1: 00
+mfm-1: 00
+mfm-1: 02
+mfm-1: 00
+mfm-1: 00
+mfm-1: 00
+mfm-1: 08
+mfm-1: 00
+mfm-1: 00
+mfm-1: 00
+mfm-1: 0B
+mfm-1: 00
+mfm-1: 00
+mfm-1: 00
+mfm-1: 06
+mfm-1: 00
+mfm-1: 00
+mfm-1: 00
+mfm-1: 04
+mfm-1: 00
+mfm-1: 00
+mfm-1: 00
+mfm-1: 10
+mfm-1: 00
+mfm-1: 00
+mfm-1: 00
+mfm-1: 0E
+mfm-1: 00
+mfm-1: 00
+mfm-1: 00
+mfm-1: 0A
+mfm-1: 00
+mfm-1: 00
+mfm-1: 00
+mfm-1: 03
+mfm-1: 00
+mfm-1: 00
+mfm-1: 00
+mfm-1: 0F
+mfm-1: 00
+mfm-1: 00
+mfm-1: 00
+mfm-1: 0C
+mfm-1: 00
+mfm-1: 00
+mfm-1: 00
+mfm-1: 07
+mfm-1: 00
+mfm-1: 00
+mfm-1: 00
+mfm-1: 4D 'M'
+mfm-1: 41 'A'
+mfm-1: 53 'S'
+mfm-1: 53 'S'
+mfm-1: 42 'B'
+mfm-1: 55 'U'
+mfm-1: 53 'S'
+mfm-1: 00
+mfm-1: 30 '0'
+mfm-1: 00
+mfm-1: 44 'D'
+mfm-1: 41 'A'
+mfm-1: 49 'I'
+mfm-1: 47 'G'
+mfm-1: 4E 'N'
+mfm-1: 4F 'O'
+mfm-1: 53 'S'
+mfm-1: 54 'T'
+mfm-1: 49 'I'
+mfm-1: 43 'C'
+mfm-1: 20 ' '
+mfm-1: 4D 'M'
+mfm-1: 4F 'O'
+mfm-1: 44 'D'
+mfm-1: 45 'E'
+mfm-1: 41 'A'
+mfm-1: 42 'B'
+mfm-1: 41 'A'
+mfm-1: 2F '/'
+mfm-1: 42 'B'
+mfm-1: 05
+mfm-1: 0F
+mfm-1: 01
+mfm-1: 20 ' '
+mfm-1: 0D
+mfm-1: 08
+mfm-1: 0F
+mfm-1: 06
+mfm-1: 4D 'M'
+mfm-1: 46 'F'
+mfm-1: 20 ' '
+mfm-1: 43 'C'
+mfm-1: 53 'S'
+mfm-1: 31 '1'
+mfm-1: 0D
+mfm-1: 18
+mfm-1: 1C
+mfm-1: 08
+mfm-1: 08
+mfm-1: 04
+mfm-1: 0F
+mfm-1: 01
+mfm-1: 20 ' '
+mfm-1: 0D
+mfm-1: 28 '('
+mfm-1: 95
+mfm-1: 40 '@'
+mfm-1: 6C 'l'
+mfm-1: AA
+mfm-1: 00
+mfm-1: 00
+mfm-1: 04
+mfm-1: 0F
+mfm-1: 01
+mfm-1: 20 ' '
+mfm-1: 0D
+mfm-1: 28 '('
+mfm-1: 95
+mfm-1: 40 '@'
+mfm-1: 82
+mfm-1: AA
+mfm-1: 00
+mfm-1: 00
+mfm-1: 04
+mfm-1: 0F
+mfm-1: 01
+mfm-1: 20 ' '
+mfm-1: 0D
+mfm-1: 28 '('
+mfm-1: 95
+mfm-1: 40 '@'
+mfm-1: 98
+mfm-1: AA
+mfm-1: 00
+mfm-1: 00
+mfm-1: 04
+mfm-1: 0F
+mfm-1: 01
+mfm-1: 20 ' '
+mfm-1: 0D
+mfm-1: 28 '('
+mfm-1: 95
+mfm-1: 40 '@'
+mfm-1: AE
+mfm-1: AA
+mfm-1: 00
+mfm-1: 00
+mfm-1: 04
+mfm-1: 0F
+mfm-1: 01
+mfm-1: 20 ' '
+mfm-1: 0D
+mfm-1: 08
+mfm-1: 0F
+mfm-1: 05
+mfm-1: 4D 'M'
+mfm-1: 46 'F'
+mfm-1: 20 ' '
+mfm-1: 49 'I'
+mfm-1: 53 'S'
+mfm-1: 0D
+mfm-1: 18
+mfm-1: 1C
+mfm-1: 08
+mfm-1: 08
+mfm-1: 04
+mfm-1: 0F
+mfm-1: 01
+mfm-1: 20 ' '
+mfm-1: 0D
+mfm-1: 28 '('
+mfm-1: 95
+mfm-1: 40 '@'
+mfm-1: B2
+mfm-1: AA
+mfm-1: 00
+mfm-1: 00
+mfm-1: 04
+mfm-1: 0F
+mfm-1: 01
+mfm-1: 20 ' '
+mfm-1: 0D
+mfm-1: 28 '('
+mfm-1: 95
+mfm-1: 40 '@'
+mfm-1: C8
+mfm-1: AA
+mfm-1: 00
+mfm-1: 00
+mfm-1: 04
+mfm-1: Data Record
+mfm-1: C1
+mfm-1: 84
+mfm-1: 72 'r'
+mfm-1: 79 'y'
+mfm-1: CRC OK C1847279
+mfm-1: 00
+</pre>
+</details>
+<details><summary><code>sigrok-cli -D -i hdd_mfm.sr -P mfm:report=DAM:report_qty=17 -A mfm=fields:reports</code></summary>
+<pre>
+mfm-1: Sync pattern 13 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=6, len=512
+mfm-1: CRC OK D082
+mfm-1: Sync pattern 13 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK A4882EBA
+mfm-1: Sync pattern 13 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=7, len=512
+mfm-1: CRC OK E3B3
+mfm-1: Sync pattern 13 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK FBAA689E
+mfm-1: Sync pattern 13 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=8, len=512
+mfm-1: CRC OK F38D
+mfm-1: Sync pattern 13 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK C1847279
+mfm-1: Sync pattern 13 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=9, len=512
+mfm-1: CRC OK C0BC
+mfm-1: Sync pattern 13 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 58BA64F1
+mfm-1: Sync pattern 13 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=10, len=512
+mfm-1: CRC OK 95EF
+mfm-1: Sync pattern 13 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK A42689FD
+mfm-1: Sync pattern 13 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=11, len=512
+mfm-1: CRC OK A6DE
+mfm-1: Sync pattern 13 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK D600DA6F
+mfm-1: Sync pattern 13 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=12, len=512
+mfm-1: CRC OK 3F49
+mfm-1: Sync pattern 13 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 1FDAFC47
+mfm-1: Sync pattern 13 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=13, len=512
+mfm-1: CRC OK C78
+mfm-1: Sync pattern 13 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 99BCAE39
+mfm-1: Sync pattern 13 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=14, len=512
+mfm-1: CRC OK 592B
+mfm-1: Sync pattern 13 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK D1042AD6
+mfm-1: Sync pattern 13 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=15, len=512
+mfm-1: CRC OK 6A1A
+mfm-1: Sync pattern 13 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 3A01EE5D
+mfm-1: Sync pattern 13 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=16, len=512
+mfm-1: CRC OK 7957
+mfm-1: Sync pattern 13 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 3D977406
+mfm-1: Sync pattern 13 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=0, len=512
+mfm-1: CRC OK 7A24
+mfm-1: Sync pattern 13 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 7A06E528
+mfm-1: Sync pattern 13 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=1, len=512
+mfm-1: CRC OK 4915
+mfm-1: Sync pattern 13 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 7A06E528
+mfm-1: Sync pattern 13 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=2, len=512
+mfm-1: CRC OK 1C46
+mfm-1: Sync pattern 13 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 7A06E528
+mfm-1: Sync pattern 13 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=3, len=512
+mfm-1: CRC OK 2F77
+mfm-1: Sync pattern 13 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 925DAC29
+mfm-1: Sync pattern 13 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=4, len=512
+mfm-1: CRC OK B6E0
+mfm-1: Sync pattern 13 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK B82BC0C7
+mfm-1: Sync pattern 13 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=5, len=512
+mfm-1: CRC OK 85D1
+mfm-1: Sync pattern 13 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 6CD9E3F1
+mfm-1: Summary: IAM=0, IDAM=17, DAM=17, DDAM=0, CRC_OK=34, CRC_err=0, EiPW=0, CkEr=0, OoTI=12/74987
+mfm-1: Sync pattern 13 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=6, len=512
+mfm-1: CRC OK D082
+mfm-1: Sync pattern 13 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK A4882EBA
+mfm-1: Sync pattern 13 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=7, len=512
+mfm-1: CRC OK E3B3
+mfm-1: Sync pattern 13 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK FBAA689E
+mfm-1: Sync pattern 13 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=8, len=512
+mfm-1: CRC OK F38D
+mfm-1: Sync pattern 13 bytes
+mfm-1: Data Address Mark
+</pre>
+</details>
+<details><summary><code>sigrok-cli -D -i fdd_fm.sr -P mfm:data_rate=125000:encoding=FM:type=FDD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields</code></summary>
+<pre>
+mfm-1: Sync pattern 6 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=3, len=256
+mfm-1: CRC OK A480
+mfm-1: Sync pattern 5 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 9B8F
+mfm-1: Sync pattern 6 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=5, len=256
+mfm-1: CRC OK E26
+mfm-1: Sync pattern 6 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK A730
+mfm-1: Sync pattern 6 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=7, len=256
+mfm-1: CRC OK 6844
+mfm-1: Sync pattern 6 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK F1F3
+mfm-1: Sync pattern 6 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=9, len=256
+mfm-1: CRC OK 4B4B
+mfm-1: Sync pattern 5 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 116E
+mfm-1: Sync pattern 6 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=2, len=256
+mfm-1: CRC OK 97B1
+mfm-1: Sync pattern 6 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 3D09
+mfm-1: Sync pattern 6 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=4, len=256
+mfm-1: CRC OK 3D17
+mfm-1: Sync pattern 6 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 57A
+mfm-1: Sync pattern 6 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=6, len=256
+mfm-1: CRC OK 5B75
+mfm-1: Sync pattern 5 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK FB20
+mfm-1: Sync pattern 6 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=8, len=256
+mfm-1: CRC OK 787A
+mfm-1: Sync pattern 6 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK EEAC
+mfm-1: Sync pattern 6 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=10, len=256
+mfm-1: CRC OK 1E18
+mfm-1: Sync pattern 6 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK CF39
+mfm-1: Sync pattern 6 bytes
+mfm-1: Index Mark
+mfm-1: Sync pattern 6 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=1, len=256
+mfm-1: CRC OK C2E2
+mfm-1: Sync pattern 6 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 219F
+mfm-1: Sync pattern 6 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=3, len=256
+mfm-1: CRC OK A480
+mfm-1: Sync pattern 5 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 9B8F
+mfm-1: Sync pattern 6 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=0, sid=0, sec=5, len=256
+mfm-1: CRC OK E26
+mfm-1: Sync pattern 6 bytes
+mfm-1: Data Address Mark
+</pre>
+</details>
+<details><summary><code>sigrok-cli -D -i fdd_mfm.sr -P mfm:data_rate=250000:encoding=MFM:type=FDD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields</code></summary>
+<pre>
+mfm-1: Sync pattern 8 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=1, sid=0, sec=8, len=256
+mfm-1: CRC OK 3620
+mfm-1: Sync pattern 12 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK C4E
+mfm-1: Sync pattern 8 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=1, sid=0, sec=10, len=256
+mfm-1: CRC OK 5042
+mfm-1: Sync pattern 12 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 15DF
+mfm-1: Sync pattern 8 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=1, sid=0, sec=12, len=256
+mfm-1: CRC OK FAE4
+mfm-1: Sync pattern 12 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 6F4B
+mfm-1: Sync pattern 8 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=1, sid=0, sec=14, len=256
+mfm-1: CRC OK 9C86
+mfm-1: Sync pattern 12 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 2A4F
+mfm-1: Sync pattern 8 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=1, sid=0, sec=16, len=256
+mfm-1: CRC OK BCFA
+mfm-1: Sync pattern 12 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK D688
+mfm-1: Sync pattern 8 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=1, sid=0, sec=18, len=256
+mfm-1: CRC OK DA98
+mfm-1: Sync pattern 11 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 8E61
+mfm-1: Sync pattern 12 bytes
+mfm-1: Index Mark
+mfm-1: Sync pattern 8 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=1, sid=0, sec=1, len=256
+mfm-1: CRC OK 8CB8
+mfm-1: Sync pattern 12 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 9D
+mfm-1: Sync pattern 8 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=1, sid=0, sec=3, len=256
+mfm-1: CRC OK EADA
+mfm-1: Sync pattern 12 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 7B83
+mfm-1: Sync pattern 8 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=1, sid=0, sec=5, len=256
+mfm-1: CRC OK 407C
+mfm-1: Sync pattern 12 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK DE8E
+mfm-1: Sync pattern 8 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=1, sid=0, sec=7, len=256
+mfm-1: CRC OK 261E
+mfm-1: Sync pattern 12 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 2EDE
+mfm-1: Sync pattern 8 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=1, sid=0, sec=9, len=256
+mfm-1: CRC OK 511
+mfm-1: Sync pattern 12 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK C38D
+mfm-1: Sync pattern 8 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=1, sid=0, sec=11, len=256
+mfm-1: CRC OK 6373
+mfm-1: Sync pattern 12 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 8E87
+mfm-1: Sync pattern 8 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=1, sid=0, sec=13, len=256
+mfm-1: CRC OK C9D5
+mfm-1: Sync pattern 12 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 51A2
+mfm-1: Sync pattern 8 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=1, sid=0, sec=15, len=256
+mfm-1: CRC OK AFB7
+mfm-1: Sync pattern 12 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 7A32
+mfm-1: Sync pattern 8 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=1, sid=0, sec=17, len=256
+mfm-1: CRC OK 8FCB
+mfm-1: Sync pattern 12 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 51F
+mfm-1: Sync pattern 8 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=1, sid=0, sec=2, len=256
+mfm-1: CRC OK D9EB
+mfm-1: Sync pattern 12 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 816E
+mfm-1: Sync pattern 8 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=1, sid=0, sec=4, len=256
+mfm-1: CRC OK 734D
+mfm-1: Sync pattern 13 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 6EFD
+mfm-1: Sync pattern 8 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=1, sid=0, sec=6, len=256
+mfm-1: CRC OK 152F
+mfm-1: Sync pattern 13 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 94BF
+mfm-1: Sync pattern 8 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=1, sid=0, sec=8, len=256
+mfm-1: CRC OK 3620
+mfm-1: Sync pattern 12 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK C4E
+mfm-1: Sync pattern 8 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=1, sid=0, sec=10, len=256
+mfm-1: CRC OK 5042
+mfm-1: Sync pattern 12 bytes
+mfm-1: Data Address Mark
+mfm-1: Data Record
+mfm-1: CRC OK 15DF
+mfm-1: Sync pattern 8 bytes
+mfm-1: ID Address Mark
+mfm-1: ID Record: cyl=1, sid=0, sec=12, len=256
+mfm-1: CRC OK FAE4
+mfm-1: Sync pattern 12 bytes
+mfm-1: Data Address Mark
+</pre>
+</details>
 
 ### Options
 
@@ -151,7 +1121,7 @@ Old user instructions are in [documentation](doc/PulseView-MFM-Decoder.wri.md)
 - ?0x0104c981 x32 + x24 + x18 + x15 + x14 + x11 + x8 + x7 + 1 (0xd4d7ca20 init) OMTI_5510?
 - OMTI_5510_Apr85.pdf: ?0x81932081 x32 + x31 + x24 + x23 + x20 + x17 + x16 + x13 + x7 + 1?
 - 0x4440a051 X32 + X30 + X26 + X22 + X15 + x13 + X6 + X4 + 1 WD1003/WD1006/WD1100 CRC32 reciprocal
-- 0x140a0445000101 X56 + X48 + X32 + X30 + X26 + X22 + X15 + X13 + X15 + X6 + X4 + 1 WD40C22/etc 56bit ecc reciprocal
+- 0x100004440a051 X56 + X48 + X32 + X30 + X26 + X22 + X15 + X13 + X6 + X4 + 1 WD40C22/etc 56bit ecc reciprocal
 - 1983_Western_Digital_Components_Catalog.pdf WD1100-06 might have typos claiming:
   - ? 0x140a0405 X32 + X28 + X26 + X19 + X17 + X10 + X2 + 1
   - ? 0x140a0444 X32 + X28 + X26 + X19 + X17 + X10 + X6 + X2 + 0
