@@ -946,11 +946,10 @@ class Decoder(srd.Decoder):
 			self.put(self.byte_start, self.byte_end, self.out_ann, message.errorUnkByte)
 
 		elif typ == field.Sync:
-			sync_len = (self.byte_start - self.pll.locked) // round(self.pll.halfbit * 16)
 			#print_('sync_', self.byte_start, self.pll.ring_read_offset(- 16 - self.pll.shift_index), self.pll.ring_ws)
 			#print_(self.byte_start - self.pll.locked, (self.pll.halfbit*16), (self.byte_start - self.pll.locked) / self.pll.halfbit / 16)
 			#print_((self.pll.lock_count * 2 + 2) // 16)
-			self.put(self.pll.locked, self.byte_start, self.out_ann, messageD.sync((self.pll.lock_count * 2 + 2) // 16))
+			self.put(self.pll.locked, self.byte_start, self.out_ann, messageD.sync((self.pll.lock_count * 2) // 16))
 
 		elif typ == field.Gap:
 			gap_len = (self.byte_end - self.gap_start) // round(self.pll.halfbit*16)
