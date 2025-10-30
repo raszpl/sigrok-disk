@@ -407,7 +407,7 @@ class Decoder(srd.Decoder):
 
 			self.ring_ptr = 0
 			self.ring_cnt = 0
-			self.ring_size = 35
+			self.ring_size = 255
 			self.ring_ws = array('l', [0 for _ in range(self.ring_size)])	# win_start
 			self.ring_we = array('l', [0 for _ in range(self.ring_size)])	# win_end
 			self.ring_wv = array('l', [0 for _ in range(self.ring_size)])	# value
@@ -462,7 +462,8 @@ class Decoder(srd.Decoder):
 
 			# Sync pattern detection using pulse width
 			if not self.locked:
-				#print_('abs__', abs(pulse_ticks - 2.0 * self.halfbit))
+				#print_('self.locked__', abs(pulse_ticks - self.halfbit * self.sync), abs(pulse_ticks - self.halfbit * self.sync) <= self.tol, self.last_samplenum)
+				#print_('self.locked___', pulse_ticks * (1000000000 / self.owner.samplerate), self.halfbit * self.sync * (1000000000 / self.owner.samplerate), self.halfbit, '=', self.halfbit * (1000000000 / self.owner.samplerate), self.halfbit_cells)
 				if abs(pulse_ticks - 2.0 * self.halfbit) <= self.tol:
 					self.lock_count += 1
 					#print_('pll sync', self.lock_count)
@@ -538,9 +539,6 @@ class Decoder(srd.Decoder):
 				print_('pll +ERRR!!!!!!!!!!!!!!!!!!!!!!!!!!', self.halfbit, self.halfbit_nom, 1.5 * self.halfbit_nom)
 				self.halfbit = 1.5 * self.halfbit_nom
 
-			if not self.locked:
-				return 0
-
 			#print_('byyyte', pulse_ticks, self.halfbit_cells, self.halfbit, self.last_samplenum, edge_tick)
 			x = last_samplenum + 0.5 * self.halfbit
 			y = last_samplenum + 1.5 * self.halfbit
@@ -551,7 +549,8 @@ class Decoder(srd.Decoder):
 			y = edge_tick + 0.5 * self.halfbit
 			self.ring_write(int(round(x)), int(round(y)), 1)
 
-			#return self.halfbit_cells
+			if not self.locked:
+				return 0
 
 			self.shift = ((self.shift << self.halfbit_cells) + 1) & 0xffffffffff
 			#print_('pll_shift', bin(self.shift)[1:], self.halfbit_cells, self.last_samplenum)
