@@ -193,4 +193,4 @@ Full [Changelog](doc/changelog.md). Biggest changes from original:
 * Added support for hard drives, 32 bit CRCs, custom CRC polynomials
 * Extra and suppress channels optional
 * Reworked report generation
-* New PLL based Decoder added
+* Added new PLL based Decoder
