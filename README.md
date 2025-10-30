@@ -1038,7 +1038,7 @@ mfm-1: Data Address Mark
 **Default**: `512` **Values**: `128`, `256`, `512`, `1024`
 
 `header_bytes` Header length in bytes.  
-**Default**: `8` **Values**: `7`, `8`
+**Default**: `4` **Values**: `3`, `4`
 
 `header_crc_bits` Header Field CRC size in bits.  
 **Default**: `16` **Values**: `16`, `32`
@@ -1053,10 +1053,10 @@ mfm-1: Data Address Mark
 **Default**: `32` **Values**: `16`, `32`, `56`
 
 `data_crc_poly` Polynomial used in Data Field CRC calculation.  
-**Default**: `0xA00805` **Values**: `0x1021` (CRC-CCITT), `0xA00805` (CRC32-CCSDS), `0x140a0445`, `0x0104c981`, `0x41044185`
+**Default**: `0xA00805` **Values**: `0x1021` (CRC-CCITT), `0xA00805` (CRC32-CCSDS), `0x140a0445`, `0x0104c981`, `0x41044185`, `0x140a0445000101`
 
 `data_crc_init` Initial value for Data Field CRC calculation.  
-**Default**: `0xffffffff`
+**Default**: `0xffffffffffffff`
 
 `data_crc_poly_custom` Custom Data Field Polynomial, overrides `data_crc_poly` setting.  
 **Default**: `` (empty string)
