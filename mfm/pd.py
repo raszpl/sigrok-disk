@@ -49,7 +49,7 @@ from types import SimpleNamespace # nicer class.key access
 # Debug print for switching on/off all in one place
 def print_(*args):
 	pass
-	print(" ".join(map(str, args)))
+	#print(" ".join(map(str, args)))
 
 # ----------------------------------------------------------------------------
 # PURPOSE: Handle missing sample rate.
@@ -121,8 +121,6 @@ class Decoder(srd.Decoder):
 			'250000', '300000', '500000', '5000000', '7500000', '10000000')},
 		{'id': 'encoding', 'desc': 'Encoding',
 			'default': 'MFM_HD', 'values': ('FM', 'MFM', 'MFM_FD', 'MFM_HD', 'RLL_SEA', 'RLL_WD')},
-		{'id': 'type', 'desc': 'Type',
-			'default': 'HDD', 'values': ('FDD', 'HDD')},
 		{'id': 'sect_len', 'desc': 'Sector length',
 			'default': '512', 'values': ('128', '256', '512', '1024')},
 		{'id': 'header_bytes', 'desc': 'Header bytes',
@@ -423,7 +421,6 @@ class Decoder(srd.Decoder):
 		self.rising_edge = True if self.options['leading_edge'] == 'rising' else False
 		self.data_rate = float(self.options['data_rate'])
 		self.encoding = encoding[self.options['encoding']]
-		self.fdd = True if self.options['type'] == 'FDD' else False
 		self.sector_len = int(self.options['sect_len'])
 		self.header_bytes = int(self.options['header_bytes'])
 		self.header_crc_bits = int(self.options['header_crc_bits'])
@@ -1205,7 +1202,7 @@ class Decoder(srd.Decoder):
 				self.display_field(field.Sync)
 				self.A1 = [0xA1]
 				self.field_start = self.byte_start
-				if self.fdd:
+				if self.encoding == encoding.MFM_FD:
 					self.pb_state = state.second_mA1h_prefix
 				else:
 					self.pb_state = state.IDData_Address_Mark
