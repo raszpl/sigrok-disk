@@ -1766,10 +1766,7 @@ class Decoder(srd.Decoder):
 			self.annotate_byte_legacy(0xA1, special.clock)
 			self.A1 = [0xA1]
 			self.field_start = self.byte_start
-			if self.fdd:
-				self.pb_state = state.second_mA1h_prefix
-			else:
-				self.pb_state = state.IDData_Address_Mark
+			self.pb_state = state.second_mA1h_prefix
 
 		elif self.pb_state in (state.second_mA1h_prefix, state.third_mA1h_prefix):
 			if val == 0x2A1:
