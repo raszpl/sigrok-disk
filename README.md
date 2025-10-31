@@ -747,7 +747,7 @@ mfm-1: Sync pattern 13 bytes
 mfm-1: Data Address Mark
 </pre>
 </details>
-<details><summary><code>sigrok-cli -D -i fdd_fm.sr -P mfm:data_rate=125000:encoding=FM:type=FDD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields</code></summary>
+<details><summary><code>sigrok-cli -D -i fdd_fm.sr -P mfm:data_rate=125000:encoding=FM:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields</code></summary>
 <pre>
 mfm-1: Sync pattern 6 bytes
 mfm-1: ID Address Mark
@@ -847,7 +847,7 @@ mfm-1: Sync pattern 6 bytes
 mfm-1: Data Address Mark
 </pre>
 </details>
-<details><summary><code>sigrok-cli -D -i fdd_mfm.sr -P mfm:data_rate=250000:encoding=MFM:type=FDD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields</code></summary>
+<details><summary><code>sigrok-cli -D -i fdd_mfm.sr -P mfm:data_rate=250000:encoding=MFM_FD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields</code></summary>
 <pre>
 mfm-1: Sync pattern 8 bytes
 mfm-1: ID Address Mark
@@ -1031,9 +1031,6 @@ mfm-1: Data Address Mark
 
 `encoding` Encoding scheme.  
 **Default**: `MFM` **Values**: `FM`, `MFM`, `MFM_FD`, `MFM_HD`, `RLL_SEA`, `RLL_WD`
-
-`type` Type of disk drive.  
-**Default**: `HDD` **Values**: `FDD`, `HDD`
 
 `sect_len` Sector Length in bytes.  
 **Default**: `512` **Values**: `128`, `256`, `512`, `1024`
