@@ -444,6 +444,7 @@ class Decoder(srd.Decoder):
 						'DAM':field.Data_Address_Mark,
 						'DDAM':field.Deleted_Data_Mark}[self.options['report']]
 		self.report_qty = int(self.options['report_qty'])
+		self.report_start = 0
 		self.reports_called = 0
 
 		self.decoder_legacy = True if self.options['decoder'] == 'legacy' else False
