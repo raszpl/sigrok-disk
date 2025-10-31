@@ -209,7 +209,7 @@ class Decoder(srd.Decoder):
 	# Sadly those need to be up here, otherwise one has to use self. prefix
 	# ----------------------------------------------------------------------------
 
-	global state, crc, field, special, encoding, encoding_table
+	global state, field, special, encoding, encoding_table
 	class state(Enum):
 		first_mC2h_prefix	= 0		#auto()
 		second_mC2h_prefix	= 1		#auto()
@@ -227,10 +227,6 @@ class Decoder(srd.Decoder):
 		Data_Record_CRC		= 13
 		first_gap_Byte		= 14
 		sync_mark			= 15
-
-	class crc(Enum):
-		Header	= 0		#auto()
-		Data	= 1		#auto()
 
 	class field(Enum):
 		FCh_Index_Mark		= 1		#auto()
@@ -763,35 +759,28 @@ class Decoder(srd.Decoder):
 	#  - Special CRC-16-CCITT case processes 4 bits at a time using lookup
 	#	 table. Faster in theory, havent measured actual speed or if it even
 	#	 matters :)
-	#  IN: bytearray
-	#	   type		crc.Header	calculates Header CRC
-	#				anything else calculates Data CRC
+	# IN: bytearray
+	# OUT: self.crc_accum updated
 	# ------------------------------------------------------------------------
-	CRC16CCITT_tab = array('I', [0x0000, 0x1021, 0x2042, 0x3063,
-							   0x4084, 0x50A5, 0x60C6, 0x70E7,
-							   0x8108, 0x9129, 0xA14A, 0xB16B,
-							   0xC18C, 0xD1AD, 0xE1CE, 0xF1EF])
 
-	def calculate_crc(self, bytearray, type):
-		if type == crc.Header:
-			crc_accum	= self.header_crc_init
-			crc_bits	= self.header_crc_bits
-			crc_offset	= self.header_crc_offset
-			crc_mask	= self.header_crc_mask
-			crc_poly	= self.header_crc_poly
-		else:
-			crc_accum	= self.data_crc_init
-			crc_bits	= self.data_crc_bits
-			crc_offset	= self.data_crc_offset
-			crc_mask	= self.data_crc_mask
-			crc_poly	= self.data_crc_poly
+	def calculate_crc_header(self, bytearray):
+		self.calculate_crc(bytearray, self.header_crc_init, self.header_crc_bits, self.header_crc_offset, self.header_crc_mask, self.header_crc_poly)
+
+	def calculate_crc_data(self, bytearray):
+		self.calculate_crc(bytearray, self.data_crc_init, self.data_crc_bits, self.data_crc_offset, self.data_crc_mask, self.data_crc_poly)
+
+	def calculate_crc(self, bytearray, crc_accum, crc_bits, crc_offset, crc_mask, crc_poly):
 
 		if crc_poly == 0x1021 and crc_bits == 16:
 			# fast lookup table for CRC-16-CCITT
+			CRC16CCITT_tab = array('I', [0x0000, 0x1021, 0x2042, 0x3063,
+							   0x4084, 0x50A5, 0x60C6, 0x70E7,
+							   0x8108, 0x9129, 0xA14A, 0xB16B,
+							   0xC18C, 0xD1AD, 0xE1CE, 0xF1EF])
 			for byte in bytearray:
-				crc_accum = (self.CRC16CCITT_tab[((crc_accum >> 12) ^ (byte >>	4)) & 0x0F]
+				crc_accum = (CRC16CCITT_tab[((crc_accum >> 12) ^ (byte >>	4)) & 0x0F]
 								^ (crc_accum << 4)) & 0xFFFF
-				crc_accum = (self.CRC16CCITT_tab[((crc_accum >> 12) ^ (byte & 0x0F)) & 0x0F]
+				crc_accum = (CRC16CCITT_tab[((crc_accum >> 12) ^ (byte & 0x0F)) & 0x0F]
 								^ (crc_accum << 4)) & 0xFFFF
 		else:
 			for byte in bytearray:
@@ -1151,7 +1140,7 @@ class Decoder(srd.Decoder):
 			self.IDcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc(bytes([self.IDmark]) + self.IDrec[:self.header_bytes], crc.Header)
+				self.calculate_crc_header(bytes([self.IDmark]) + self.IDrec[:self.header_bytes])
 				if self.crc_accum == self.IDcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1173,7 +1162,7 @@ class Decoder(srd.Decoder):
 			self.DRcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc(bytes([self.DRmark]) + self.DRrec[:self.sector_len], crc.Data)
+				self.calculate_crc_data(bytes([self.DRmark]) + self.DRrec[:self.sector_len])
 				if self.crc_accum == self.DRcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1277,7 +1266,7 @@ class Decoder(srd.Decoder):
 			self.IDcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc(bytes(self.A1 + [self.IDmark]) + self.IDrec[:self.header_bytes], crc.Header)
+				self.calculate_crc_header(bytes(self.A1 + [self.IDmark]) + self.IDrec[:self.header_bytes])
 				if self.crc_accum == self.IDcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1299,7 +1288,7 @@ class Decoder(srd.Decoder):
 			self.DRcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc(bytes(self.A1 + [self.DRmark]) + self.DRrec[:self.sector_len], crc.Data)
+				self.calculate_crc_data(bytes(self.A1 + [self.DRmark]) + self.DRrec[:self.sector_len])
 				if self.crc_accum == self.DRcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1402,7 +1391,7 @@ class Decoder(srd.Decoder):
 			self.IDcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc(bytes(self.A1 + [self.IDmark]) + self.IDrec[:self.header_bytes], crc.Header)
+				self.calculate_crc_header(bytes(self.A1 + [self.IDmark]) + self.IDrec[:self.header_bytes])
 				if self.crc_accum == self.IDcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1424,7 +1413,7 @@ class Decoder(srd.Decoder):
 			self.DRcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc(bytes(self.A1 + [self.DRmark]) + self.DRrec[:self.sector_len], crc.Data)
+				self.calculate_crc_data(bytes(self.A1 + [self.DRmark]) + self.DRrec[:self.sector_len])
 				if self.crc_accum == self.DRcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1711,7 +1700,7 @@ class Decoder(srd.Decoder):
 			self.IDcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc(bytes([self.IDmark]) + self.IDrec[:self.header_bytes], crc.Header)
+				self.calculate_crc_header(bytes([self.IDmark]) + self.IDrec[:self.header_bytes])
 				if self.crc_accum == self.IDcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1743,7 +1732,7 @@ class Decoder(srd.Decoder):
 			self.DRcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc(bytes([self.DRmark]) + self.DRrec[:self.sector_len], crc.Data)
+				self.calculate_crc_data(bytes([self.DRmark]) + self.DRrec[:self.sector_len])
 				if self.crc_accum == self.DRcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1830,7 +1819,7 @@ class Decoder(srd.Decoder):
 			self.IDcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc(bytes(self.A1 + [self.IDmark]) + self.IDrec[:self.header_bytes], crc.Header)
+				self.calculate_crc_header(bytes(self.A1 + [self.IDmark]) + self.IDrec[:self.header_bytes])
 				if self.crc_accum == self.IDcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1852,7 +1841,7 @@ class Decoder(srd.Decoder):
 			self.DRcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc(bytes(self.A1 + [self.DRmark]) + self.DRrec[:self.sector_len], crc.Data)
+				self.calculate_crc_data(bytes(self.A1 + [self.DRmark]) + self.DRrec[:self.sector_len])
 				if self.crc_accum == self.DRcrc:
 					self.display_field(field.CRC_Ok)
 				else:
