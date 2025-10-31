@@ -156,6 +156,8 @@ class Decoder(srd.Decoder):
 			'default': 'PLL', 'values': ('PLL', 'legacy')},
 	)
 
+	options_valid = {item['id']: item['values'] for item in options if 'values' in item}
+
 	class Messages(object):
 		class MsgTemplate(object):
 			__slots__ = ("code", "_template", "_rest", "variant")
@@ -412,6 +414,14 @@ class Decoder(srd.Decoder):
 	def start(self):
 		self.out_ann = self.register(srd.OUTPUT_ANN)
 
+		# Validate user provided command-line options.
+		for key, value in self.options.items():
+			if key in self.options_valid:
+				if value not in self.options_valid[key]:
+					print("Error: '" + value + "' is not an allowed value for '" + key + "'.")
+					print('Allowed values are: {' + ', '.join(self.options_valid[key]) + '}.')
+					raise SamplerateError("Error: '" + value + "' is not an allowed value for '" + key + "'.")
+
 		# Initialize user options.
 		self.rising_edge = True if self.options['leading_edge'] == 'rising' else False
 		self.data_rate = float(self.options['data_rate'])
@@ -439,7 +449,7 @@ class Decoder(srd.Decoder):
 						'DDAM':field.Deleted_Data_Mark}[self.options['report']]
 		self.report_qty = int(self.options['report_qty'])
 		self.reports_called = 0
-		
+
 		self.decoder_legacy = True if self.options['decoder'] == 'legacy' else False
 
 		# precompute crc constants
