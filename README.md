@@ -1059,8 +1059,8 @@ mfm-1: Data Address Mark
 `data_crc_poly_custom` Custom Data Field Polynomial, overrides `data_crc_poly` setting.  
 **Default**: `` (empty string)
 
-`time_unit` Displayed time units.  
-**Default**: `ns` **Values**: `ns`, `us`, `auto`
+`time_unit` Pulse time units or windows.
+**Default**: `ns` **Values**: `ns`, `us`, `auto`, `window`
 
 `dsply_sn` Display Sample Numbers controls whether Windows (bit/clock) and Pulses (pul, erp) sample numbers are displayed.  
 **Default**: `no` **Values**: `yes`, `no`
