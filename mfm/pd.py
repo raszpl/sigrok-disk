@@ -1335,10 +1335,7 @@ class Decoder(srd.Decoder):
 				self.display_field(field.Sync)
 				self.A1 = [0xA1]
 				self.field_start = self.byte_start
-				if self.fdd:
-					self.pb_state = state.second_mA1h_prefix
-				else:
-					self.pb_state = state.IDData_Address_Mark
+				self.pb_state = state.IDData_Address_Mark
 			elif val == 0xDE:
 				self.annotate_byte(0xDE)
 			else:
