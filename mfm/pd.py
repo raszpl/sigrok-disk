@@ -152,8 +152,8 @@ class Decoder(srd.Decoder):
 			'default': 'no', 'values': ('no', 'IAM', 'IDAM', 'DAM', 'DDAM')},
 		{'id': 'report_qty', 'desc': 'Report every x Marks',
 			'default': '9'},
-		{'id': 'decoder', 'desc': 'Pick FM/MFM Decoder',
-			'default': 'new', 'values': ('new', 'legacy')},
+		{'id': 'decoder', 'desc': 'Decoder',
+			'default': 'PLL', 'values': ('PLL', 'legacy')},
 	)
 
 	class Messages(object):
@@ -413,7 +413,6 @@ class Decoder(srd.Decoder):
 		self.out_ann = self.register(srd.OUTPUT_ANN)
 
 		# Initialize user options.
-
 		self.rising_edge = True if self.options['leading_edge'] == 'rising' else False
 		self.data_rate = float(self.options['data_rate'])
 		self.encoding = encoding[self.options['encoding']]
@@ -440,6 +439,8 @@ class Decoder(srd.Decoder):
 						'DDAM':field.Deleted_Data_Mark}[self.options['report']]
 		self.report_qty = int(self.options['report_qty'])
 		self.reports_called = 0
+		
+		self.decoder_legacy = True if self.options['decoder'] == 'legacy' else False
 
 		# precompute crc constants
 		self.header_crc_bytes = self.header_crc_bits // 8
@@ -864,7 +865,7 @@ class Decoder(srd.Decoder):
 	# OUT: self.byte_start, self.byte_end, self.fifo_rp, self.fifo_cnt updated
 	# ------------------------------------------------------------------------
 
-	def annotate_bits_new(self, special_clock):
+	def annotate_bits(self, special_clock):
 		# Define (and initialize) function variables.
 
 		win_start = 0			# start of window (sample number)
@@ -921,82 +922,6 @@ class Decoder(srd.Decoder):
 		self.byte_end = win_end
 		#print_('byte_', self.byte_start, self.byte_end)
 
-	def annotate_bits(self, special_clock):
-		# Define (and initialize) function variables.
-
-		win_start = 0			# start of window (sample number)
-		win_end = 0				# end of window (sample number)
-		win_val = 0				# window value (0..n)
-		bit_start = 0			# start of bit (sample number)
-		bit_end = 0				# end of bit (sample number)
-		bit_val = 0				# bit value (0..1)
-		shift3 = 0				# 3-bit shift register of window values
-		self.byte_start = -1	# start of byte (sample number, -1 = not set yet)
-
-		# Process each of the 8 data bits and 17 windows in turn.
-		# Start with bit 8, which is bit 0 of the previous byte.
-
-		bitn = 8
-
-		while True:
-
-			# Display annotation for second (data) half-bit-cell window of a pair,
-			# starting with the data window of the last bit of the previous byte.
-			# The last window of the current byte is read but not removed from the
-			# FIFO, and isn't displayed.
-
-			win_start = self.fifo_ws[self.fifo_rp]
-			win_end = self.fifo_we[self.fifo_rp]
-			win_val = self.fifo_wv[self.fifo_rp]
-			if bitn > 0:
-				self.inc_fifo_rp()
-
-			shift3 = ((shift3 & 0x03) << 1) + (1 if win_val > 1 else win_val)
-
-			if bitn > 0:
-				self.annotate_window(ann.dat, win_start, win_end, win_val)
-
-			bit_end = win_end
-			bit_val = 1 if win_val > 1 else win_val
-
-			# Display annotation for bit using value in data window.  The last
-			# bit for the previous byte has already been displayed previously.
-
-			if bitn < 8:
-				if (self.encoding in (encoding.MFM, encoding.MFM_FD, encoding.MFM_HD) and (shift3 == 0 or shift3 == 3 or shift3 == 6 or shift3 == 7)) \
-				 or (self.encoding == encoding.FM and (shift3 == 0 or shift3 == 1 or shift3 == 4 or shift3 == 5)):
-					if not special_clock:
-						self.put(bit_end - 1, bit_end, self.out_ann, message.error)
-						self.CkEr += 1
-					self.put(bit_start, bit_end, self.out_ann, [ann.erb, ['%d (clock error)' % bit_val, '%d' % bit_val]])
-				else:
-					self.put(bit_start, bit_end, self.out_ann, [ann.bit, ['%d' % bit_val]])
-
-			if bitn == 0:
-				break
-
-			# Display annotation for first (clock) half-bit-cell window of a pair.
-
-			win_start = self.fifo_ws[self.fifo_rp]
-			win_end = self.fifo_we[self.fifo_rp]
-			win_val = self.fifo_wv[self.fifo_rp]
-			self.inc_fifo_rp()
-
-			shift3 = ((shift3 & 0x03) << 1) + (1 if win_val > 1 else win_val)
-
-			if bitn > 0:
-				self.annotate_window(ann.clk, win_start, win_end, win_val)
-
-			bit_start = win_start
-			if self.byte_start == -1:
-				self.byte_start = bit_start
-
-			bitn -= 1
-
-			# end while
-
-		self.byte_end = bit_end
-
 	# ------------------------------------------------------------------------
 	# PURPOSE: Annotate one byte and its 8 bits/16 windows.
 	# NOTES:
@@ -1011,11 +936,8 @@ class Decoder(srd.Decoder):
 
 	def annotate_byte(self, val, special_clock = False):
 		# Display annotations for bits and windows of this byte.
-		if self.options['decoder'] == 'legacy':
-			self.annotate_bits(special_clock)
-		else:
-			print_('annotate_bits_new',hex(val), special_clock)
-			self.annotate_bits_new(special_clock)
+		print_('annotate_bits',hex(val), special_clock)
+		self.annotate_bits(special_clock)
 
 		# Display annotation for this byte.
 		short_ann = '%02X' % val
@@ -1172,7 +1094,7 @@ class Decoder(srd.Decoder):
 	#		   -1 = resync (end of Index Mark, end of ID/Data Record, or error)
 	# ------------------------------------------------------------------------
 
-	def process_byteFM_new(self, val):
+	def process_byteFM(self, val):
 		if self.pb_state == state.sync_mark:
 			if val == 0xFE:
 				self.annotate_byte(0xFE, special.clock)
@@ -1257,96 +1179,6 @@ class Decoder(srd.Decoder):
 
 		return True
 
-	def process_byteFM(self, val):
-		if val == 0x1FE:
-			self.pb_state = state.ID_Address_Mark
-		elif val >= 0x1F8 and val <= 0x1FB:
-			val &= 0x0FF
-			self.pb_state = state.Data_Address_Mark
-		elif val == 0x1FC:
-			self.pb_state = state.FCh_Index_Mark
-
-		if self.pb_state == state.ID_Address_Mark:
-			self.annotate_byte(0x00)
-			self.annotate_byte(0xFE, special.clock)
-			self.IDmark = (val & 0x0FF)
-			self.field_start = self.byte_start
-			self.display_field(field.ID_Address_Mark)
-			self.IDcrc = 0
-			self.byte_cnt = self.header_bytes
-			self.pb_state = state.ID_Record
-
-		elif self.pb_state == state.ID_Record:
-			self.annotate_byte(val)
-			self.IDrec[self.header_bytes - self.byte_cnt] = val
-			self.decode_id_rec(self.byte_cnt, val)
-			self.byte_cnt -= 1
-			if self.byte_cnt == 0:
-				self.display_field(field.ID_Record)
-				self.byte_cnt = self.header_crc_bytes
-				self.pb_state = state.ID_Record_CRC
-
-		elif self.pb_state == state.ID_Record_CRC:
-			self.annotate_byte(val)
-			self.IDcrc <<= 8
-			self.IDcrc += val
-			self.byte_cnt -= 1
-			if self.byte_cnt == 0:
-				self.calculate_crc(bytes([self.IDmark]) + self.IDrec[:self.header_bytes], crc.Header)
-				if self.crc_accum == self.IDcrc:
-					self.display_field(field.CRC_Ok)
-				else:
-					self.display_field(field.CRC_Error)
-				self.pb_state = state.first_gap_Byte
-
-		elif self.pb_state == state.Data_Address_Mark:
-			self.annotate_byte(0x00)
-			self.annotate_byte(val, special.clock)
-			self.DRmark = val
-			self.field_start = self.byte_start
-			self.display_field(field.Data_Address_Mark)
-			self.DRcrc = 0
-			self.byte_cnt = self.sector_len
-			self.pb_state = state.Data_Record
-
-		elif self.pb_state == state.Data_Record:
-			self.annotate_byte(val)
-			self.DRrec[self.sector_len - self.byte_cnt] = val
-			self.byte_cnt -= 1
-			if self.byte_cnt == 0:
-				self.display_field(field.Data_Record)
-				self.byte_cnt = self.data_crc_bytes
-				self.pb_state = state.Data_Record_CRC
-
-		elif self.pb_state == state.Data_Record_CRC:
-			self.annotate_byte(val)
-			self.DRcrc <<= 8
-			self.DRcrc += val
-			self.byte_cnt -= 1
-			if self.byte_cnt == 0:
-				self.calculate_crc(bytes([self.DRmark]) + self.DRrec[:self.sector_len], crc.Data)
-				if self.crc_accum == self.DRcrc:
-					self.display_field(field.CRC_Ok)
-				else:
-					self.display_field(field.CRC_Error)
-				self.pb_state = state.first_gap_Byte
-
-		elif self.pb_state == state.FCh_Index_Mark:
-			self.annotate_byte(0x00)
-			self.annotate_byte(0xFC, special.clock)
-			self.field_start = self.byte_start
-			self.display_field(field.FCh_Index_Mark)
-			self.pb_state = state.first_gap_Byte
-
-		elif self.pb_state == state.first_gap_Byte:	# process first gap byte after CRC or Index Mark
-			self.annotate_byte(val)
-			return -1								# done, unsync
-
-		else:
-			return -1
-
-		return 0
-
 	# ------------------------------------------------------------------------
 	# PURPOSE: Process one byte extracted from MFM pulse stream.
 	# NOTES:
@@ -1364,110 +1196,7 @@ class Decoder(srd.Decoder):
 	#		   -1 = resync (end of Index Mark, end of ID/Data Record, or error)
 	# ------------------------------------------------------------------------
 
-	def process_byteRLL(self, val):
-		if self.pb_state == state.sync_mark:
-			if val == 0xA1:
-				self.annotate_byte(0xA1)
-				self.display_field(field.Sync)
-				self.A1 = [0xA1]
-				self.field_start = self.byte_start
-				if self.fdd:
-					self.pb_state = state.second_mA1h_prefix
-				else:
-					self.pb_state = state.IDData_Address_Mark
-			elif val == 0xDE:
-				self.annotate_byte(0xDE)
-			else:
-				self.annotate_byte(val)
-				self.display_field(field.Unknown_Byte)
-				return False
-
-		elif self.pb_state == state.IDData_Address_Mark:
-			if (self.header_bytes == 4 and val == 0xFE) or \
-				(self.header_bytes == 3 and (val & 0xFC) == 0xFC):
-				# FEh FC-FFh ID Address Mark
-				self.annotate_byte(val)
-				if self.encoding == encoding.RLL:
-					self.display_field(field.Sync)
-					self.A1 = [0xA1]
-					self.field_start = self.byte_start
-				self.IDmark = val
-				self.display_field(field.ID_Address_Mark)
-				self.IDcrc = 0
-				self.byte_cnt = self.header_bytes
-				self.pb_state = state.ID_Record
-			elif val >= 0xF8 and val <= 0xFB:
-				# F8h..FBh Data Address Mark
-				self.annotate_byte(val)
-				if self.encoding == encoding.RLL:
-					self.display_field(field.Sync)
-					self.A1 = [0xA1]
-					self.field_start = self.byte_start
-				self.DRmark = val
-				self.display_field(field.Data_Address_Mark)
-				self.DRcrc = 0
-				self.byte_cnt = self.sector_len
-				self.pb_state = state.Data_Record
-			else:
-				self.annotate_byte(val)
-				self.display_field(field.Unknown_Byte)
-				return False
-
-		elif self.pb_state == state.ID_Record:
-			self.annotate_byte(val)
-			self.IDrec[self.header_bytes - self.byte_cnt] = val
-			self.decode_id_rec(self.byte_cnt, val)
-			self.byte_cnt -= 1
-			if self.byte_cnt == 0:
-				self.display_field(field.ID_Record)
-				self.byte_cnt = self.header_crc_bytes
-				self.pb_state = state.ID_Record_CRC
-
-		elif self.pb_state == state.ID_Record_CRC:
-			self.annotate_byte(val)
-			self.IDcrc <<= 8
-			self.IDcrc += val
-			self.byte_cnt -= 1
-			if self.byte_cnt == 0:
-				self.calculate_crc(bytes(self.A1 + [self.IDmark]) + self.IDrec[:self.header_bytes], crc.Header)
-				if self.crc_accum == self.IDcrc:
-					self.display_field(field.CRC_Ok)
-				else:
-					self.display_field(field.CRC_Error)
-				self.pb_state = state.first_gap_Byte
-
-		elif self.pb_state == state.Data_Record:
-			self.annotate_byte(val)
-			self.DRrec[self.sector_len - self.byte_cnt] = val
-			self.byte_cnt -= 1
-			if self.byte_cnt == 0:
-				self.display_field(field.Data_Record)
-				self.byte_cnt = self.data_crc_bytes
-				self.pb_state = state.Data_Record_CRC
-
-		elif self.pb_state == state.Data_Record_CRC:
-			self.annotate_byte(val)
-			self.DRcrc <<= 8
-			self.DRcrc += val
-			self.byte_cnt -= 1
-			if self.byte_cnt == 0:
-				self.calculate_crc(bytes(self.A1 + [self.DRmark]) + self.DRrec[:self.sector_len], crc.Data)
-				if self.crc_accum == self.DRcrc:
-					self.display_field(field.CRC_Ok)
-				else:
-					self.display_field(field.CRC_Error)
-				self.pb_state = state.first_gap_Byte
-
-		elif self.pb_state == state.first_gap_Byte:
-			self.annotate_byte(val)
-			return False						# done, unsync
-
-		else:
-			return False
-
-		return True
-
-	def process_byteMFM_new(self, val):
+	def process_byteMFM(self, val):
 		if self.pb_state == state.sync_mark:
 			if val == 0xA1:
 				self.annotate_byte(0xA1, special.clock)
@@ -1598,53 +1327,54 @@ class Decoder(srd.Decoder):
 
 		return True
 
-	def process_byteMFM(self, val):
-		if val == 0x1A1:
-			self.pb_state = state.first_mA1h_prefix
-		elif val == 0x1C2:
-			self.pb_state = state.first_mC2h_prefix
-
-		if self.pb_state == state.first_mA1h_prefix:
-			self.annotate_byte(0x00)
-			self.annotate_byte(0xA1, special.clock)
-			self.A1 = [0xA1]
-			self.field_start = self.byte_start
-			if self.fdd:
-				self.pb_state = state.second_mA1h_prefix
-			else:
-				self.pb_state = state.IDData_Address_Mark
-
-		elif self.pb_state in (state.second_mA1h_prefix, state.third_mA1h_prefix):
-			if val == 0x2A1:
-				self.annotate_byte(0xA1, special.clock)
-				self.A1.append(0xA1)
-				if self.pb_state == state.second_mA1h_prefix:
-					self.pb_state = state.third_mA1h_prefix
-				elif self.pb_state == state.third_mA1h_prefix:
+	def process_byteRLL(self, val):
+		if self.pb_state == state.sync_mark:
+			if val == 0xA1:
+				self.annotate_byte(0xA1)
+				self.display_field(field.Sync)
+				self.A1 = [0xA1]
+				self.field_start = self.byte_start
+				if self.fdd:
+					self.pb_state = state.second_mA1h_prefix
+				else:
 					self.pb_state = state.IDData_Address_Mark
+			elif val == 0xDE:
+				self.annotate_byte(0xDE)
 			else:
+				self.annotate_byte(val)
 				self.display_field(field.Unknown_Byte)
-				return -1
+				return False
 
 		elif self.pb_state == state.IDData_Address_Mark:
 			if (self.header_bytes == 4 and val == 0xFE) or \
-			   (self.header_bytes == 3 and (val & 0xFC) == 0xFC):	# FEh FC-FFh ID Address Mark
+				(self.header_bytes == 3 and (val & 0xFC) == 0xFC):
+				# FEh FC-FFh ID Address Mark
 				self.annotate_byte(val)
+				if self.encoding == encoding.RLL:
+					self.display_field(field.Sync)
+					self.A1 = [0xA1]
+					self.field_start = self.byte_start
 				self.IDmark = val
 				self.display_field(field.ID_Address_Mark)
 				self.IDcrc = 0
 				self.byte_cnt = self.header_bytes
 				self.pb_state = state.ID_Record
-			elif val >= 0xF8 and val <= 0xFB:						# F8h..FBh Data Address Mark
+			elif val >= 0xF8 and val <= 0xFB:
+				# F8h..FBh Data Address Mark
 				self.annotate_byte(val)
+				if self.encoding == encoding.RLL:
+					self.display_field(field.Sync)
+					self.A1 = [0xA1]
+					self.field_start = self.byte_start
 				self.DRmark = val
 				self.display_field(field.Data_Address_Mark)
 				self.DRcrc = 0
 				self.byte_cnt = self.sector_len
 				self.pb_state = state.Data_Record
 			else:
+				self.annotate_byte(val)
 				self.display_field(field.Unknown_Byte)
-				return -1
+				return False
 
 		elif self.pb_state == state.ID_Record:
 			self.annotate_byte(val)
@@ -1691,40 +1421,14 @@ class Decoder(srd.Decoder):
 					self.display_field(field.CRC_Error)
 				self.pb_state = state.first_gap_Byte
 
-		elif self.pb_state == state.first_mC2h_prefix:
-			self.annotate_byte(0x00)
-			self.annotate_byte(0xC2, special.clock)
-			self.field_start = self.byte_start
-			self.pb_state = state.second_mC2h_prefix
-
-		elif self.pb_state in (state.second_mC2h_prefix, state.third_mC2h_prefix):
-			if val == 0x2C2:
-				self.annotate_byte(0xC2, special.clock)
-				if self.pb_state == state.second_mC2h_prefix:
-					self.pb_state = state.third_mC2h_prefix
-				elif self.pb_state == state.third_mC2h_prefix:
-					self.pb_state = state.FCh_Index_Mark
-			else:
-				self.display_field(field.Unknown_Byte)
-				return -1
-
-		elif self.pb_state == state.FCh_Index_Mark:
-			if val == 0xFC:
-				self.annotate_byte(val)
-				self.display_field(field.FCh_Index_Mark)
-				self.pb_state = state.first_gap_Byte
-			else:
-				self.display_field(field.Unknown_Byte)
-				return -1
-
-		elif self.pb_state == state.first_gap_Byte:	# process first gap byte after CRC or Index Mark
+		elif self.pb_state == state.first_gap_Byte:
 			self.annotate_byte(val)
-			return -1								# done, unsync
+			return False						# done, unsync
 
 		else:
-			return -1
+			return False
 
-		return 0
+		return True
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Display summary every x Headers.
@@ -1856,9 +1560,9 @@ class Decoder(srd.Decoder):
 			elif pll_ret >= 16:
 				#print_('data_byte', hex(self.pll.shift_byte), self.pb_state)
 				if self.encoding == encoding.FM:
-					byte_sync = self.process_byteFM_new(self.pll.shift_byte)
+					byte_sync = self.process_byteFM(self.pll.shift_byte)
 				elif self.encoding in (encoding.MFM, encoding.MFM_FD, encoding.MFM_HD):
-					byte_sync = self.process_byteMFM_new(self.pll.shift_byte)
+					byte_sync = self.process_byteMFM(self.pll.shift_byte)
 				else: # todo: RLL here
 					byte_sync = self.process_byteRLL(self.pll.shift_byte)
 					print_('data_byte', hex(self.pll.shift_byte), self.pb_state, byte_sync)
@@ -1867,7 +1571,318 @@ class Decoder(srd.Decoder):
 					print_('not byte_sync')
 					self.pll.reset()
 
-			#--- end while
+	# ------------------------------------------------------------------------
+	# Legacy decoder below
+	# ------------------------------------------------------------------------
+
+	def annotate_bits_legacy(self, special_clock):
+		# Define (and initialize) function variables.
+
+		win_start = 0			# start of window (sample number)
+		win_end = 0				# end of window (sample number)
+		win_val = 0				# window value (0..n)
+		bit_start = 0			# start of bit (sample number)
+		bit_end = 0				# end of bit (sample number)
+		bit_val = 0				# bit value (0..1)
+		shift3 = 0				# 3-bit shift register of window values
+		self.byte_start = -1	# start of byte (sample number, -1 = not set yet)
+
+		# Process each of the 8 data bits and 17 windows in turn.
+		# Start with bit 8, which is bit 0 of the previous byte.
+
+		bitn = 8
+
+		while True:
+
+			# Display annotation for second (data) half-bit-cell window of a pair,
+			# starting with the data window of the last bit of the previous byte.
+			# The last window of the current byte is read but not removed from the
+			# FIFO, and isn't displayed.
+
+			win_start = self.fifo_ws[self.fifo_rp]
+			win_end = self.fifo_we[self.fifo_rp]
+			win_val = self.fifo_wv[self.fifo_rp]
+			if bitn > 0:
+				self.inc_fifo_rp()
+
+			shift3 = ((shift3 & 0x03) << 1) + (1 if win_val > 1 else win_val)
+
+			if bitn > 0:
+				self.annotate_window(ann.dat, win_start, win_end, win_val)
+
+			bit_end = win_end
+			bit_val = 1 if win_val > 1 else win_val
+
+			# Display annotation for bit using value in data window.  The last
+			# bit for the previous byte has already been displayed previously.
+
+			if bitn < 8:
+				if (self.encoding in (encoding.MFM, encoding.MFM_FD, encoding.MFM_HD) and (shift3 == 0 or shift3 == 3 or shift3 == 6 or shift3 == 7)) \
+				 or (self.encoding == encoding.FM and (shift3 == 0 or shift3 == 1 or shift3 == 4 or shift3 == 5)):
+					if not special_clock:
+						self.put(bit_end - 1, bit_end, self.out_ann, message.error)
+						self.CkEr += 1
+					self.put(bit_start, bit_end, self.out_ann, [ann.erb, ['%d (clock error)' % bit_val, '%d' % bit_val]])
+				else:
+					self.put(bit_start, bit_end, self.out_ann, [ann.bit, ['%d' % bit_val]])
+
+			if bitn == 0:
+				break
+
+			# Display annotation for first (clock) half-bit-cell window of a pair.
+
+			win_start = self.fifo_ws[self.fifo_rp]
+			win_end = self.fifo_we[self.fifo_rp]
+			win_val = self.fifo_wv[self.fifo_rp]
+			self.inc_fifo_rp()
+
+			shift3 = ((shift3 & 0x03) << 1) + (1 if win_val > 1 else win_val)
+
+			if bitn > 0:
+				self.annotate_window(ann.clk, win_start, win_end, win_val)
+
+			bit_start = win_start
+			if self.byte_start == -1:
+				self.byte_start = bit_start
+
+			bitn -= 1
+
+			# end while
+
+		self.byte_end = bit_end
+
+
+	def annotate_byte_legacy(self, val, special_clock = False):
+		# Display annotations for bits and windows of this byte.
+		self.annotate_bits_legacy(special_clock)
+
+		# Display annotation for this byte.
+		short_ann = '%02X' % val
+		if val >= 32 and val < 127:
+			long_ann = '%02X \'%c\'' % (val, val)
+		else:
+			long_ann = short_ann
+
+		self.put(self.byte_start, self.byte_end, self.out_ann,
+				 [ann.byt, [long_ann, short_ann]])
+
+	def process_byteFM_legacy(self, val):
+		if val == 0x1FE:
+			self.pb_state = state.ID_Address_Mark
+		elif val >= 0x1F8 and val <= 0x1FB:
+			val &= 0x0FF
+			self.pb_state = state.Data_Address_Mark
+		elif val == 0x1FC:
+			self.pb_state = state.FCh_Index_Mark
+
+		if self.pb_state == state.ID_Address_Mark:
+			self.annotate_byte_legacy(0x00)
+			self.annotate_byte_legacy(0xFE, special.clock)
+			self.IDmark = (val & 0x0FF)
+			self.field_start = self.byte_start
+			self.display_field(field.ID_Address_Mark)
+			self.IDcrc = 0
+			self.byte_cnt = self.header_bytes
+			self.pb_state = state.ID_Record
+
+		elif self.pb_state == state.ID_Record:
+			self.annotate_byte_legacy(val)
+			self.IDrec[self.header_bytes - self.byte_cnt] = val
+			self.decode_id_rec(self.byte_cnt, val)
+			self.byte_cnt -= 1
+			if self.byte_cnt == 0:
+				self.display_field(field.ID_Record)
+				self.byte_cnt = self.header_crc_bytes
+				self.pb_state = state.ID_Record_CRC
+
+		elif self.pb_state == state.ID_Record_CRC:
+			self.annotate_byte_legacy(val)
+			self.IDcrc <<= 8
+			self.IDcrc += val
+			self.byte_cnt -= 1
+			if self.byte_cnt == 0:
+				self.calculate_crc(bytes([self.IDmark]) + self.IDrec[:self.header_bytes], crc.Header)
+				if self.crc_accum == self.IDcrc:
+					self.display_field(field.CRC_Ok)
+				else:
+					self.display_field(field.CRC_Error)
+				self.pb_state = state.first_gap_Byte
+
+		elif self.pb_state == state.Data_Address_Mark:
+			self.annotate_byte_legacy(0x00)
+			self.annotate_byte_legacy(val, special.clock)
+			self.DRmark = val
+			self.field_start = self.byte_start
+			self.display_field(field.Data_Address_Mark)
+			self.DRcrc = 0
+			self.byte_cnt = self.sector_len
+			self.pb_state = state.Data_Record
+
+		elif self.pb_state == state.Data_Record:
+			self.annotate_byte_legacy(val)
+			self.DRrec[self.sector_len - self.byte_cnt] = val
+			self.byte_cnt -= 1
+			if self.byte_cnt == 0:
+				self.display_field(field.Data_Record)
+				self.byte_cnt = self.data_crc_bytes
+				self.pb_state = state.Data_Record_CRC
+
+		elif self.pb_state == state.Data_Record_CRC:
+			self.annotate_byte_legacy(val)
+			self.DRcrc <<= 8
+			self.DRcrc += val
+			self.byte_cnt -= 1
+			if self.byte_cnt == 0:
+				self.calculate_crc(bytes([self.DRmark]) + self.DRrec[:self.sector_len], crc.Data)
+				if self.crc_accum == self.DRcrc:
+					self.display_field(field.CRC_Ok)
+				else:
+					self.display_field(field.CRC_Error)
+				self.pb_state = state.first_gap_Byte
+
+		elif self.pb_state == state.FCh_Index_Mark:
+			self.annotate_byte_legacy(0x00)
+			self.annotate_byte_legacy(0xFC, special.clock)
+			self.field_start = self.byte_start
+			self.display_field(field.FCh_Index_Mark)
+			self.pb_state = state.first_gap_Byte
+
+		elif self.pb_state == state.first_gap_Byte:	# process first gap byte after CRC or Index Mark
+			self.annotate_byte_legacy(val)
+			return -1								# done, unsync
+
+		else:
+			return -1
+
+		return 0
+
+	def process_byteMFM_legacy(self, val):
+		if val == 0x1A1:
+			self.pb_state = state.first_mA1h_prefix
+		elif val == 0x1C2:
+			self.pb_state = state.first_mC2h_prefix
+
+		if self.pb_state == state.first_mA1h_prefix:
+			self.annotate_byte_legacy(0x00)
+			self.annotate_byte_legacy(0xA1, special.clock)
+			self.A1 = [0xA1]
+			self.field_start = self.byte_start
+			if self.fdd:
+				self.pb_state = state.second_mA1h_prefix
+			else:
+				self.pb_state = state.IDData_Address_Mark
+
+		elif self.pb_state in (state.second_mA1h_prefix, state.third_mA1h_prefix):
+			if val == 0x2A1:
+				self.annotate_byte_legacy(0xA1, special.clock)
+				self.A1.append(0xA1)
+				if self.pb_state == state.second_mA1h_prefix:
+					self.pb_state = state.third_mA1h_prefix
+				elif self.pb_state == state.third_mA1h_prefix:
+					self.pb_state = state.IDData_Address_Mark
+			else:
+				self.display_field(field.Unknown_Byte)
+				return -1
+
+		elif self.pb_state == state.IDData_Address_Mark:
+			if (self.header_bytes == 4 and val == 0xFE) or \
+			   (self.header_bytes == 3 and (val & 0xFC) == 0xFC):	# FEh FC-FFh ID Address Mark
+				self.annotate_byte_legacy(val)
+				self.IDmark = val
+				self.display_field(field.ID_Address_Mark)
+				self.IDcrc = 0
+				self.byte_cnt = self.header_bytes
+				self.pb_state = state.ID_Record
+			elif val >= 0xF8 and val <= 0xFB:						# F8h..FBh Data Address Mark
+				self.annotate_byte_legacy(val)
+				self.DRmark = val
+				self.display_field(field.Data_Address_Mark)
+				self.DRcrc = 0
+				self.byte_cnt = self.sector_len
+				self.pb_state = state.Data_Record
+			else:
+				self.display_field(field.Unknown_Byte)
+				return -1
+
+		elif self.pb_state == state.ID_Record:
+			self.annotate_byte_legacy(val)
+			self.IDrec[self.header_bytes - self.byte_cnt] = val
+			self.decode_id_rec(self.byte_cnt, val)
+			self.byte_cnt -= 1
+			if self.byte_cnt == 0:
+				self.display_field(field.ID_Record)
+				self.byte_cnt = self.header_crc_bytes
+				self.pb_state = state.ID_Record_CRC
+
+		elif self.pb_state == state.ID_Record_CRC:
+			self.annotate_byte_legacy(val)
+			self.IDcrc <<= 8
+			self.IDcrc += val
+			self.byte_cnt -= 1
+			if self.byte_cnt == 0:
+				self.calculate_crc(bytes(self.A1 + [self.IDmark]) + self.IDrec[:self.header_bytes], crc.Header)
+				if self.crc_accum == self.IDcrc:
+					self.display_field(field.CRC_Ok)
+				else:
+					self.display_field(field.CRC_Error)
+				self.pb_state = state.first_gap_Byte
+
+		elif self.pb_state == state.Data_Record:
+			self.annotate_byte_legacy(val)
+			self.DRrec[self.sector_len - self.byte_cnt] = val
+			self.byte_cnt -= 1
+			if self.byte_cnt == 0:
+				self.display_field(field.Data_Record)
+				self.byte_cnt = self.data_crc_bytes
+				self.pb_state = state.Data_Record_CRC
+
+		elif self.pb_state == state.Data_Record_CRC:
+			self.annotate_byte_legacy(val)
+			self.DRcrc <<= 8
+			self.DRcrc += val
+			self.byte_cnt -= 1
+			if self.byte_cnt == 0:
+				self.calculate_crc(bytes(self.A1 + [self.DRmark]) + self.DRrec[:self.sector_len], crc.Data)
+				if self.crc_accum == self.DRcrc:
+					self.display_field(field.CRC_Ok)
+				else:
+					self.display_field(field.CRC_Error)
+				self.pb_state = state.first_gap_Byte
+
+		elif self.pb_state == state.first_mC2h_prefix:
+			self.annotate_byte_legacy(0x00)
+			self.annotate_byte_legacy(0xC2, special.clock)
+			self.field_start = self.byte_start
+			self.pb_state = state.second_mC2h_prefix
+
+		elif self.pb_state in (state.second_mC2h_prefix, state.third_mC2h_prefix):
+			if val == 0x2C2:
+				self.annotate_byte_legacy(0xC2, special.clock)
+				if self.pb_state == state.second_mC2h_prefix:
+					self.pb_state = state.third_mC2h_prefix
+				elif self.pb_state == state.third_mC2h_prefix:
+					self.pb_state = state.FCh_Index_Mark
+			else:
+				self.display_field(field.Unknown_Byte)
+				return -1
+
+		elif self.pb_state == state.FCh_Index_Mark:
+			if val == 0xFC:
+				self.annotate_byte_legacy(val)
+				self.display_field(field.FCh_Index_Mark)
+				self.pb_state = state.first_gap_Byte
+			else:
+				self.display_field(field.Unknown_Byte)
+				return -1
+
+		elif self.pb_state == state.first_gap_Byte:	# process first gap byte after CRC or Index Mark
+			self.annotate_byte_legacy(val)
+			return -1								# done, unsync
+
+		else:
+			return -1
+
+		return 0
 
 	def decode_legacy(self):
 		# --- Verify that a sample rate was specified.
@@ -2094,9 +2109,9 @@ class Decoder(srd.Decoder):
 					if byte_sync:
 
 						if self.encoding == encoding.FM:
-							self.process_byteFM(data_byte)
+							self.process_byteFM_legacy(data_byte)
 						else:
-							self.process_byteMFM(data_byte)
+							self.process_byteMFM_legacy(data_byte)
 
 						cell_window = ann.dat
 						bit_cnt = 0
@@ -2114,7 +2129,7 @@ class Decoder(srd.Decoder):
 						# Process FM byte.
 						if self.encoding == encoding.FM:
 
-							if self.process_byteFM(data_byte) == 0:
+							if self.process_byteFM_legacy(data_byte) == 0:
 								bit_cnt = 0
 							else:
 								shift31 = 0
@@ -2128,7 +2143,7 @@ class Decoder(srd.Decoder):
 							elif (shift31 & 0xFFFF) == 0x5224:	# mC2h prefix byte
 								data_byte = 0x2C2
 
-							if self.process_byteMFM(data_byte) == 0:
+							if self.process_byteMFM_legacy(data_byte) == 0:
 								bit_cnt = 0
 							else:
 								shift31 = 0
@@ -2180,7 +2195,7 @@ class Decoder(srd.Decoder):
 			#--- end while
 
 	def decode(self):
-		if self.options['decoder'] == 'legacy':
+		if self.decoder_legacy:
 			self.decode_legacy()
 		else:
 			self.decode_new()
