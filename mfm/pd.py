@@ -182,9 +182,10 @@ class Decoder(srd.Decoder):
 	global message, messageD
 	# messageD.xxx are dynamic, slow so used sporadically, makes code more readable
 	messageD = Messages({
-		'sync'       	: (ann.syn, ['Sync pattern %d bytes', 'Sync', 'S']),
-		'gap'			: (ann.mrk, ['Gap %d bytes', 'Gap', 'G']),
-		'extraPulse' 	: (ann.erw, ['%d%s (extra pulse in win) s%d', 'Extra Pulse', 'EP']),
+		'sync'		: (ann.syn, ['Sync pattern %d bytes', 'Sync', 'S']),
+		'gap'		: (ann.mrk, ['Gap %d bytes', 'Gap', 'G']),
+		'pulse'		: (ann.erw, ['%d%s (extra pulse in win) s%d', 'Extra Pulse', 'EP']),
+		'report'	: (ann.rpt, ['Summary: IAM=%d, IDAM=%d, DAM=%d, DDAM=%d, CRC_OK=%d, CRC_err=%d, EiPW=%d, CkEr=%d, OoTI=%d/%d']),
 	})
 	# message.xxx is static, fast and readable
 	message = SimpleNamespace(
@@ -1438,13 +1439,11 @@ class Decoder(srd.Decoder):
 		if self.reports_called < self.report_qty:
 			return
 
-		self.put(self.report_start, self.byte_end, self.out_ann,
-			[ann.rpt, ["Summary: IAM=%d, IDAM=%d, DAM=%d, DDAM=%d, CRC_OK=%d, "\
-				"CRC_err=%d, EiPW=%d, CkEr=%d, OoTI=%d/%d" \
-				% (self.IAMs, self.IDAMs, self.DAMs, self.DDAMs, self.CRC_OK,\
-				self.CRC_err, self.EiPW, self.CkEr, self.OoTI, self.Intrvls)]])
-		(self.IAMs, self.IDAMs, self.DAMs, self.DDAMs, self.CRC_OK,\
-				self.CRC_err, self.EiPW, self.CkEr, self.OoTI, self.Intrvls) = (0,0,0,0,0,0,0,0,0,0)
+		self.put(self.pll.locked, self.byte_start, self.out_ann, messageD.report(self.IAMs, self.IDAMs, self.DAMs, self.DDAMs, self.CRC_OK, self.CRC_err, self.EiPW, self.CkEr, self.OoTI, self.Intrvls))
+
+		# clear all report markers
+		(self.IAMs, self.IDAMs, self.DAMs, self.DDAMs, self.CRC_OK, self.CRC_err, self.EiPW, self.CkEr, self.OoTI, self.Intrvls) = (0,0,0,0,0,0,0,0,0,0)
+
 		self.report_start = self.byte_end
 		self.reports_called = 0
 
