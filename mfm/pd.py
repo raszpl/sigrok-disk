@@ -140,8 +140,8 @@ class Decoder(srd.Decoder):
 			'default': '0xffffffffffffff'},
 		{'id': 'data_crc_poly_custom', 'desc': 'Custom Data Poly (overrides above)',
 			'default': ''},
-		{'id': 'time_unit', 'desc': 'Time units',
-			'default': 'ns', 'values': ('ns', 'us', 'auto')},
+		{'id': 'time_unit', 'desc': 'Pulse time units/windows',
+			'default': 'ns', 'values': ('ns', 'us', 'auto', 'window')},
 		{'id': 'dsply_sn', 'desc': 'Display Windows (bit/clock) and Pulses (pul, erp) sample numbers',
 			'default': 'no', 'values': ('yes', 'no')},
 		{'id': 'dsply_pfx', 'desc': 'Display all MFM prefix bytes',
@@ -1490,17 +1490,16 @@ class Decoder(srd.Decoder):
 		#print(11111111111, encoding_table[self.encoding]['table'])
 		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, cells_allowed=cells_allowed, sync=sync, rll_table=rll_table)
 
-		interval_unit = self.time_unit
-		if interval_unit == 'ns':
-			interval_multi = 1000000000 / self.samplerate
-		elif interval_unit == 'us':
-			interval_multi = 1000000 / self.samplerate
-		elif interval_unit == 'auto':
-			interval_multi = 1000000000 / self.samplerate
-			interval_unit = 'ns'
-			if interval_multi * window_size > 1000:
-				interval_multi = 1000000 / self.samplerate
-				interval_unit = 'us'
+		interval_multi = {
+						'ns':	1000000000 / self.samplerate,
+						'us':	1000000 / self.samplerate,
+						'auto':	(1000000 / self.samplerate) if (1000000000 / self.samplerate) * window_size > 1000 else (1000000000 / self.samplerate),
+						'window':0
+					}[self.time_unit]
+		if self.time_unit == 'auto':
+			interval_unit = 'us' if interval_multi == (1000000 / self.samplerate) else 'ns'
+		else:
+			interval_unit = self.time_unit
 
 		#print_('m:', window_size, cells_allowed)
 
@@ -1524,7 +1523,10 @@ class Decoder(srd.Decoder):
 
 			# Annotate Pulses, leading-edge to leading-edge.
 			# Interval in interval_unit and optional sample number.
-			interval_time = str(round(interval * interval_multi)) + interval_unit
+			if interval_multi:
+				interval_time = str(round(interval * interval_multi)) + interval_unit
+			else:
+				interval_time = str(round(interval / window_size))
 			#print_('mmmmm', message, message.errorOoTIs)
 			if self.pll.halfbit_cells in cells_allowed:
 				if self.show_sample_num:
