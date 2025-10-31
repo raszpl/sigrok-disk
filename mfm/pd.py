@@ -1014,9 +1014,6 @@ class Decoder(srd.Decoder):
 			self.put(self.byte_start, self.byte_end, self.out_ann, message.errorUnkByte)
 
 		elif typ == field.Sync:
-			#print_('sync_', self.byte_start, self.pll.ring_read_offset(- 16 - self.pll.shift_index), self.pll.ring_ws)
-			#print_(self.byte_start - self.pll.locked, (self.pll.halfbit*16), (self.byte_start - self.pll.locked) / self.pll.halfbit / 16)
-			#print_((self.pll.lock_count * 2 + 2) // 16)
 			self.put(self.pll.locked, self.byte_start, self.out_ann, messageD.sync((self.pll.lock_count * 2) // 16))
 
 		elif typ == field.Gap:
@@ -1645,7 +1642,6 @@ class Decoder(srd.Decoder):
 
 		self.byte_end = bit_end
 
-
 	def annotate_byte_legacy(self, val, special_clock = False):
 		# Display annotations for bits and windows of this byte.
 		self.annotate_bits_legacy(special_clock)
@@ -2182,8 +2178,6 @@ class Decoder(srd.Decoder):
 
 			# Store data for next round.
 			self.last_samplenum = self.samplenum
-
-			#--- end while
 
 	def decode(self):
 		if self.decoder_legacy:
