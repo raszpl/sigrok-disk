@@ -949,7 +949,7 @@ class Decoder(srd.Decoder):
 
 	# ------------------------------------------------------------------------
 	# Display an annotation for a field.
-	# IN: typ  type of field = 'x'/'i'/'I'/'d'/'D'/'e'/'c'
+	# IN: typ  Enum field
 	#	  self.field_start, self.byte_end
 	# OUT: self.field_start	 updated
 	# ------------------------------------------------------------------------
