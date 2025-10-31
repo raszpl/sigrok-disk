@@ -975,7 +975,8 @@ class Decoder(srd.Decoder):
 				self.display_report()
 
 		elif typ == field.Data_Address_Mark:
-			if self.fdd and self.DRmark in (0xF8, 0xF9, 0xFA):
+			# DDAMs only on floppies
+			if self.encoding in (encoding.FM, encoding.MFM_FD) and self.DRmark in (0xF8, 0xF9, 0xFA):
 				self.DDAMs += 1
 				self.put(self.field_start, self.byte_end, self.out_ann, message.ddam)
 				self.report_last = field.Deleted_Data_Mark
