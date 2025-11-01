@@ -651,7 +651,7 @@ class Decoder(srd.Decoder):
 					#print_(self.halfbit_cells, self.cells_allowed_max, pulse_ticks, self.halfbit, pulse_ticks / self.halfbit)
 					# now handle special case of pulse too long but covering end of last good byte
 					if self.byte_synced and self.shift_index + self.halfbit_cells >= 16:
-					# little rube goldberg here, unsync will set byte_synced = False will trigger pll.reset()
+					# little rube goldberg here, unsync will set byte_synced to False will trigger pll.reset()
 							self.unsync = True
 					else:
 						print_("pll pulse out-of-tolerance, not in cells_allowed")
@@ -674,6 +674,10 @@ class Decoder(srd.Decoder):
 				#                       0010010010010010010010010001
 				#                       0010 0100 0010 0000 1000 0000 1001
 				#4 3 8 3 4 6             1 0001 0010 0000 0010 0100 0100 0001
+				#elif not self.byte_synced and self.owner.encoding in (encoding.RLL_SEA, encoding.RLL_WD) and (self.shift & 0x7FFFFF == 0b00100100100100100100001):
+				#							00100010010000000100100010000010001000001000001000001000001000001000001000001000100000100000100000100100001001000001000010001000100000010000100100000010000100000010000010000010000010000010000010000010000010000001001
+				
+				
 				#and self.halfbit_cells == 7:
 				#and (self.shift & 0x3FFFF == 0b1000000010010001 or self.shift & 0x3FFFF == 0b10000000100100001):
 					print_("byte_synced", self.halfbit_cells, self.last_samplenum)
@@ -1455,7 +1459,7 @@ class Decoder(srd.Decoder):
 	#	 due to end-of-data reached before specified condition found.
 	# ------------------------------------------------------------------------
 
-	def decode_new(self):
+	def decode(self):
 		# --- Verify that a sample rate was specified.
 		if not self.samplerate:
 			raise SamplerateError('Cannot decode without samplerate.')
@@ -2185,4 +2189,4 @@ class Decoder(srd.Decoder):
 		if self.decoder_legacy:
 			self.decode_legacy()
 		else:
-			self.decode_new()
+			self.decode()
