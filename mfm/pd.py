@@ -436,11 +436,13 @@ class Decoder(srd.Decoder):
 		self.dsply_pfx = True if self.options['dsply_pfx'] == 'yes' else False
 		self.show_sample_num = True if self.options['dsply_sn'] == 'yes' else False
 
-		self.report = {'no':'no',
-						'IAM':field.FCh_Index_Mark,
-						'IDAM':field.ID_Address_Mark,
-						'DAM':field.Data_Address_Mark,
-						'DDAM':field.Deleted_Data_Mark}[self.options['report']]
+		self.report = {
+						'no':	'no',
+						'IAM':	field.FCh_Index_Mark,
+						'IDAM':	field.ID_Address_Mark,
+						'DAM':	field.Data_Address_Mark,
+						'DDAM':	field.Deleted_Data_Mark,
+			}[self.options['report']]
 		self.report_qty = int(self.options['report_qty'])
 		self.report_start = 0
 		self.reports_called = 0
