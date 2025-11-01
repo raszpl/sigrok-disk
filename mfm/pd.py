@@ -144,14 +144,14 @@ class Decoder(srd.Decoder):
 			'default': 'ns', 'values': ('ns', 'us', 'auto', 'window')},
 		{'id': 'dsply_sn', 'desc': 'Display Windows (bit/clock) and Pulses (pul, erp) sample numbers',
 			'default': 'no', 'values': ('yes', 'no')},
-		{'id': 'dsply_pfx', 'desc': 'Display all MFM prefix bytes',
-			'default': 'no', 'values': ('yes', 'no')},
 		{'id': 'report', 'desc': 'Display report after this field',
 			'default': 'no', 'values': ('no', 'IAM', 'IDAM', 'DAM', 'DDAM')},
 		{'id': 'report_qty', 'desc': 'Report every x Marks',
 			'default': '9'},
 		{'id': 'decoder', 'desc': 'Decoder',
 			'default': 'PLL', 'values': ('PLL', 'legacy')},
+		{'id': 'dsply_pfx', 'desc': 'Legacy decoder: Display all MFM prefix bytes.',
+			'default': 'no', 'values': ('yes', 'no')},
 	)
 
 	options_valid = {item['id']: item['values'] for item in options if 'values' in item}
