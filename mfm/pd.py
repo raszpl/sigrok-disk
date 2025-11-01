@@ -475,6 +475,8 @@ class Decoder(srd.Decoder):
 		def __init__(self, owner, halfbit_ticks=10.0, kp=0.5, ki=0.0005, lock_threshold=32, tol_ticks=6, cells_allowed=(2, 3, 4), sync=2, rll_table={}):
 			self.owner = owner
 			self.halfbit_nom = halfbit_ticks
+			self.halfbit_nom05 = 0.5 * self.halfbit_nom
+			self.halfbit_nom15 = 1.5 * self.halfbit_nom
 			self.kp = kp
 			self.ki = ki
 			self.lock_threshold = int(lock_threshold)
@@ -651,7 +653,7 @@ class Decoder(srd.Decoder):
 					#print_(self.halfbit_cells, self.cells_allowed_max, pulse_ticks, self.halfbit, pulse_ticks / self.halfbit)
 					# now handle special case of pulse too long but covering end of last good byte
 					if self.byte_synced and self.shift_index + self.halfbit_cells >= 16:
-					# little rube goldberg here, unsync will set byte_synced to False will trigger pll.reset()
+					# little rube goldberg here, unsync will set byte_synced to False to immediatelly trigger pll.reset() in decode()
 							self.unsync = True
 					else:
 						print_("pll pulse out-of-tolerance, not in cells_allowed")
@@ -702,19 +704,19 @@ class Decoder(srd.Decoder):
 			self.phase_ref += self.kp * phase_err
 
 			# Integral: accumulate small frequency correction
-			norm_err = phase_err / max(self.halfbit_nom, 1.0)
+			norm_err = phase_err / self.halfbit_nom
 			self.integrator += self.ki * norm_err
 			self.halfbit += self.integrator
 
 			#print_('pll phase_ref %.4f' % self.phase_ref, 'inte %.4f' % self.integrator, 'halfbit %.4f' % self.halfbit)
 
-			# clamp halfbit within reasonable bounds
-			if self.halfbit < 0.5 * self.halfbit_nom:
-				print_('pll -ERRR!!!!!!!!!!!!!!!!!!!!!!!!!!', self.halfbit, self.halfbit_nom, 0.5 * self.halfbit_nom)
-				self.halfbit = 0.5 * self.halfbit_nom
-			if self.halfbit > 1.5 * self.halfbit_nom:
-				print_('pll +ERRR!!!!!!!!!!!!!!!!!!!!!!!!!!', self.halfbit, self.halfbit_nom, 1.5 * self.halfbit_nom)
-				self.halfbit = 1.5 * self.halfbit_nom
+			# clamp halfbit within reasonable 0.5-1.5 bounds
+			if self.halfbit < self.halfbit_nom05:
+				print_('pll -ERRR!!!!!!!!!!!!!!!!!!!!!!!!!!', self.halfbit, self.halfbit_nom, self.halfbit_nom05)
+				self.halfbit = self.halfbit_nom05
+			if self.halfbit > self.halfbit_nom15:
+				print_('pll +ERRR!!!!!!!!!!!!!!!!!!!!!!!!!!', self.halfbit, self.halfbit_nom, self.halfbit_nom15)
+				self.halfbit = self.halfbit_nom15
 
 			#print_('byyyte', pulse_ticks, self.halfbit_cells, self.halfbit, self.last_samplenum, edge_tick)
 			x = last_samplenum + 0.5 * self.halfbit
