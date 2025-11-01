@@ -775,7 +775,6 @@ class Decoder(srd.Decoder):
 		self.calculate_crc(bytearray, self.data_crc_init, self.data_crc_bits, self.data_crc_offset, self.data_crc_mask, self.data_crc_poly)
 
 	def calculate_crc(self, bytearray, crc_accum, crc_bits, crc_offset, crc_mask, crc_poly):
-
 		if crc_poly == 0x1021 and crc_bits == 16:
 			# fast lookup table for CRC-16-CCITT
 			CRC16CCITT_tab = array('I', [0x0000, 0x1021, 0x2042, 0x3063,
@@ -831,14 +830,12 @@ class Decoder(srd.Decoder):
 	# ------------------------------------------------------------------------
 
 	def annotate_window(self, target, start, end, value):
-		if target == ann.dat:
-			dataclock = ' d'
-		elif target == ann.clk:
-			dataclock = ' c'
-		elif target == ann.erw:
-			dataclock = ''
-		elif target == ann.unk:
-			dataclock = ''
+		dataclock = {
+						ann.dat:	' d',
+						ann.clk:	' c',
+						ann.erw:	'',
+						ann.unk:	'',
+			}[target]
 
 		if value > 1:
 			# no need to emit error message, it was already caught by out-of-tolerance leading edge (OoTI) detector
