@@ -655,7 +655,7 @@ class Decoder(srd.Decoder):
 					#print_(self.halfbit_cells, self.cells_allowed_max, pulse_ticks, self.halfbit, pulse_ticks / self.halfbit)
 					# now handle special case of pulse too long but covering end of last good byte
 					if self.byte_synced and self.shift_index + self.halfbit_cells >= 16:
-					# little rube goldberg here, unsync will set byte_synced to False to immediatelly trigger pll.reset() in decode()
+					# little rube goldberg here, unsync will set byte_synced to False to immediatelly trigger pll.reset() in decode_PLL()
 							self.unsync = True
 					else:
 						print_("pll pulse out-of-tolerance, not in cells_allowed")
