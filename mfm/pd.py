@@ -305,37 +305,37 @@ class Decoder(srd.Decoder):
 		RLL_WD	= 6
 
 	encoding_table = {
-		encoding.FM: {
+		encoding.FM: {		# (0,1) RLL
 			"table": FM_R,
 			"cells_allowed": (1, 2),
 			"sync": 2,
 			"pb_state": state.sync_mark,
 		},
-		encoding.MFM: {
+		encoding.MFM: {		# (1,3) RLL
 			"table": FM_R,
 			"cells_allowed": (2, 3, 4),
 			"sync": 2,
 			"pb_state": state.sync_mark,
 		},
-		encoding.MFM_FD: {
+		encoding.MFM_FD: {	# (1,3) RLL
 			"table": FM_R,
 			"cells_allowed": (2, 3, 4),
 			"sync": 2,
 			"pb_state": state.sync_mark,
 		},
-		encoding.MFM_HD: {
+		encoding.MFM_HD: {	# (1,3) RLL
 			"table": FM_R,
 			"cells_allowed": (2, 3, 4),
 			"sync": 2,
 			"pb_state": state.sync_mark,
 		},
-		encoding.RLL_SEA: {
+		encoding.RLL_SEA: {	# (2,7) RLL
 			"table": RLL_IBM_R,
 			"cells_allowed": (3, 4, 5, 6, 7, 8),
 			"sync": 3,
 			"pb_state": state.sync_mark,
 		},
-		encoding.RLL_WD: {
+		encoding.RLL_WD: {	# (2,7) RLL
 			"table": FM_R,
 			"cells_allowed": (3, 4, 5, 6, 7, 8),
 			"sync": 3,
