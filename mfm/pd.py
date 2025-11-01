@@ -1458,7 +1458,7 @@ class Decoder(srd.Decoder):
 	#	 due to end-of-data reached before specified condition found.
 	# ------------------------------------------------------------------------
 
-	def decode(self):
+	def decode_PLL(self):
 		# --- Verify that a sample rate was specified.
 		if not self.samplerate:
 			raise SamplerateError('Cannot decode without samplerate.')
@@ -2188,4 +2188,4 @@ class Decoder(srd.Decoder):
 		if self.decoder_legacy:
 			self.decode_legacy()
 		else:
-			self.decode()
+			self.decode_PLL()
