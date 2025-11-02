@@ -1102,8 +1102,8 @@ class Decoder(srd.Decoder):
 			if val == 0xFE:
 				self.annotate_byte(0xFE, special.clock)
 				self.display_field(field.Sync)
-				self.field_start = self.byte_start
 				self.IDmark = 0xFE
+				self.field_start = self.byte_start
 				self.display_field(field.ID_Address_Mark)
 				self.IDcrc = 0
 				self.byte_cnt = self.header_bytes
@@ -1111,8 +1111,8 @@ class Decoder(srd.Decoder):
 			elif val >= 0xF8 and val <= 0xFB:
 				self.annotate_byte(val, special.clock)
 				self.display_field(field.Sync)
-				self.field_start = self.byte_start
 				self.DRmark = val
+				self.field_start = self.byte_start
 				self.display_field(field.Data_Address_Mark)
 				self.DRcrc = 0
 				self.byte_cnt = self.sector_len
