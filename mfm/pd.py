@@ -1100,18 +1100,18 @@ class Decoder(srd.Decoder):
 	def process_byteFM(self, val):
 		if self.pb_state == state.sync_mark:
 			if val == 0xFE:
+				self.IDmark = 0xFE
 				self.annotate_byte(0xFE, special.clock)
 				self.display_field(field.Sync)
-				self.IDmark = 0xFE
 				self.field_start = self.byte_start
 				self.display_field(field.ID_Address_Mark)
 				self.IDcrc = 0
 				self.byte_cnt = self.header_bytes
 				self.pb_state = state.ID_Record
 			elif val >= 0xF8 and val <= 0xFB:
+				self.DRmark = val
 				self.annotate_byte(val, special.clock)
 				self.display_field(field.Sync)
-				self.DRmark = val
 				self.field_start = self.byte_start
 				self.display_field(field.Data_Address_Mark)
 				self.DRcrc = 0
@@ -1202,9 +1202,9 @@ class Decoder(srd.Decoder):
 	def process_byteMFM(self, val):
 		if self.pb_state == state.sync_mark:
 			if val == 0xA1:
+				self.A1 = [0xA1]
 				self.annotate_byte(0xA1, special.clock)
 				self.display_field(field.Sync)
-				self.A1 = [0xA1]
 				self.field_start = self.byte_start
 				if self.encoding == encoding.MFM_FD:
 					self.pb_state = state.second_mA1h_prefix
@@ -1222,8 +1222,8 @@ class Decoder(srd.Decoder):
 
 		elif self.pb_state in (state.second_mA1h_prefix, state.third_mA1h_prefix):
 			if val == 0xA1:
-				self.annotate_byte(0xA1, special.clock)
 				self.A1.append(0xA1)
+				self.annotate_byte(0xA1, special.clock)
 				if self.pb_state == state.second_mA1h_prefix:
 					self.pb_state = state.third_mA1h_prefix
 				elif self.pb_state == state.third_mA1h_prefix:
@@ -1236,15 +1236,15 @@ class Decoder(srd.Decoder):
 		elif self.pb_state == state.IDData_Address_Mark:
 			if (self.header_bytes == 4 and val == 0xFE) or \
 			   (self.header_bytes == 3 and (val & 0xFC) == 0xFC):	# FEh FC-FFh ID Address Mark
-				self.annotate_byte(val)
 				self.IDmark = val
+				self.annotate_byte(val)
 				self.display_field(field.ID_Address_Mark)
 				self.IDcrc = 0
 				self.byte_cnt = self.header_bytes
 				self.pb_state = state.ID_Record
 			elif val >= 0xF8 and val <= 0xFB:						# F8h..FBh Data Address Mark
-				self.annotate_byte(val)
 				self.DRmark = val
+				self.annotate_byte(val)
 				self.display_field(field.Data_Address_Mark)
 				self.DRcrc = 0
 				self.byte_cnt = self.sector_len
@@ -1333,9 +1333,9 @@ class Decoder(srd.Decoder):
 	def process_byteRLL(self, val):
 		if self.pb_state == state.sync_mark:
 			if val == 0xA1:
+				self.A1 = [0xA1]
 				self.annotate_byte(0xA1)
 				self.display_field(field.Sync)
-				self.A1 = [0xA1]
 				self.field_start = self.byte_start
 				self.pb_state = state.IDData_Address_Mark
 			elif val == 0xDE:
@@ -1349,24 +1349,24 @@ class Decoder(srd.Decoder):
 			if (self.header_bytes == 4 and val == 0xFE) or \
 				(self.header_bytes == 3 and (val & 0xFC) == 0xFC):
 				# FEh FC-FFh ID Address Mark
+				self.IDmark = val
 				self.annotate_byte(val)
 				if self.encoding == encoding.RLL:
-					self.display_field(field.Sync)
 					self.A1 = [0xA1]
+					self.display_field(field.Sync)
 					self.field_start = self.byte_start
-				self.IDmark = val
 				self.display_field(field.ID_Address_Mark)
 				self.IDcrc = 0
 				self.byte_cnt = self.header_bytes
 				self.pb_state = state.ID_Record
 			elif val >= 0xF8 and val <= 0xFB:
 				# F8h..FBh Data Address Mark
+				self.DRmark = val
 				self.annotate_byte(val)
 				if self.encoding == encoding.RLL:
-					self.display_field(field.Sync)
 					self.A1 = [0xA1]
+					self.display_field(field.Sync)
 					self.field_start = self.byte_start
-				self.DRmark = val
 				self.display_field(field.Data_Address_Mark)
 				self.DRcrc = 0
 				self.byte_cnt = self.sector_len
@@ -1675,9 +1675,9 @@ class Decoder(srd.Decoder):
 			self.pb_state = state.FCh_Index_Mark
 
 		if self.pb_state == state.ID_Address_Mark:
+			self.IDmark = (val & 0x0FF)
 			self.annotate_byte_legacy(0x00)
 			self.annotate_byte_legacy(0xFE, special.clock)
-			self.IDmark = (val & 0x0FF)
 			self.field_start = self.byte_start
 			self.display_field(field.ID_Address_Mark)
 			self.IDcrc = 0
@@ -1762,16 +1762,16 @@ class Decoder(srd.Decoder):
 			self.pb_state = state.first_mC2h_prefix
 
 		if self.pb_state == state.first_mA1h_prefix:
+			self.A1 = [0xA1]
 			self.annotate_byte_legacy(0x00)
 			self.annotate_byte_legacy(0xA1, special.clock)
-			self.A1 = [0xA1]
 			self.field_start = self.byte_start
 			self.pb_state = state.second_mA1h_prefix
 
 		elif self.pb_state in (state.second_mA1h_prefix, state.third_mA1h_prefix):
 			if val == 0x2A1:
-				self.annotate_byte_legacy(0xA1, special.clock)
 				self.A1.append(0xA1)
+				self.annotate_byte_legacy(0xA1, special.clock)
 				if self.pb_state == state.second_mA1h_prefix:
 					self.pb_state = state.third_mA1h_prefix
 				elif self.pb_state == state.third_mA1h_prefix:
@@ -1783,15 +1783,15 @@ class Decoder(srd.Decoder):
 		elif self.pb_state == state.IDData_Address_Mark:
 			if (self.header_bytes == 4 and val == 0xFE) or \
 			   (self.header_bytes == 3 and (val & 0xFC) == 0xFC):	# FEh FC-FFh ID Address Mark
-				self.annotate_byte_legacy(val)
 				self.IDmark = val
+				self.annotate_byte_legacy(val)
 				self.display_field(field.ID_Address_Mark)
 				self.IDcrc = 0
 				self.byte_cnt = self.header_bytes
 				self.pb_state = state.ID_Record
 			elif val >= 0xF8 and val <= 0xFB:						# F8h..FBh Data Address Mark
-				self.annotate_byte_legacy(val)
 				self.DRmark = val
+				self.annotate_byte_legacy(val)
 				self.display_field(field.Data_Address_Mark)
 				self.DRcrc = 0
 				self.byte_cnt = self.sector_len
