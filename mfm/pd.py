@@ -494,10 +494,10 @@ class Decoder(srd.Decoder):
 			self.halfbit_cells = 0
 			self.integrator = 0.0
 			self.lock_count = 0
-			self.locked = 0
+			self.locked = False
 			self.byte_synced = False
 			self.unsync = False
-			self.first_short_edge_tick = None
+			self.sync_start = None
 			self.shift = 0xfffff
 			self.shift_win = 0xffff
 			self.shift_byte = 0
@@ -533,10 +533,10 @@ class Decoder(srd.Decoder):
 			self.halfbit = self.halfbit_nom
 			self.integrator = 0.0
 			self.lock_count = 0
-			self.locked = 0
+			self.locked = False
 			self.byte_synced = False
 			self.unsync = False
-			self.first_short_edge_tick = None
+			self.sync_start = None
 			self.shift = 0xfffff
 			self.shift_win = 0xffff
 			self.shift_byte = 0
@@ -628,14 +628,14 @@ class Decoder(srd.Decoder):
 					#print_('lock_count', self.lock_count)
 					if self.lock_count == 1:
 						# remember start of sync and set initial phase reference
-						self.first_short_edge_tick = edge_tick - pulse_ticks - round(self.halfbit * 0.5)
+						self.sync_start = edge_tick - pulse_ticks - round(self.halfbit * 0.5)
 						self.phase_ref = edge_tick
-						#print_('first_short_edge_tick', edge_tick - pulse_ticks - round(self.halfbit * 0.5), edge_tick - pulse_ticks, round(self.halfbit * 0.5))
+						#print_('sync_start', edge_tick - pulse_ticks - round(self.halfbit * 0.5), edge_tick - pulse_ticks, round(self.halfbit * 0.5))
 						return 0
 					elif self.lock_count >= self.lock_threshold:
 						# seen enough clock pulses, PLL locked in
-						self.locked = self.first_short_edge_tick
-						#print_('pll locked', self.locked, self.last_samplenum)
+						self.locked = True
+						#print_('pll locked', self.last_samplenum)
 						self.lock_count -= 1 # it will be incremented again lower down
 				elif self.lock_count:
 					#print_('pll sync pattern interrupted -> reset')
@@ -1019,7 +1019,8 @@ class Decoder(srd.Decoder):
 			self.put(self.byte_start, self.byte_end, self.out_ann, message.errorUnkByte)
 
 		elif typ == field.Sync:
-			self.put(self.pll.locked, self.byte_start, self.out_ann, messageD.sync((self.pll.lock_count * 2) // 16))
+			self.put(self.pll.sync_start, self.byte_start, self.out_ann, messageD.sync((self.pll.lock_count * 2) // 16))
+			sync_start = False
 
 		elif typ == field.Gap:
 			gap_len = (self.byte_end - self.gap_start) // round(self.pll.halfbit*16)
