@@ -1436,7 +1436,7 @@ class Decoder(srd.Decoder):
 		if self.reports_called < self.report_qty:
 			return
 
-		self.put(self.pll.locked, self.byte_start, self.out_ann, messageD.report(self.IAMs, self.IDAMs, self.DAMs, self.DDAMs, self.CRC_OK, self.CRC_err, self.EiPW, self.CkEr, self.OoTI, self.Intrvls))
+		self.put(self.report_start, self.byte_start, self.out_ann, messageD.report(self.IAMs, self.IDAMs, self.DAMs, self.DDAMs, self.CRC_OK, self.CRC_err, self.EiPW, self.CkEr, self.OoTI, self.Intrvls))
 
 		# clear all report markers
 		(self.IAMs, self.IDAMs, self.DAMs, self.DDAMs, self.CRC_OK, self.CRC_err, self.EiPW, self.CkEr, self.OoTI, self.Intrvls) = (0,0,0,0,0,0,0,0,0,0)
