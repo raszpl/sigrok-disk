@@ -308,37 +308,37 @@ class Decoder(srd.Decoder):
 		encoding.FM: {		# (0,1) RLL
 			"table": FM_R,
 			"cells_allowed": (1, 2),
-			"sync": 2,
+			"sync_pattern": 2,
 			"pb_state": state.sync_mark,
 		},
 		encoding.MFM: {		# (1,3) RLL
 			"table": FM_R,
 			"cells_allowed": (2, 3, 4),
-			"sync": 2,
+			"sync_pattern": 2,
 			"pb_state": state.sync_mark,
 		},
 		encoding.MFM_FD: {	# (1,3) RLL
 			"table": FM_R,
 			"cells_allowed": (2, 3, 4),
-			"sync": 2,
+			"sync_pattern": 2,
 			"pb_state": state.sync_mark,
 		},
 		encoding.MFM_HD: {	# (1,3) RLL
 			"table": FM_R,
 			"cells_allowed": (2, 3, 4),
-			"sync": 2,
+			"sync_pattern": 2,
 			"pb_state": state.sync_mark,
 		},
 		encoding.RLL_SEA: {	# (2,7) RLL
 			"table": RLL_IBM_R,
 			"cells_allowed": (3, 4, 5, 6, 7, 8),
-			"sync": 3,
+			"sync_pattern": 3,
 			"pb_state": state.sync_mark,
 		},
 		encoding.RLL_WD: {	# (2,7) RLL
 			"table": FM_R,
 			"cells_allowed": (3, 4, 5, 6, 7, 8),
-			"sync": 3,
+			"sync_pattern": 3,
 			"pb_state": state.IDData_Address_Mark,
 		}
 	}
@@ -474,23 +474,23 @@ class Decoder(srd.Decoder):
 	# ------------------------------------------------------------------------
 
 	class SimplePLL:
-		def __init__(self, owner, halfbit_ticks=10.0, kp=0.5, ki=0.0005, lock_threshold=32, tol_ticks=6, cells_allowed=(2, 3, 4), sync=2, rll_table={}):
+		def __init__(self, owner, halfbit_ticks=10.0, kp=0.5, ki=0.0005, lock_threshold=32, sync_tolerance=0.2, cells_allowed=(2, 3, 4), sync_pattern=2, rll_table={}):
 			self.owner = owner
 			self.halfbit_nom = halfbit_ticks
 			self.halfbit_nom05 = 0.5 * self.halfbit_nom
 			self.halfbit_nom15 = 1.5 * self.halfbit_nom
 			self.kp = kp
 			self.ki = ki
-			self.sync_pattern = sync
+			self.sync_pattern = sync_pattern
 			self.sync_lock_threshold = lock_threshold
-			self.sync_tolerance = tol_ticks	# fixme: need better tolerance estimator, dynamic percentage of nominal halfbit_ticks?
+			self.sync_tolerance = self.halfbit_nom * sync_tolerance # sync_tolerance: fractional percentage of tolerated deviations during initial PLL sync lock
 			self.cells_allowed = cells_allowed
 			self.cells_allowed_min = min(cells_allowed)
 			self.cells_allowed_max = max(cells_allowed)
 
 			# PLL state
-			self.phase_ref = 0		 # float: reference sample for half-bit 0
-			self.halfbit = halfbit_ticks # current half-bit estimate
+			self.phase_ref = 0				# float: reference sample for half-bit 0
+			self.halfbit = halfbit_ticks	# current half-bit estimate
 			self.halfbit_cells = 0
 			self.integrator = 0.0
 			self.sync_lock_count = 0
@@ -680,8 +680,6 @@ class Decoder(srd.Decoder):
 				#4 3 8 3 4 6             1 0001 0010 0000 0010 0100 0100 0001
 				#elif not self.byte_synced and self.owner.encoding in (encoding.RLL_SEA, encoding.RLL_WD) and (self.shift & 0x7FFFFF == 0b00100100100100100100001):
 				#							00100010010000000100100010000010001000001000001000001000001000001000001000001000100000100000100000100100001001000001000010001000100000010000100100000010000100000010000010000010000010000010000010000010000010000001001
-				
-				
 				#and self.halfbit_cells == 7:
 				#and (self.shift & 0x3FFFF == 0b1000000010010001 or self.shift & 0x3FFFF == 0b10000000100100001):
 					print_("byte_synced", self.halfbit_cells, self.last_samplenum)
@@ -1476,7 +1474,7 @@ class Decoder(srd.Decoder):
 		window_size = bc10N / 2.0	# current half-bit-cell window size (in fractional samples)
 
 		cells_allowed = encoding_table[self.encoding]['cells_allowed']
-		sync = encoding_table[self.encoding]['sync']
+		sync_pattern = encoding_table[self.encoding]['sync_pattern']
 		rll_table = encoding_table[self.encoding]['table']
 		self.pb_state = encoding_table[self.encoding]['pb_state']
 
@@ -1495,7 +1493,7 @@ class Decoder(srd.Decoder):
 
 		#print_(window_size, bc10N)
 		#print(11111111111, encoding_table[self.encoding]['table'])
-		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, cells_allowed=cells_allowed, sync=sync, rll_table=rll_table)
+		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, cells_allowed=cells_allowed, sync_pattern=sync_pattern, rll_table=rll_table)
 
 		interval_multi = {
 						'ns':	1000000000 / self.samplerate,
