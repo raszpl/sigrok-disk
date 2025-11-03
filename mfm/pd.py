@@ -481,19 +481,19 @@ class Decoder(srd.Decoder):
 			self.halfbit_nom15 = 1.5 * self.halfbit_nom
 			self.kp = kp
 			self.ki = ki
-			self.lock_threshold = int(lock_threshold)
-			self.tol = tol_ticks	# fixme: need better tolerance estimator, dynamic percentage of nominal halfbit_ticks?
+			self.sync_pattern = sync
+			self.sync_lock_threshold = lock_threshold
+			self.sync_tolerance = tol_ticks	# fixme: need better tolerance estimator, dynamic percentage of nominal halfbit_ticks?
 			self.cells_allowed = cells_allowed
 			self.cells_allowed_min = min(cells_allowed)
 			self.cells_allowed_max = max(cells_allowed)
-			self.sync = sync
 
 			# PLL state
 			self.phase_ref = 0		 # float: reference sample for half-bit 0
 			self.halfbit = halfbit_ticks # current half-bit estimate
 			self.halfbit_cells = 0
 			self.integrator = 0.0
-			self.lock_count = 0
+			self.sync_lock_count = 0
 			self.locked = False
 			self.byte_synced = False
 			self.unsync = False
@@ -532,7 +532,7 @@ class Decoder(srd.Decoder):
 			self.phase_ref = 0
 			self.halfbit = self.halfbit_nom
 			self.integrator = 0.0
-			self.lock_count = 0
+			self.sync_lock_count = 0
 			self.locked = False
 			self.byte_synced = False
 			self.unsync = False
@@ -620,24 +620,24 @@ class Decoder(srd.Decoder):
 
 			# Sync pattern detection using pulse width
 			if not self.locked:
-				#print_('self.locked__', abs(pulse_ticks - self.halfbit * self.sync), abs(pulse_ticks - self.halfbit * self.sync) <= self.tol, self.last_samplenum)
-				#print_('self.locked___', pulse_ticks * (1000000000 / self.owner.samplerate), self.halfbit * self.sync * (1000000000 / self.owner.samplerate), self.halfbit, '=', self.halfbit * (1000000000 / self.owner.samplerate), self.halfbit_cells)
-				if abs(pulse_ticks - self.halfbit * self.sync) <= self.tol:
-					self.lock_count += 1
+				#print_('self.locked__', abs(pulse_ticks - self.halfbit * self.sync_pattern), abs(pulse_ticks - self.halfbit * self.sync_pattern) <= self.sync_tolerance, self.last_samplenum)
+				#print_('self.locked___', pulse_ticks * (1000000000 / self.owner.samplerate), self.halfbit * self.sync_pattern * (1000000000 / self.owner.samplerate), self.halfbit, '=', self.halfbit * (1000000000 / self.owner.samplerate), self.halfbit_cells)
+				if abs(pulse_ticks - self.halfbit * self.sync_pattern) <= self.sync_tolerance:
+					self.sync_lock_count += 1
 					#print_('pll sync', pulse_ticks, self.halfbit, self.last_samplenum)
-					#print_('lock_count', self.lock_count)
-					if self.lock_count == 1:
+					#print_('lock_count', self.sync_lock_count)
+					if self.sync_lock_count == 1:
 						# remember start of sync and set initial phase reference
 						self.sync_start = edge_tick - pulse_ticks - round(self.halfbit * 0.5)
 						self.phase_ref = edge_tick
 						#print_('sync_start', edge_tick - pulse_ticks - round(self.halfbit * 0.5), edge_tick - pulse_ticks, round(self.halfbit * 0.5))
 						return 0
-					elif self.lock_count >= self.lock_threshold:
+					elif self.sync_lock_count >= self.sync_lock_threshold:
 						# seen enough clock pulses, PLL locked in
 						self.locked = True
 						#print_('pll locked', self.last_samplenum)
-						self.lock_count -= 1 # it will be incremented again lower down
-				elif self.lock_count:
+						self.sync_lock_count -= 1 # it will be incremented again lower down
+				elif self.sync_lock_count:
 					#print_('pll sync pattern interrupted -> reset')
 					self.reset()
 					return 0
@@ -669,7 +669,7 @@ class Decoder(srd.Decoder):
 					print_("byte_synced", self.halfbit_cells, self.last_samplenum, edge_tick)
 					self.byte_synced = True
 					self.shift_index = -1
-					self.lock_count += 1
+					self.sync_lock_count += 1
 				#elif not self.byte_synced and self.owner.encoding == encoding.RLL and (self.shift & 0x7FFFF == 0b0010000000100100001):
 				#elif not self.byte_synced and self.owner.encoding == encoding.RLL and (self.shift & 0x7FFFFF == 0b10001001000000010010001):
 				#elif not self.byte_synced and self.owner.encoding == encoding.RLL and (self.shift & 0x7FFFFF == 0b10010000100000100000001):
@@ -690,8 +690,8 @@ class Decoder(srd.Decoder):
 					self.byte_synced = True
 					self.shift_index = 1
 				elif not self.byte_synced:
-					self.lock_count += 1
-					#print_('self.lock_count', self.lock_count, self.last_samplenum)
+					self.sync_lock_count += 1
+					#print_('self.sync_lock_count', self.sync_lock_count, self.last_samplenum)
 
 			# expected clock position for this transition
 			nearest_clock = self.phase_ref + self.halfbit_cells * self.halfbit
@@ -1020,7 +1020,7 @@ class Decoder(srd.Decoder):
 
 		elif typ == field.Sync:
 			if self.pll.sync_start:
-				self.put(self.pll.sync_start, self.byte_start, self.out_ann, messageD.sync((self.pll.lock_count * 2) // 16))
+				self.put(self.pll.sync_start, self.byte_start, self.out_ann, messageD.sync((self.pll.sync_lock_count * 2) // 16))
 				self.pll.sync_start = False
 
 		elif typ == field.Gap:
