@@ -655,25 +655,26 @@ class Decoder(srd.Decoder):
 					#print_(self.halfbit_cells, self.cells_allowed_max, pulse_ticks, self.halfbit, pulse_ticks / self.halfbit)
 					# now handle special case of pulse too long but covering end of last good byte
 					if self.byte_synced and self.shift_index + self.halfbit_cells >= 16:
-					# little rube goldberg here, unsync will set byte_synced to False to immediatelly trigger pll.reset() in decode_PLL()
-							self.unsync = True
+						# little rube goldberg here, unsync will set byte_synced to False to immediatelly trigger pll.reset() in decode_PLL()
+						self.unsync = True
 					else:
 						print_("pll pulse out-of-tolerance, not in cells_allowed")
 						self.reset()
 						return 0
-				elif not self.byte_synced and self.owner.encoding == encoding.FM and self.halfbit_cells == 1:
-					print_("byte_synced", self.halfbit_cells, self.last_samplenum)
-					self.byte_synced = True
-					self.shift_index = 1
-				elif not self.byte_synced and self.owner.encoding in (encoding.MFM, encoding.MFM_FD, encoding.MFM_HD) and self.halfbit_cells == 3:
-					print_("byte_synced", self.halfbit_cells, self.last_samplenum, edge_tick)
-					self.byte_synced = True
-					self.shift_index = -1
-					self.sync_lock_count += 1
+				# now check sync mark
+				elif not self.byte_synced:
+					if self.owner.encoding == encoding.FM and self.halfbit_cells == 1:
+						print_("byte_synced", self.halfbit_cells, self.last_samplenum)
+						self.byte_synced = True
+						self.shift_index = 1
+					elif self.owner.encoding in (encoding.MFM, encoding.MFM_FD, encoding.MFM_HD) and self.halfbit_cells == 3:
+						print_("byte_synced", self.halfbit_cells, self.last_samplenum, edge_tick)
+						self.byte_synced = True
+						self.shift_index = -1
+						self.sync_lock_count += 1
 				#elif not self.byte_synced and self.owner.encoding == encoding.RLL and (self.shift & 0x7FFFF == 0b0010000000100100001):
 				#elif not self.byte_synced and self.owner.encoding == encoding.RLL and (self.shift & 0x7FFFFF == 0b10001001000000010010001):
 				#elif not self.byte_synced and self.owner.encoding == encoding.RLL and (self.shift & 0x7FFFFF == 0b10010000100000100000001):
-				elif not self.byte_synced and self.owner.encoding in (encoding.RLL_SEA, encoding.RLL_WD) and (self.shift & 0x7FFFFF == 0b00100100100100100100001):
 				# DEA1    00100100100100100100100100100100100100100100001
 				#                       0010010010010010010010010001
 				#                       0010 0100 0010 0000 1000 0000 1001
@@ -682,14 +683,15 @@ class Decoder(srd.Decoder):
 				#							00100010010000000100100010000010001000001000001000001000001000001000001000001000100000100000100000100100001001000001000010001000100000010000100100000010000100000010000010000010000010000010000010000010000010000001001
 				#and self.halfbit_cells == 7:
 				#and (self.shift & 0x3FFFF == 0b1000000010010001 or self.shift & 0x3FFFF == 0b10000000100100001):
-					print_("byte_synced", self.halfbit_cells, self.last_samplenum)
-					#self.shift |= 0b10000
-					#self.shift_index = 15
-					self.byte_synced = True
-					self.shift_index = 1
-				elif not self.byte_synced:
-					self.sync_lock_count += 1
-					#print_('self.sync_lock_count', self.sync_lock_count, self.last_samplenum)
+					elif self.owner.encoding in (encoding.RLL_SEA, encoding.RLL_WD) and (self.shift & 0x7FFFFF == 0b00100100100100100100001):
+						print_("byte_synced", self.halfbit_cells, self.last_samplenum)
+						#self.shift |= 0b10000
+						#self.shift_index = 15
+						self.byte_synced = True
+						self.shift_index = 1
+					else:
+						self.sync_lock_count += 1
+						#print_('self.sync_lock_count', self.sync_lock_count, self.last_samplenum)
 
 			# expected clock position for this transition
 			nearest_clock = self.phase_ref + self.halfbit_cells * self.halfbit
