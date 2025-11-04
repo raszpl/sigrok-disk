@@ -602,17 +602,17 @@ class Decoder(srd.Decoder):
 			self.shift_decoded_1 += 16
 			return 16
 
-		def edge(self, edge_tick):
-			# edge_tick: sample index of rising edge (flux transition)
+		def edge(self, edge_samplenum):
+			# edge_samplenum: sample index of rising edge (flux transition)
 			# pulse_ticks: distance from previous edge (samples)
 
-			#print_('pll edge', edge_tick, pulse_ticks, self.locked, f'{abs(pulse_ticks - 2.0 * self.halfbit):.4f}', f'{self.halfbit:.4f}')
+			#print_('pll edge', edge_samplenum, pulse_ticks, self.locked, f'{abs(pulse_ticks - 2.0 * self.halfbit):.4f}', f'{self.halfbit:.4f}')
 			#'%02X' % val
 
 			last_samplenum = self.last_last_samplenum
 			self.last_samplenum = last_samplenum
-			self.last_last_samplenum = edge_tick
-			pulse_ticks = edge_tick - last_samplenum
+			self.last_last_samplenum = edge_samplenum
+			pulse_ticks = edge_samplenum - last_samplenum
 			self.pulse_ticks = pulse_ticks
 
 			# halfbit_cells: number of halfbit cells that pulse span
@@ -628,9 +628,9 @@ class Decoder(srd.Decoder):
 					#print_('lock_count', self.sync_lock_count)
 					if self.sync_lock_count == 1:
 						# remember start of sync and set initial phase reference
-						self.sync_start = edge_tick - pulse_ticks - round(self.halfbit * 0.5)
-						self.phase_ref = edge_tick
-						#print_('sync_start', edge_tick - pulse_ticks - round(self.halfbit * 0.5), edge_tick - pulse_ticks, round(self.halfbit * 0.5))
+						self.sync_start = edge_samplenum - pulse_ticks - round(self.halfbit * 0.5)
+						self.phase_ref = edge_samplenum
+						#print_('sync_start', edge_samplenum - pulse_ticks - round(self.halfbit * 0.5), edge_samplenum - pulse_ticks, round(self.halfbit * 0.5))
 						return 0
 					elif self.sync_lock_count >= self.sync_lock_threshold:
 						# seen enough clock pulses, PLL locked in
@@ -651,7 +651,7 @@ class Decoder(srd.Decoder):
 					self.reset()
 					return 0
 				elif self.halfbit_cells > self.cells_allowed_max:
-					print_("pll pulse out-of-tolerance, too long", pulse_ticks, edge_tick)
+					print_("pll pulse out-of-tolerance, too long", pulse_ticks, edge_samplenum)
 					#print_(self.halfbit_cells, self.cells_allowed_max, pulse_ticks, self.halfbit, pulse_ticks / self.halfbit)
 					# now handle special case of pulse too long but covering end of last good byte
 					if self.byte_synced and self.shift_index + self.halfbit_cells >= 16:
@@ -668,7 +668,7 @@ class Decoder(srd.Decoder):
 						self.byte_synced = True
 						self.shift_index = 1
 					elif self.owner.encoding in (encoding.MFM, encoding.MFM_FD, encoding.MFM_HD) and self.halfbit_cells == 3:
-						print_("byte_synced", self.halfbit_cells, self.last_samplenum, edge_tick)
+						print_("byte_synced", self.halfbit_cells, self.last_samplenum, edge_samplenum)
 						self.byte_synced = True
 						self.shift_index = -1
 						self.sync_lock_count += 1
@@ -698,7 +698,7 @@ class Decoder(srd.Decoder):
 			self.phase_ref = nearest_clock
 
 			# PHASE ERROR: positive -> edge arrived after expected clock (we're late)
-			phase_err = float(edge_tick) - float(nearest_clock)
+			phase_err = float(edge_samplenum) - float(nearest_clock)
 
 			#print_('phase_err', pulse_ticks, self.halfbit_cells, f'{self.halfbit:.4f}', f'{nearest_clock:.4f}', f'{phase_err:.4f}')
 
@@ -720,14 +720,14 @@ class Decoder(srd.Decoder):
 				print_('pll +ERRR!!!!!!!!!!!!!!!!!!!!!!!!!!', self.halfbit, self.halfbit_nom, self.halfbit_nom15)
 				self.halfbit = self.halfbit_nom15
 
-			#print_('byyyte', pulse_ticks, self.halfbit_cells, self.halfbit, self.last_samplenum, edge_tick)
+			#print_('byyyte', pulse_ticks, self.halfbit_cells, self.halfbit, self.last_samplenum, edge_samplenum)
 			x = last_samplenum + 0.5 * self.halfbit
 			y = last_samplenum + 1.5 * self.halfbit
 			for _ in range (0, self.halfbit_cells-1):
 				self.ring_write(int(round(x)), int(round(y)), 0)
 				x += self.halfbit
 				y += self.halfbit
-			y = edge_tick + 0.5 * self.halfbit
+			y = edge_samplenum + 0.5 * self.halfbit
 			self.ring_write(int(round(x)), int(round(y)), 1)
 
 			if not self.locked:
