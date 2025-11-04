@@ -698,7 +698,7 @@ class Decoder(srd.Decoder):
 			self.phase_ref = nearest_clock
 
 			# PHASE ERROR: positive -> edge arrived after expected clock (we're late)
-			phase_err = float(edge_samplenum) - float(nearest_clock)
+			phase_err = edge_samplenum - nearest_clock
 
 			#print_('phase_err', pulse_ticks, self.halfbit_cells, f'{self.halfbit:.4f}', f'{nearest_clock:.4f}', f'{phase_err:.4f}')
 
