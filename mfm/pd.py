@@ -150,6 +150,8 @@ class Decoder(srd.Decoder):
 			'default': '9'},
 		{'id': 'decoder', 'desc': 'Decoder',
 			'default': 'PLL', 'values': ('PLL', 'legacy')},
+		{'id': 'sync_tolerance', 'desc': 'PLL: Initial tolerance when catching synchronization sequence',
+			'default': '20%', 'values': ('10%', '15%', '20%', '25%', '30%')},
 		{'id': 'dsply_pfx', 'desc': 'Legacy decoder: Display all MFM prefix bytes.',
 			'default': 'no', 'values': ('yes', 'no')},
 	)
@@ -432,6 +434,7 @@ class Decoder(srd.Decoder):
 		if self.options['data_crc_poly_custom']:
 			self.data_crc_poly = int(self.options['data_crc_poly_custom'], 0) & ((1 << int(self.options['data_crc_bits'])) -1)
 		self.time_unit = self.options['time_unit']
+		self.sync_tolerance = int(self.options['sync_tolerance'][:-1]) * 0.01
 
 		self.dsply_pfx = True if self.options['dsply_pfx'] == 'yes' else False
 		self.show_sample_num = True if self.options['dsply_sn'] == 'yes' else False
@@ -474,7 +477,7 @@ class Decoder(srd.Decoder):
 	# ------------------------------------------------------------------------
 
 	class SimplePLL:
-		def __init__(self, owner, halfbit_ticks=10.0, kp=0.5, ki=0.0005, lock_threshold=32, sync_tolerance=0.2, cells_allowed=(2, 3, 4), sync_pattern=2, rll_table={}):
+		def __init__(self, owner, halfbit_ticks=10.0, kp=0.5, ki=0.0005, lock_threshold=32, sync_tolerance=0.25, cells_allowed=(2, 3, 4), sync_pattern=2, rll_table={}):
 			self.owner = owner
 			self.halfbit_nom = halfbit_ticks
 			self.halfbit_nom05 = 0.5 * self.halfbit_nom
@@ -1495,7 +1498,7 @@ class Decoder(srd.Decoder):
 
 		#print_(window_size, bc10N)
 		#print(11111111111, encoding_table[self.encoding]['table'])
-		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, cells_allowed=cells_allowed, sync_pattern=sync_pattern, rll_table=rll_table)
+		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, sync_tolerance = self.sync_tolerance, cells_allowed=cells_allowed, sync_pattern=sync_pattern, rll_table=rll_table)
 
 		interval_multi = {
 						'ns':	1000000000 / self.samplerate,
