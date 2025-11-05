@@ -1032,6 +1032,8 @@ class Decoder(srd.Decoder):
 			if self.pll.sync_start:
 				self.put(self.pll.sync_start, self.byte_start, self.out_ann, messageD.sync((self.pll.sync_lock_count * 2) // 16))
 				self.pll.sync_start = False
+				self.field_start = self.byte_start
+			return
 
 		elif typ == field.Gap:
 			gap_len = (self.byte_end - self.gap_start) // round(self.pll.halfbit*16)
@@ -1113,7 +1115,6 @@ class Decoder(srd.Decoder):
 				self.IDmark = 0xFE
 				self.annotate_byte(0xFE, special.clock)
 				self.display_field(field.Sync)
-				self.field_start = self.byte_start
 				self.display_field(field.ID_Address_Mark)
 				self.IDcrc = 0
 				self.byte_cnt = self.header_bytes
@@ -1122,7 +1123,6 @@ class Decoder(srd.Decoder):
 				self.DRmark = val
 				self.annotate_byte(val, special.clock)
 				self.display_field(field.Sync)
-				self.field_start = self.byte_start
 				self.display_field(field.Data_Address_Mark)
 				self.DRcrc = 0
 				self.byte_cnt = self.sector_len
@@ -1130,7 +1130,6 @@ class Decoder(srd.Decoder):
 			elif val == 0xFC:
 				self.annotate_byte(0xFC, special.clock)
 				self.display_field(field.Sync)
-				self.field_start = self.byte_start
 				self.display_field(field.FCh_Index_Mark)
 				self.pb_state = state.first_gap_Byte
 			else:
@@ -1215,7 +1214,6 @@ class Decoder(srd.Decoder):
 				self.A1 = [0xA1]
 				self.annotate_byte(0xA1, special.clock)
 				self.display_field(field.Sync)
-				self.field_start = self.byte_start
 				if self.encoding == encoding.MFM_FD:
 					self.pb_state = state.second_mA1h_prefix
 				else:
@@ -1223,7 +1221,6 @@ class Decoder(srd.Decoder):
 			elif val == 0xC2:
 				self.annotate_byte(0xC2, special.clock)
 				self.display_field(field.Sync)
-				self.field_start = self.byte_start
 				self.pb_state = state.second_mC2h_prefix
 			else:
 				self.annotate_byte(val)
@@ -1346,7 +1343,6 @@ class Decoder(srd.Decoder):
 				self.A1 = [0xA1]
 				self.annotate_byte(0xA1)
 				self.display_field(field.Sync)
-				self.field_start = self.byte_start
 				self.pb_state = state.IDData_Address_Mark
 			elif val == 0xDE:
 				self.annotate_byte(0xDE)
