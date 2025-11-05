@@ -338,10 +338,10 @@ class Decoder(srd.Decoder):
 			"pb_state": state.sync_mark,
 		},
 		encoding.RLL_WD: {	# (2,7) RLL
-			"table": FM_R,
+			"table": RLL_WD_R,
 			"cells_allowed": (3, 4, 5, 6, 7, 8),
 			"sync_pattern": 3,
-			"pb_state": state.IDData_Address_Mark,
+			"pb_state": state.sync_mark,
 		}
 	}
 
@@ -548,11 +548,7 @@ class Decoder(srd.Decoder):
 			self.ring_ptr = 0
 			self.ring_cnt = 0
 			# reset Decoder pb_state instance variable directly
-			self.owner.pb_state = state.sync_mark
-			if self.owner.encoding in (encoding.RLL_SEA, encoding.RLL_WD):
-				#self.owner.pb_state = state.IDData_Address_Mark
-				self.owner.pb_state = state.sync_mark
-
+			self.owner.pb_state = encoding_table[self.owner.encoding]['pb_state']
 		def read(self):
 			return self.last_samplenum, self.pulse_ticks
 
