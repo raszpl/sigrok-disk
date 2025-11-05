@@ -988,7 +988,7 @@ class Decoder(srd.Decoder):
 
 		elif typ == field.Data_Address_Mark:
 			# DDAMs only on floppies
-			if self.encoding in (encoding.FM, encoding.MFM_FD) and self.DRmark in (0xF8, 0xF9, 0xFA):
+			if self.encoding in (encoding.FM, encoding.MFM_FD) and self.DRmark[0] in (0xF8, 0xF9, 0xFA):
 				self.DDAMs += 1
 				self.put(self.field_start, self.byte_end, self.out_ann, message.ddam)
 				self.report_last = field.Deleted_Data_Mark
@@ -1055,6 +1055,8 @@ class Decoder(srd.Decoder):
 
 	def decode_id_rec_3byte(self, fld_code, val):
 		if fld_code == 3:
+			if self.IDmark == []:
+				raise SamplerateError('decode_id_rec_3byte: Cant have empty IDmark here, most likely wrong Encoding selected')
 			msb = self.IDmark[0] ^ 0xFE
 			self.IDcyl = val | (msb << 8)
 		elif fld_code == 2:
@@ -1112,7 +1114,7 @@ class Decoder(srd.Decoder):
 	def process_byteFM(self, val):
 		if self.pb_state == state.sync_mark:
 			if val == 0xFE:
-				self.IDmark = 0xFE
+				self.IDmark = [0xFE]
 				self.annotate_byte(0xFE, special.clock)
 				self.display_field(field.Sync)
 				self.display_field(field.ID_Address_Mark)
@@ -1120,7 +1122,7 @@ class Decoder(srd.Decoder):
 				self.byte_cnt = self.header_bytes
 				self.pb_state = state.ID_Record
 			elif val >= 0xF8 and val <= 0xFB:
-				self.DRmark = val
+				self.DRmark = [val]
 				self.annotate_byte(val, special.clock)
 				self.display_field(field.Sync)
 				self.display_field(field.Data_Address_Mark)
@@ -1153,7 +1155,7 @@ class Decoder(srd.Decoder):
 			self.IDcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc_header(bytes([self.IDmark]) + self.IDrec[:self.header_bytes])
+				self.calculate_crc_header(bytes(self.IDmark) + self.IDrec[:self.header_bytes])
 				if self.crc_accum == self.IDcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1175,7 +1177,7 @@ class Decoder(srd.Decoder):
 			self.DRcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc_data(bytes([self.DRmark]) + self.DRrec[:self.sector_len])
+				self.calculate_crc_data(bytes(self.DRmark) + self.DRrec[:self.sector_len])
 				if self.crc_accum == self.DRcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1243,14 +1245,14 @@ class Decoder(srd.Decoder):
 		elif self.pb_state == state.IDData_Address_Mark:
 			if (self.header_bytes == 4 and val == 0xFE) or \
 			   (self.header_bytes == 3 and (val & 0xFC) == 0xFC):	# FEh FC-FFh ID Address Mark
-				self.IDmark = val
+				self.IDmark = [val]
 				self.annotate_byte(val)
 				self.display_field(field.ID_Address_Mark)
 				self.IDcrc = 0
 				self.byte_cnt = self.header_bytes
 				self.pb_state = state.ID_Record
 			elif val >= 0xF8 and val <= 0xFB:						# F8h..FBh Data Address Mark
-				self.DRmark = val
+				self.DRmark = [val]
 				self.annotate_byte(val)
 				self.display_field(field.Data_Address_Mark)
 				self.DRcrc = 0
@@ -1277,7 +1279,7 @@ class Decoder(srd.Decoder):
 			self.IDcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc_header(bytes(self.A1 + [self.IDmark]) + self.IDrec[:self.header_bytes])
+				self.calculate_crc_header(bytes(self.A1 + self.IDmark) + self.IDrec[:self.header_bytes])
 				if self.crc_accum == self.IDcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1299,7 +1301,7 @@ class Decoder(srd.Decoder):
 			self.DRcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc_data(bytes(self.A1 + [self.DRmark]) + self.DRrec[:self.sector_len])
+				self.calculate_crc_data(bytes(self.A1 + self.DRmark) + self.DRrec[:self.sector_len])
 				if self.crc_accum == self.DRcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1358,13 +1360,13 @@ class Decoder(srd.Decoder):
 			# Seagate header
 			elif val == 0x1E:
 				# we only set IDmark as a signal, will be removed on next byte
-				self.IDmark = [0xFE]
+				self.IDmark = [0x1E]
 				self.annotate_byte(0x1E)
 				self.display_field(field.Sync)
 			# Seagate data
 			elif val == 0xDE:
 				# we only set DRmark as a signal, will be removed on next byte
-				self.DRmark = [0xF8]
+				self.DRmark = [0xDE]
 				self.annotate_byte(0xDE)
 				self.display_field(field.Sync)
 			else:
@@ -1705,7 +1707,7 @@ class Decoder(srd.Decoder):
 			self.pb_state = state.FCh_Index_Mark
 
 		if self.pb_state == state.ID_Address_Mark:
-			self.IDmark = (val & 0x0FF)
+			self.IDmark = [(val & 0x0FF)]
 			self.annotate_byte_legacy(0x00)
 			self.annotate_byte_legacy(0xFE, special.clock)
 			self.field_start = self.byte_start
@@ -1730,7 +1732,7 @@ class Decoder(srd.Decoder):
 			self.IDcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc_header(bytes([self.IDmark]) + self.IDrec[:self.header_bytes])
+				self.calculate_crc_header(bytes(self.IDmark) + self.IDrec[:self.header_bytes])
 				if self.crc_accum == self.IDcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1740,7 +1742,7 @@ class Decoder(srd.Decoder):
 		elif self.pb_state == state.Data_Address_Mark:
 			self.annotate_byte_legacy(0x00)
 			self.annotate_byte_legacy(val, special.clock)
-			self.DRmark = val
+			self.DRmark = [val]
 			self.field_start = self.byte_start
 			self.display_field(field.Data_Address_Mark)
 			self.DRcrc = 0
@@ -1762,7 +1764,7 @@ class Decoder(srd.Decoder):
 			self.DRcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc_data(bytes([self.DRmark]) + self.DRrec[:self.sector_len])
+				self.calculate_crc_data(bytes(self.DRmark) + self.DRrec[:self.sector_len])
 				if self.crc_accum == self.DRcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1813,14 +1815,14 @@ class Decoder(srd.Decoder):
 		elif self.pb_state == state.IDData_Address_Mark:
 			if (self.header_bytes == 4 and val == 0xFE) or \
 			   (self.header_bytes == 3 and (val & 0xFC) == 0xFC):	# FEh FC-FFh ID Address Mark
-				self.IDmark = val
+				self.IDmark = [val]
 				self.annotate_byte_legacy(val)
 				self.display_field(field.ID_Address_Mark)
 				self.IDcrc = 0
 				self.byte_cnt = self.header_bytes
 				self.pb_state = state.ID_Record
 			elif val >= 0xF8 and val <= 0xFB:						# F8h..FBh Data Address Mark
-				self.DRmark = val
+				self.DRmark = [val]
 				self.annotate_byte_legacy(val)
 				self.display_field(field.Data_Address_Mark)
 				self.DRcrc = 0
@@ -1846,7 +1848,7 @@ class Decoder(srd.Decoder):
 			self.IDcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc_header(bytes(self.A1 + [self.IDmark]) + self.IDrec[:self.header_bytes])
+				self.calculate_crc_header(bytes(self.A1 + self.IDmark) + self.IDrec[:self.header_bytes])
 				if self.crc_accum == self.IDcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1868,7 +1870,7 @@ class Decoder(srd.Decoder):
 			self.DRcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc_data(bytes(self.A1 + [self.DRmark]) + self.DRrec[:self.sector_len])
+				self.calculate_crc_data(bytes(self.A1 + self.DRmark) + self.DRrec[:self.sector_len])
 				if self.crc_accum == self.DRcrc:
 					self.display_field(field.CRC_Ok)
 				else:
