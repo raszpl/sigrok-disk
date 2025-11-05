@@ -576,7 +576,7 @@ class Decoder(srd.Decoder):
 			#print_('RLL_1', bin(self.shift)[1:], self.shift_index, bin(self.shift_win)[2:].zfill(self.shift_index))
 			#self.shift_win = self.shift & 0x3ffff
 			binary_str = bin(self.shift_win)[2:].zfill(self.shift_index)
-			print_('RLL_2', bin(self.shift_win)[1:], binary_str)
+			print_('RLL input', bin(self.shift_win)[1:], binary_str)
 			binary_str_len = len(binary_str)
 			decoded = self.shift_decoded
 			i = 0
@@ -590,11 +590,16 @@ class Decoder(srd.Decoder):
 							i += pattern_length
 							self.shift_index -= pattern_length
 							self.shift_decoded_1 -= pattern_length
-							print_("RLL_TABLE[pattern]", decoded, RLL_TABLE[pattern], i, pattern)
+							print_("RLL() decoded:", decoded, 'pattern:', RLL_TABLE[pattern], 'raw:', pattern, 'i', i)
 							matched = True
 							break
 				if not matched:
-					#print_("RLL Error!!!!", decoded, i, binary_str[i:])
+					if binary_str_len - i > 7:
+						print_("RLL catastrophic fail, resetting", self.shift_decoded_1, binary_str_len, i, decoded, RLL_TABLE, binary_str, pattern)
+						raise SamplerateError("RLL catastrophic fail, resetting")
+						self.reset_pll()
+						return 0
+					print_("RLL not matched", binary_str[i:], decoded, i)
 					self.shift_decoded = decoded
 					return 0
 
