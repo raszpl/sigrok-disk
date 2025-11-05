@@ -653,7 +653,8 @@ class Decoder(srd.Decoder):
 				else:
 					return 0
 
-			if self.locked:
+			# self.locked here
+			else:
 				# check pulse constraints
 				if self.halfbit_cells < self.cells_allowed_min:
 					print_("pll pulse out-of-tolerance, too short", pulse_ticks, self.halfbit_cells, edge_samplenum)
