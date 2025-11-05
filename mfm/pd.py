@@ -49,7 +49,7 @@ from types import SimpleNamespace # nicer class.key access
 # Debug print for switching on/off all in one place
 def print_(*args):
 	pass
-	#print(" ".join(map(str, args)))
+	print(" ".join(map(str, args)))
 
 # ----------------------------------------------------------------------------
 # PURPOSE: Handle missing sample rate.
@@ -555,18 +555,21 @@ class Decoder(srd.Decoder):
 		def rll(self):
 			RLL_TABLE = self.rll_table
 			self.shift_byte = 0
-
-			#if self.shift == 0b1000000010010001 or self.shift & 0x3FFFF == 0b10000000100100001:
-			#	print_('RLL_mark?', bin(self.shift)[1:])
-			#	self.shift_byte = 69
-			#	self.shift_index -= 16
-			#	return
+			
+			# FIXME: we need a way to only rewrite_sync_mark before fully syncing!
+			# SEAGATE?
 			if self.shift & 0xFFF == 0b100000001001:
-				print_('RLL_mark?', bin(self.shift)[1:], bin(self.shift ^ (1 << 7))[1:])
+				print_('RLL rewrite mark?1', bin(self.shift)[1:], bin(self.shift ^ (1 << 7))[1:])
 				self.shift = self.shift ^ (1 << 7)
+			# ?
+			elif self.shift & 0xFFFF == 0b1000000010010001:
+				print_('RLL rewrite mark?2', bin(self.shift)[1:], bin(self.shift ^ (1 << 11))[1:])
+				self.shift = self.shift ^ (1 << 11)
+			# WD?
+			if self.shift & 0xFFFF == 0b0000000100100001:
+				print_('RLL rewrite mark?3', bin(self.shift)[1:], bin(self.shift ^ (1 << 12))[1:])
+				self.shift = self.shift ^ (1 << 12)
 
-			#self.shift_index -= 16
-			#self.shift_win = (self.shift >> self.shift_index) & 0x3ffff
 			self.shift_win = self.shift & (2 ** self.shift_index -1)
 
 			#print_('RLL_1', bin(self.shift)[1:], self.shift_index, bin(self.shift_win)[2:].zfill(self.shift_index))
@@ -660,34 +663,34 @@ class Decoder(srd.Decoder):
 						print_("pll pulse out-of-tolerance, not in cells_allowed")
 						self.reset()
 						return 0
+
 				# now check sync mark
 				elif not self.byte_synced:
 					if self.owner.encoding == encoding.FM and self.halfbit_cells == 1:
 						print_("byte_synced", self.halfbit_cells, self.last_samplenum)
 						self.byte_synced = True
 						self.shift_index = 1
+
 					elif self.owner.encoding in (encoding.MFM, encoding.MFM_FD, encoding.MFM_HD) and self.halfbit_cells == 3:
 						print_("byte_synced", self.halfbit_cells, self.last_samplenum, edge_samplenum)
 						self.byte_synced = True
 						self.shift_index = -1
 						self.sync_lock_count += 1
-				#elif not self.byte_synced and self.owner.encoding == encoding.RLL and (self.shift & 0x7FFFF == 0b0010000000100100001):
-				#elif not self.byte_synced and self.owner.encoding == encoding.RLL and (self.shift & 0x7FFFFF == 0b10001001000000010010001):
-				#elif not self.byte_synced and self.owner.encoding == encoding.RLL and (self.shift & 0x7FFFFF == 0b10010000100000100000001):
-				# DEA1    00100100100100100100100100100100100100100100001
-				#                       0010010010010010010010010001
-				#                       0010 0100 0010 0000 1000 0000 1001
-				#4 3 8 3 4 6             1 0001 0010 0000 0010 0100 0100 0001
-				#elif not self.byte_synced and self.owner.encoding in (encoding.RLL_SEA, encoding.RLL_WD) and (self.shift & 0x7FFFFF == 0b00100100100100100100001):
-				#							00100010010000000100100010000010001000001000001000001000001000001000001000001000100000100000100000100100001001000001000010001000100000010000100100000010000100000010000010000010000010000010000010000010000010000001001
-				#and self.halfbit_cells == 7:
-				#and (self.shift & 0x3FFFF == 0b1000000010010001 or self.shift & 0x3FFFF == 0b10000000100100001):
-					elif self.owner.encoding in (encoding.RLL_SEA, encoding.RLL_WD) and (self.shift & 0x7FFFFF == 0b00100100100100100100001):
+
+					elif self.owner.encoding == encoding.RLL_SEA and self.halfbit_cells == 5:
 						print_("byte_synced", self.halfbit_cells, self.last_samplenum)
-						#self.shift |= 0b10000
-						#self.shift_index = 15
+						self.byte_synced = True
+						self.shift_index = -4
+					elif self.owner.encoding == encoding.RLL_SEA and self.halfbit_cells == 4:
+						print_("byte_synced", self.halfbit_cells, self.last_samplenum)
+						self.byte_synced = True
+						self.shift_index = 0
+
+					elif self.owner.encoding == encoding.RLL_WD and self.halfbit_cells == 8:
+						print_("byte_synced", self.halfbit_cells, self.last_samplenum)
 						self.byte_synced = True
 						self.shift_index = 1
+
 					else:
 						self.sync_lock_count += 1
 						#print_('self.sync_lock_count', self.sync_lock_count, self.last_samplenum)
