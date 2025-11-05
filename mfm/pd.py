@@ -549,13 +549,14 @@ class Decoder(srd.Decoder):
 			self.ring_cnt = 0
 			# reset Decoder pb_state instance variable directly
 			self.owner.pb_state = encoding_table[self.owner.encoding]['pb_state']
+
 		def read(self):
 			return self.last_samplenum, self.pulse_ticks
 
 		def rll(self):
 			RLL_TABLE = self.rll_table
 			self.shift_byte = 0
-			
+
 			# FIXME: we need a way to only rewrite_sync_mark before fully syncing!
 			# SEAGATE?
 			if self.shift & 0xFFF == 0b100000001001:
@@ -576,12 +577,13 @@ class Decoder(srd.Decoder):
 			#self.shift_win = self.shift & 0x3ffff
 			binary_str = bin(self.shift_win)[2:].zfill(self.shift_index)
 			print_('RLL_2', bin(self.shift_win)[1:], binary_str)
+			binary_str_len = len(binary_str)
 			decoded = self.shift_decoded
 			i = 0
 			while len(decoded) < 8:
 				matched = False
 				for pattern_length in [8, 6, 4]:
-					if i + pattern_length <= len(binary_str):
+					if i + pattern_length <= binary_str_len:
 						pattern = binary_str[i:i + pattern_length]
 						if pattern in RLL_TABLE:
 							decoded += RLL_TABLE[pattern]
