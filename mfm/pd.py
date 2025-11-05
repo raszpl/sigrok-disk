@@ -530,8 +530,8 @@ class Decoder(srd.Decoder):
 			rp = (self.ring_ptr + offset) % self.ring_size
 			return self.ring_ws[rp], self.ring_we[rp], self.ring_wv[rp]
 
-		def reset(self):
-			print_('pll reset', self.last_samplenum)
+		def reset_pll(self):
+			print_('pll reset_pll', self.last_samplenum)
 			self.phase_ref = 0
 			self.halfbit = self.halfbit_nom
 			self.integrator = 0.0
@@ -648,7 +648,7 @@ class Decoder(srd.Decoder):
 						self.sync_lock_count -= 1 # it will be incremented again lower down
 				elif self.sync_lock_count:
 					#print_('pll sync pattern interrupted -> reset')
-					self.reset()
+					self.reset_pll()
 					return 0
 				else:
 					return 0
@@ -657,18 +657,18 @@ class Decoder(srd.Decoder):
 				# check pulse constraints
 				if self.halfbit_cells < self.cells_allowed_min:
 					print_("pll pulse out-of-tolerance, too short", pulse_ticks, self.halfbit_cells, edge_samplenum)
-					self.reset()
+					self.reset_pll()
 					return 0
 				elif self.halfbit_cells > self.cells_allowed_max:
 					print_("pll pulse out-of-tolerance, too long", pulse_ticks, self.halfbit_cells, edge_samplenum)
 					#print_(self.halfbit_cells, self.cells_allowed_max, pulse_ticks, self.halfbit, pulse_ticks / self.halfbit)
 					# now handle special case of pulse too long but covering end of last good byte
 					if self.byte_synced and self.shift_index + self.halfbit_cells >= 16:
-						# little rube goldberg here, unsync will set byte_synced to False to immediatelly trigger pll.reset() in decode_PLL()
+						# little rube goldberg here, unsync will set byte_synced to False to immediatelly trigger pll.reset_pll() in decode_PLL()
 						self.unsync = True
 					else:
 						print_("pll pulse out-of-tolerance, not in cells_allowed")
-						self.reset()
+						self.reset_pll()
 						return 0
 
 				# now check sync mark
