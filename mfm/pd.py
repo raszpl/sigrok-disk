@@ -1586,7 +1586,7 @@ class Decoder(srd.Decoder):
 
 				if not byte_sync:
 					print_('not byte_sync')
-					self.pll.reset()
+					self.pll.reset_pll()
 
 	# ------------------------------------------------------------------------
 	# Legacy decoder below
