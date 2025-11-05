@@ -1506,18 +1506,33 @@ class Decoder(srd.Decoder):
 		#print(11111111111, encoding_table[self.encoding]['table'])
 		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, sync_tolerance = self.sync_tolerance, cells_allowed=cells_allowed, sync_pattern=sync_pattern, rll_table=rll_table)
 
+		# all this pain below to support dynamic Interval/window annotation
 		interval_multi = {
-						'ns':	1000000000 / self.samplerate,
-						'us':	1000000 / self.samplerate,
-						'auto':	(1000000 / self.samplerate) if (1000000000 / self.samplerate) * window_size > 1000 else (1000000000 / self.samplerate),
-						'window':0
-					}[self.time_unit]
-		if self.time_unit == 'auto':
-			interval_unit = 'us' if interval_multi == (1000000 / self.samplerate) else 'ns'
-		else:
-			interval_unit = self.time_unit
+			'ns':		1000000000 / self.samplerate,
+			'us':		1000000 / self.samplerate,
+			'auto':		(1000000 / self.samplerate) if (1000000000 / self.samplerate) * window_size > 1000 else (1000000000 / self.samplerate),
+			'window':	0
+						}[self.time_unit]
 
-		#print_('m:', window_size, cells_allowed)
+		interval_unit = {
+			'ns':		'ns',
+			'us':		'us',
+			'auto':		'us' if interval_multi == (1000000 / self.samplerate) else 'ns',
+			'window':	''
+						}[self.time_unit]
+
+		def interval_time_func(interval):
+			return str(round(interval * interval_multi)) + interval_unit
+		
+		def interval_window_func(interval):
+			return str(round(interval / window_size))
+		
+		interval_func = {
+			'ns':		interval_time_func,
+			'us':		interval_time_func,
+			'auto':		interval_time_func,
+			'window':	interval_window_func
+						}[self.time_unit]
 
 		# --- Process all input data.
 		while True:
@@ -1539,16 +1554,12 @@ class Decoder(srd.Decoder):
 
 			# Annotate Pulses, leading-edge to leading-edge.
 			# Interval in interval_unit and optional sample number.
-			if interval_multi:
-				interval_time = str(round(interval * interval_multi)) + interval_unit
-			else:
-				interval_time = str(round(interval / window_size))
-			#print_('mmmmm', message, message.errorOoTIs)
+			interval_annotation = interval_func(interval)
 			if self.pll.halfbit_cells in cells_allowed:
 				if self.show_sample_num:
-					self.put(last_samplenum, self.samplenum, self.out_ann,	[ann.pul, ['%s s%d - %d' % (interval_time, last_samplenum, self.samplenum), '%s' % interval_time]])
+					self.put(last_samplenum, self.samplenum, self.out_ann,	[ann.pul, ['%s s%d - %d' % (interval_annotation, last_samplenum, self.samplenum), '%s' % interval_annotation]])
 				else:
-					self.put(last_samplenum, self.samplenum, self.out_ann,	[ann.pul, ['%s' % interval_time]])
+					self.put(last_samplenum, self.samplenum, self.out_ann,	[ann.pul, ['%s' % interval_annotation]])
 			else:
 				self.OoTI += 1
 				if self.pll.halfbit_cells < self.pll.cells_allowed_min:
@@ -1556,9 +1567,9 @@ class Decoder(srd.Decoder):
 				else:
 					self.put(last_samplenum, self.samplenum, self.out_ann, message.errorOoTIl)
 				if self.show_sample_num:
-					self.put(last_samplenum, self.samplenum, self.out_ann,	[ann.erp, ['%s out-of-tolerance leading edge s%d' % (interval_time, last_samplenum), '%s OoTI s%d' % (interval_time, last_samplenum), '%s OoTI' % interval_time, 'OoTI']])
+					self.put(last_samplenum, self.samplenum, self.out_ann,	[ann.erp, ['%s out-of-tolerance leading edge s%d' % (interval_annotation, last_samplenum), '%s OoTI s%d' % (interval_annotation, last_samplenum), '%s OoTI' % interval_annotation, 'OoTI']])
 				else:
-					self.put(last_samplenum, self.samplenum, self.out_ann,	[ann.erp, ['%s out-of-tolerance leading edge' % interval_time, '%s OoTI' % interval_time, 'OoTI']])
+					self.put(last_samplenum, self.samplenum, self.out_ann,	[ann.erp, ['%s out-of-tolerance leading edge' % interval_annotation, '%s OoTI' % interval_annotation, 'OoTI']])
 
 			if not pll_ret:
 				continue
