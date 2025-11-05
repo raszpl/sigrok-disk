@@ -639,12 +639,12 @@ class Decoder(srd.Decoder):
 						# remember start of sync and set initial phase reference
 						self.sync_start = edge_samplenum - pulse_ticks - round(self.halfbit * 0.5)
 						self.phase_ref = edge_samplenum
-						#print_('sync_start', edge_samplenum - pulse_ticks - round(self.halfbit * 0.5), edge_samplenum - pulse_ticks, round(self.halfbit * 0.5))
+						#print_('sync_start', edge_samplenum - pulse_ticks - round(self.halfbit * 0.5), edge_samplenum, pulse_ticks, round(self.halfbit * 0.5), self.last_samplenum)
 						return 0
 					elif self.sync_lock_count >= self.sync_lock_threshold:
 						# seen enough clock pulses, PLL locked in
 						self.locked = True
-						#print_('pll locked', self.last_samplenum)
+						print_('pll locked', self.sync_start, self.last_samplenum)
 						self.sync_lock_count -= 1 # it will be incremented again lower down
 				elif self.sync_lock_count:
 					#print_('pll sync pattern interrupted -> reset')
@@ -656,11 +656,11 @@ class Decoder(srd.Decoder):
 			if self.locked:
 				# check pulse constraints
 				if self.halfbit_cells < self.cells_allowed_min:
-					print_("pll pulse out-of-tolerance, too short", pulse_ticks, self.halfbit_cells)
+					print_("pll pulse out-of-tolerance, too short", pulse_ticks, self.halfbit_cells, edge_samplenum)
 					self.reset()
 					return 0
 				elif self.halfbit_cells > self.cells_allowed_max:
-					print_("pll pulse out-of-tolerance, too long", pulse_ticks, edge_samplenum)
+					print_("pll pulse out-of-tolerance, too long", pulse_ticks, self.halfbit_cells, edge_samplenum)
 					#print_(self.halfbit_cells, self.cells_allowed_max, pulse_ticks, self.halfbit, pulse_ticks / self.halfbit)
 					# now handle special case of pulse too long but covering end of last good byte
 					if self.byte_synced and self.shift_index + self.halfbit_cells >= 16:
