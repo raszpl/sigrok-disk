@@ -334,14 +334,12 @@ class Decoder(srd.Decoder):
 
 	def reset(self):
 		# Initialize pre-defined variables.
-
 		self.samplerate = None
 		self.last_samplenum = None
 		self.last_n = deque()
 		self.chunks = 0
 
 		# Define (and initialize) various custom variables.
-
 		self.byte_start = 0			# start of byte (sample number)
 		self.byte_end = 0			# end of byte (sample number)
 		self.field_start = 0		# start of field (sample number)
@@ -356,20 +354,7 @@ class Decoder(srd.Decoder):
 		self.IDrec = array('B', [0 for _ in range(8)])		# ID record (7-8 bytes)
 		self.DRrec = array('B', [0 for _ in range(1024)])	# Data record (128/256/512/1024 bytes)
 
-		# FIFO (using circular buffers) of starting/ending sample numbers
-		# and data values for 33 half-bit-cell windows.  Data values are
-		# number of leading edges per window (0..n).
-		self.fifo_size = 100
-		self.fifo_ws = array('l', [0 for _ in range(self.fifo_size)])
-		self.fifo_we = array('l', [0 for _ in range(self.fifo_size)])
-		self.fifo_wv = array('l', [0 for _ in range(self.fifo_size)])
-
-		self.fifo_wp = -1			# index where last FIFO entry was written (0..32)
-		self.fifo_rp = 0			# index where to read next FIFO entry (0..32)
-		self.fifo_cnt = 0			# number of entries currently in FIFO (0..33)
-
 		# Define and zero statistics counters.
-
 		self.IAMs	= 0				# number of Index Marks
 		self.IDAMs	= 0				# number of ID Address Marks
 		self.DAMs	= 0				# number of Data Address Marks
@@ -792,28 +777,6 @@ class Decoder(srd.Decoder):
 						crc_accum &= crc_mask
 
 		self.crc_accum = crc_accum
-
-	# ------------------------------------------------------------------------
-	# PURPOSE: Increment FIFO read pointer and decrement entry count.
-	# ------------------------------------------------------------------------
-
-	def inc_fifo_rp(self):
-		self.fifo_rp = (self.fifo_rp + 1) % self.fifo_size
-		self.fifo_cnt -= 1
-		if self.fifo_cnt < 0:
-			self.fifo_cnt = 0
-			raise raise_exception('FIFO below 0!!')
-
-	# ------------------------------------------------------------------------
-	# PURPOSE: Increment FIFO write pointer and increment entry count.
-	# ------------------------------------------------------------------------
-
-	def inc_fifo_wp(self):
-		self.fifo_wp = (self.fifo_wp + 1) % self.fifo_size
-		self.fifo_cnt += 1
-		if self.fifo_cnt > self.fifo_size:
-			self.fifo_cnt = self.fifo_size
-			raise raise_exception('FIFO over 33!!')
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Annotate single half-bit-cell window.
@@ -1398,6 +1361,28 @@ class Decoder(srd.Decoder):
 	# Legacy decoder below
 	# ------------------------------------------------------------------------
 
+	# ------------------------------------------------------------------------
+	# PURPOSE: Increment FIFO read pointer and decrement entry count.
+	# ------------------------------------------------------------------------
+
+	def inc_fifo_rp(self):
+		self.fifo_rp = (self.fifo_rp + 1) % self.fifo_size
+		self.fifo_cnt -= 1
+		if self.fifo_cnt < 0:
+			self.fifo_cnt = 0
+			raise raise_exception('FIFO below 0!!')
+
+	# ------------------------------------------------------------------------
+	# PURPOSE: Increment FIFO write pointer and increment entry count.
+	# ------------------------------------------------------------------------
+
+	def inc_fifo_wp(self):
+		self.fifo_wp = (self.fifo_wp + 1) % self.fifo_size
+		self.fifo_cnt += 1
+		if self.fifo_cnt > self.fifo_size:
+			self.fifo_cnt = self.fifo_size
+			raise raise_exception('FIFO over 33!!')
+
 	def annotate_bits_legacy(self, special_clock):
 		# Define (and initialize) function variables.
 
@@ -1743,6 +1728,18 @@ class Decoder(srd.Decoder):
 
 		interval = 0							# current interval (in samples, 1..n)
 
+		# FIFO (using circular buffers) of starting/ending sample numbers
+		# and data values for 33 half-bit-cell windows.  Data values are
+		# number of leading edges per window (0..n).
+		self.fifo_size = 100
+		self.fifo_ws = array('l', [0 for _ in range(self.fifo_size)])
+		self.fifo_we = array('l', [0 for _ in range(self.fifo_size)])
+		self.fifo_wv = array('l', [0 for _ in range(self.fifo_size)])
+
+		self.fifo_wp = -1			# index where last FIFO entry was written (0..32)
+		self.fifo_rp = 0			# index where to read next FIFO entry (0..32)
+		self.fifo_cnt = 0			# number of entries currently in FIFO (0..33)
+
 		# --- Process all input data.
 
 		while True:
@@ -1855,7 +1852,7 @@ class Decoder(srd.Decoder):
 
 				# Display all MFM mC2h and mA1h prefix bytes to help with locating damaged records.
 
-				if (self.encoding == encoding.MFM) and self.dsply_pfx:
+				if self.encoding in (encoding.MFM_FDD, encoding.MFM_HDD) and self.dsply_pfx:
 					if (shift31 & 0xFFFF) == 0x4489:
 						self.put(win_start, win_end, self.out_ann, message.prefixA1)
 					elif (shift31 & 0xFFFF) == 0x5224:
