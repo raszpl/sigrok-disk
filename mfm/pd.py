@@ -505,7 +505,7 @@ class Decoder(srd.Decoder):
 
 			self.ring_ptr = 0
 			self.ring_cnt = 0
-			self.ring_size = 255
+			self.ring_size = 255											# in halfbit windows
 			self.ring_ws = array('l', [0 for _ in range(self.ring_size)])	# win_start
 			self.ring_we = array('l', [0 for _ in range(self.ring_size)])	# win_end
 			self.ring_wv = array('l', [0 for _ in range(self.ring_size)])	# value
@@ -581,7 +581,6 @@ class Decoder(srd.Decoder):
 			shift_win = self.shift & (2 ** self.shift_index -1)
 
 			#print_('RLL_1', bin(self.shift)[1:], self.shift_index, bin(shift_win)[2:].zfill(self.shift_index))
-			#shift_win = self.shift & 0x3ffff
 			binary_str = bin(shift_win)[2:].zfill(self.shift_index)
 			print_('RLL input', bin(shift_win)[1:], binary_str)
 			binary_str_len = len(binary_str)
@@ -610,8 +609,6 @@ class Decoder(srd.Decoder):
 					self.shift_decoded = decoded
 					return 0
 
-			#print_("RLL decoded", decoded, i)
-			#self.shift_index -= i
 			print_('RLL_shift', bin(self.shift)[1:], decoded[:8], self.shift_index, self.shift_decoded_1, self.last_samplenum)
 			self.shift_byte = int(decoded[:8], 2)
 			self.shift_decoded = decoded[8:]
