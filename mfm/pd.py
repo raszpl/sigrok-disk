@@ -212,13 +212,13 @@ class Decoder(srd.Decoder):
 
 	global state, field, special, encoding, encoding_table
 	class state(Enum):
-		first_mC2h_prefix	= 0		#auto()
-		second_mC2h_prefix	= 1		#auto()
-		third_mC2h_prefix	= 2		#auto()
-		FCh_Index_Mark		= 3
-		first_mA1h_prefix	= 4
-		second_mA1h_prefix	= 5
-		third_mA1h_prefix	= 6
+		first_C2h_prefix	= 0		#auto()
+		second_C2h_prefix	= 1
+		third_C2h_prefix	= 2
+		Index_Mark			= 3
+		first_A1h_prefix	= 4
+		second_A1h_prefix	= 5
+		third_A1h_prefix	= 6
 		IDData_Address_Mark	= 7
 		ID_Address_Mark		= 8
 		Data_Address_Mark	= 9
@@ -226,11 +226,11 @@ class Decoder(srd.Decoder):
 		ID_Record_CRC		= 11
 		Data_Record			= 12
 		Data_Record_CRC		= 13
-		first_gap_Byte		= 14
+		first_Gap_Byte		= 14
 		sync_mark			= 15
 
 	class field(Enum):
-		FCh_Index_Mark		= 1		#auto()
+		Index_Mark			= 1		#auto()
 		ID_Address_Mark		= 2
 		Data_Address_Mark	= 3
 		Deleted_Data_Mark	= 4
@@ -434,7 +434,7 @@ class Decoder(srd.Decoder):
 
 		self.report = {
 						'no':	'no',
-						'IAM':	field.FCh_Index_Mark,
+						'IAM':	field.Index_Mark,
 						'IDAM':	field.ID_Address_Mark,
 						'DAM':	field.Data_Address_Mark,
 						'DDAM':	field.Deleted_Data_Mark,
@@ -964,11 +964,11 @@ class Decoder(srd.Decoder):
 	# ------------------------------------------------------------------------
 
 	def display_field(self, typ):
-		if typ == field.FCh_Index_Mark:
+		if typ == field.Index_Mark:
 			self.IAMs += 1
 			self.put(self.field_start, self.byte_end, self.out_ann, message.iam)
-			self.report_last = field.FCh_Index_Mark
-			if self.report == field.FCh_Index_Mark:
+			self.report_last = field.Index_Mark
+			if self.report == field.Index_Mark:
 				self.reports_called = self.IAMs
 				self.display_report()
 
@@ -1119,7 +1119,7 @@ class Decoder(srd.Decoder):
 						self.DRmark = []
 						self.pb_state = state.IDData_Address_Mark
 				elif self.encoding == encoding.MFM_FDD:
-					self.pb_state = state.second_mA1h_prefix
+					self.pb_state = state.second_A1h_prefix
 			# RLL_SEA header
 			elif val == 0x1E:
 				# we only set IDmark as a signal, will be removed on next byte
@@ -1136,19 +1136,19 @@ class Decoder(srd.Decoder):
 			elif val == 0xC2:
 				self.annotate_byte(0xC2, special_clock = True)
 				self.display_field(field.Sync)
-				self.pb_state = state.second_mC2h_prefix
+				self.pb_state = state.second_C2h_prefix
 			else:
 				self.annotate_byte(val)
 				self.display_field(field.Unknown_Byte)
 				return False
 
-		elif self.pb_state in (state.second_mA1h_prefix, state.third_mA1h_prefix):
+		elif self.pb_state in (state.second_A1h_prefix, state.third_A1h_prefix):
 			if val == 0xA1:
 				self.A1.append(0xA1)
 				self.annotate_byte(0xA1, special_clock = True)
-				if self.pb_state == state.second_mA1h_prefix:
-					self.pb_state = state.third_mA1h_prefix
-				elif self.pb_state == state.third_mA1h_prefix:
+				if self.pb_state == state.second_A1h_prefix:
+					self.pb_state = state.third_A1h_prefix
+				elif self.pb_state == state.third_A1h_prefix:
 					self.pb_state = state.IDData_Address_Mark
 			else:
 				self.annotate_byte(val)
@@ -1181,8 +1181,8 @@ class Decoder(srd.Decoder):
 			elif val == 0xFC:
 				self.annotate_byte(0xFC, special.clock)
 				self.display_field(field.Sync)
-				self.display_field(field.FCh_Index_Mark)
-				self.pb_state = state.first_gap_Byte
+				self.display_field(field.Index_Mark)
+				self.pb_state = state.first_Gap_Byte
 			else:
 				self.annotate_byte(val)
 				self.display_field(field.Unknown_Byte)
@@ -1209,7 +1209,7 @@ class Decoder(srd.Decoder):
 					self.display_field(field.CRC_Ok)
 				else:
 					self.display_field(field.CRC_Error)
-				self.pb_state = state.first_gap_Byte
+				self.pb_state = state.first_Gap_Byte
 
 		elif self.pb_state == state.Data_Record:
 			self.annotate_byte(val)
@@ -1231,31 +1231,31 @@ class Decoder(srd.Decoder):
 					self.display_field(field.CRC_Ok)
 				else:
 					self.display_field(field.CRC_Error)
-				self.pb_state = state.first_gap_Byte
+				self.pb_state = state.first_Gap_Byte
 
-		elif self.pb_state in (state.second_mC2h_prefix, state.third_mC2h_prefix):
+		elif self.pb_state in (state.second_C2h_prefix, state.third_C2h_prefix):
 			if val == 0xC2:
 				self.annotate_byte(0xC2, special.clock)
-				if self.pb_state == state.second_mC2h_prefix:
-					self.pb_state = state.third_mC2h_prefix
-				elif self.pb_state == state.third_mC2h_prefix:
-					self.pb_state = state.FCh_Index_Mark
+				if self.pb_state == state.second_C2h_prefix:
+					self.pb_state = state.third_C2h_prefix
+				elif self.pb_state == state.third_C2h_prefix:
+					self.pb_state = state.Index_Mark
 			else:
 				self.annotate_byte(val)
 				self.display_field(field.Unknown_Byte)
 				return False
 
-		elif self.pb_state == state.FCh_Index_Mark:
+		elif self.pb_state == state.Index_Mark:
 			if val == 0xFC:
 				self.annotate_byte(val)
-				self.display_field(field.FCh_Index_Mark)
-				self.pb_state = state.first_gap_Byte
+				self.display_field(field.Index_Mark)
+				self.pb_state = state.first_Gap_Byte
 			else:
 				self.annotate_byte(val)
 				self.display_field(field.Unknown_Byte)
 				return False
 
-		elif self.pb_state == state.first_gap_Byte:
+		elif self.pb_state == state.first_Gap_Byte:
 			self.annotate_byte(val)
 			return False						# done, unsync
 
@@ -1512,7 +1512,7 @@ class Decoder(srd.Decoder):
 			val &= 0x0FF
 			self.pb_state = state.Data_Address_Mark
 		elif val == 0x1FC:
-			self.pb_state = state.FCh_Index_Mark
+			self.pb_state = state.Index_Mark
 
 		if self.pb_state == state.ID_Address_Mark:
 			self.IDmark = [(val & 0x0FF)]
@@ -1545,7 +1545,7 @@ class Decoder(srd.Decoder):
 					self.display_field(field.CRC_Ok)
 				else:
 					self.display_field(field.CRC_Error)
-				self.pb_state = state.first_gap_Byte
+				self.pb_state = state.first_Gap_Byte
 
 		elif self.pb_state == state.Data_Address_Mark:
 			self.annotate_byte_legacy(0x00)
@@ -1577,16 +1577,16 @@ class Decoder(srd.Decoder):
 					self.display_field(field.CRC_Ok)
 				else:
 					self.display_field(field.CRC_Error)
-				self.pb_state = state.first_gap_Byte
+				self.pb_state = state.first_Gap_Byte
 
-		elif self.pb_state == state.FCh_Index_Mark:
+		elif self.pb_state == state.Index_Mark:
 			self.annotate_byte_legacy(0x00)
 			self.annotate_byte_legacy(0xFC, special.clock)
 			self.field_start = self.byte_start
-			self.display_field(field.FCh_Index_Mark)
-			self.pb_state = state.first_gap_Byte
+			self.display_field(field.Index_Mark)
+			self.pb_state = state.first_Gap_Byte
 
-		elif self.pb_state == state.first_gap_Byte:	# process first gap byte after CRC or Index Mark
+		elif self.pb_state == state.first_Gap_Byte:	# process first gap byte after CRC or Index Mark
 			self.annotate_byte_legacy(val)
 			return -1								# done, unsync
 
@@ -1597,24 +1597,24 @@ class Decoder(srd.Decoder):
 
 	def process_byteMFM_legacy(self, val):
 		if val == 0x1A1:
-			self.pb_state = state.first_mA1h_prefix
+			self.pb_state = state.first_A1h_prefix
 		elif val == 0x1C2:
-			self.pb_state = state.first_mC2h_prefix
+			self.pb_state = state.first_C2h_prefix
 
-		if self.pb_state == state.first_mA1h_prefix:
+		if self.pb_state == state.first_A1h_prefix:
 			self.A1 = [0xA1]
 			self.annotate_byte_legacy(0x00)
 			self.annotate_byte_legacy(0xA1, special.clock)
 			self.field_start = self.byte_start
-			self.pb_state = state.second_mA1h_prefix
+			self.pb_state = state.second_A1h_prefix
 
-		elif self.pb_state in (state.second_mA1h_prefix, state.third_mA1h_prefix):
+		elif self.pb_state in (state.second_A1h_prefix, state.third_A1h_prefix):
 			if val == 0x2A1:
 				self.A1.append(0xA1)
 				self.annotate_byte_legacy(0xA1, special.clock)
-				if self.pb_state == state.second_mA1h_prefix:
-					self.pb_state = state.third_mA1h_prefix
-				elif self.pb_state == state.third_mA1h_prefix:
+				if self.pb_state == state.second_A1h_prefix:
+					self.pb_state = state.third_A1h_prefix
+				elif self.pb_state == state.third_A1h_prefix:
 					self.pb_state = state.IDData_Address_Mark
 			else:
 				self.display_field(field.Unknown_Byte)
@@ -1661,7 +1661,7 @@ class Decoder(srd.Decoder):
 					self.display_field(field.CRC_Ok)
 				else:
 					self.display_field(field.CRC_Error)
-				self.pb_state = state.first_gap_Byte
+				self.pb_state = state.first_Gap_Byte
 
 		elif self.pb_state == state.Data_Record:
 			self.annotate_byte_legacy(val)
@@ -1683,35 +1683,35 @@ class Decoder(srd.Decoder):
 					self.display_field(field.CRC_Ok)
 				else:
 					self.display_field(field.CRC_Error)
-				self.pb_state = state.first_gap_Byte
+				self.pb_state = state.first_Gap_Byte
 
-		elif self.pb_state == state.first_mC2h_prefix:
+		elif self.pb_state == state.first_C2h_prefix:
 			self.annotate_byte_legacy(0x00)
 			self.annotate_byte_legacy(0xC2, special.clock)
 			self.field_start = self.byte_start
-			self.pb_state = state.second_mC2h_prefix
+			self.pb_state = state.second_C2h_prefix
 
-		elif self.pb_state in (state.second_mC2h_prefix, state.third_mC2h_prefix):
+		elif self.pb_state in (state.second_C2h_prefix, state.third_C2h_prefix):
 			if val == 0x2C2:
 				self.annotate_byte_legacy(0xC2, special.clock)
-				if self.pb_state == state.second_mC2h_prefix:
-					self.pb_state = state.third_mC2h_prefix
-				elif self.pb_state == state.third_mC2h_prefix:
-					self.pb_state = state.FCh_Index_Mark
+				if self.pb_state == state.second_C2h_prefix:
+					self.pb_state = state.third_C2h_prefix
+				elif self.pb_state == state.third_C2h_prefix:
+					self.pb_state = state.Index_Mark
 			else:
 				self.display_field(field.Unknown_Byte)
 				return -1
 
-		elif self.pb_state == state.FCh_Index_Mark:
+		elif self.pb_state == state.Index_Mark:
 			if val == 0xFC:
 				self.annotate_byte_legacy(val)
-				self.display_field(field.FCh_Index_Mark)
-				self.pb_state = state.first_gap_Byte
+				self.display_field(field.Index_Mark)
+				self.pb_state = state.first_Gap_Byte
 			else:
 				self.display_field(field.Unknown_Byte)
 				return -1
 
-		elif self.pb_state == state.first_gap_Byte:	# process first gap byte after CRC or Index Mark
+		elif self.pb_state == state.first_Gap_Byte:	# process first gap byte after CRC or Index Mark
 			self.annotate_byte_legacy(val)
 			return -1								# done, unsync
 
