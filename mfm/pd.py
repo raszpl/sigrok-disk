@@ -473,13 +473,14 @@ class Decoder(srd.Decoder):
 		def __init__(self, owner, halfbit_ticks=10.0, kp=0.5, ki=0.0005, lock_threshold=32, sync_tolerance=0.25, cells_allowed=(2, 3, 4), sync_pattern=2, rll_table={}):
 			self.owner = owner
 			self.halfbit_nom = halfbit_ticks
-			self.halfbit_nom05 = 0.5 * self.halfbit_nom
-			self.halfbit_nom15 = 1.5 * self.halfbit_nom
+			self.halfbit_nom05 = 0.5 * halfbit_ticks
+			self.halfbit_nom15 = 1.5 * halfbit_ticks
 			self.kp = kp
 			self.ki = ki
 			self.sync_pattern = sync_pattern
 			self.sync_lock_threshold = lock_threshold
-			self.sync_tolerance = self.halfbit_nom * sync_tolerance # sync_tolerance: fractional percentage of tolerated deviations during initial PLL sync lock
+			# sync_tolerance: fractional percentage of tolerated deviations during initial PLL sync lock
+			self.sync_tolerance = halfbit_ticks * sync_tolerance 
 			self.cells_allowed = cells_allowed
 			self.cells_allowed_min = min(cells_allowed)
 			self.cells_allowed_max = max(cells_allowed)
