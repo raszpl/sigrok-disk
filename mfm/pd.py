@@ -553,13 +553,13 @@ class Decoder(srd.Decoder):
 			self.shift_index -= 16
 			shift_win = (self.shift >> self.shift_index) & 0xffff
 			self.shift_byte = ((shift_win & 0b100000000000000) >> 7) \
-							| ((shift_win & 0b1000000000000) >> 6) \
-							| ((shift_win & 0b10000000000) >> 5) \
-							| ((shift_win & 0b100000000) >> 4) \
-							| ((shift_win & 0b1000000) >> 3) \
-							| ((shift_win & 0b10000) >> 2) \
-							| ((shift_win & 0b100) >> 1) \
-							| (shift_win & 1)
+							+ ((shift_win & 0b1000000000000) >> 6) \
+							+ ((shift_win & 0b10000000000) >> 5) \
+							+ ((shift_win & 0b100000000) >> 4) \
+							+ ((shift_win & 0b1000000) >> 3) \
+							+ ((shift_win & 0b10000) >> 2) \
+							+ ((shift_win & 0b100) >> 1) \
+							+ (shift_win & 1)
 			return 16
 
 		def rll_decode(self):
