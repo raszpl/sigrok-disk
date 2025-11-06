@@ -210,7 +210,7 @@ class Decoder(srd.Decoder):
 	# Sadly those need to be up here, otherwise one has to use self. prefix
 	# ----------------------------------------------------------------------------
 
-	global state, field, special, encoding, encoding_table
+	global state, field, encoding, encoding_table
 	class state(Enum):
 		first_C2h_prefix	= 0		#auto()
 		second_C2h_prefix	= 1
@@ -241,19 +241,6 @@ class Decoder(srd.Decoder):
 		Unknown_Byte		= 9
 		Sync				= 10
 		Gap					= 11
-
-	# Synchronisation marks implemented by omitting some clock pulses.
-	# Use special.clock to mark those.
-	# FM:
-	#	FCh with D7h (11010111) clock	IAM		Index Mark
-	#	FEh with C7h (11000111) clock	IDAM	ID Address Mark
-	#	FBh with C7h clock				DAM		Data Address Mark
-	#	F8h..FAh with C7h clock			DDAM	Deleted Data Address Mark
-	# MFM:
-	#	C2h no clock between bits 3/4
-	#	A1h no clock between bits 4/5
-	class special(Enum):
-		clock		= True
 
 	FM_R = {
 		'11': '1',
@@ -856,44 +843,43 @@ class Decoder(srd.Decoder):
 				self.put(start, end, self.out_ann, [target, ['%d%s' % (value, dataclock), '%d' % value]])
 
 	# ------------------------------------------------------------------------
-	# PURPOSE: Annotate 8 bits and 16 windows of one byte using FIFO data.
+	# PURPOSE: Annotate 8 bits and 16 windows of one byte using pll.ring_buffer.
 	# NOTES:
-	#  - On entry the FIFO must have exactly 33 or 17 entries in it, and on
-	#	 exit the FIFO will have 16 fewer entries in it (17 or 1).
-	#  - Half-bit-cell windows are processed in time order from the last window
-	#	 of the previous byte, to the second last window of the current byte.
-	#  - Bits are processed in time order from the first bit (msb, bit 7) to
-	#	 the last bit (lsb, bit 0) of the current byte.
-	#  - Need to use a while loop instead of a for loop due to some strange bug,
-	#	 possibly in Python itself?
-	# IN: special_clock	True = special clocking, don't generate error
+	#	Synchronisation marks implemented by omitting some clock pulses.
+	#	FM:
+	#		FCh with D7h (11010111) clock	IAM		Index Mark
+	#		FEh with C7h (11000111) clock	IDAM	ID Address Mark
+	#		FBh with C7h clock				DAM		Data Address Mark
+	#		F8h..FAh with C7h clock			DDAM	Deleted Data Address Mark
+	#	MFM:
+	#		C2h no clock between bits 3/4
+	#		A1h no clock between bits 4/5
+	# IN: special_clock	True = don't generate error on clock gritches
 	#					False or omitted = normal clocking, generate error
 	#	  self.fifo_rp, self.fifo_cnt
 	# OUT: self.byte_start, self.byte_end, self.fifo_rp, self.fifo_cnt updated
 	# ------------------------------------------------------------------------
 
+	
 	def annotate_bits(self, special_clock):
 		# Define (and initialize) function variables.
-
 		win_start = 0			# start of window (sample number)
 		win_end = 0				# end of window (sample number)
 		win_val = 0				# window value (0..n)
 		bit_start = 0			# start of bit (sample number)
 		bit_end = 0				# end of bit (sample number)
-		bit_val = 0				# bit value (0..1)
 		shift3 = 0				# 3-bit shift register of window values
+		bitn = 7				# starting bit
+		offset = self.pll.shift_decoded_1 - self.pll.shift_index
 
-		# Process each of the 8 data bits and 17 windows in turn.
-		# Start with bit 8, which is bit 0 of the previous byte.
-
-		bitn = 7
-
-		_, self.byte_start, win_val = self.pll.ring_read_offset(- 16 + self.pll.shift_decoded_1 - self.pll.shift_index)
-		shift3 = 1 if win_val else 0
+		# MFM requires 3 consecutive windows for error checking, have to fetch last bit of previous byte.
+		if self.encoding in (encoding.MFM_FDD, encoding.MFM_HDD):
+			_, _, win_val = self.pll.ring_read_offset(offset - 16)
+			shift3 = 1 if win_val else 0
 
 		while bitn >= 0:
 			# Display annotation for first (clock) half-bit-cell window of a pair.
-			win_start, win_end, win_val = self.pll.ring_read_offset(- bitn * 2 - 1 + self.pll.shift_decoded_1 - self.pll.shift_index)
+			win_start, win_end, win_val = self.pll.ring_read_offset(offset - bitn * 2 - 1)
 			bit_start = win_start
 			win_val = 1 if win_val else 0
 
@@ -903,7 +889,7 @@ class Decoder(srd.Decoder):
 			self.annotate_window(ann.clk, win_start, win_end, win_val)
 
 			# Display annotation for second (data) half-bit-cell window of a pair,
-			win_start, win_end, win_val = self.pll.ring_read_offset(- bitn * 2 + self.pll.shift_decoded_1 - self.pll.shift_index)
+			win_start, win_end, win_val = self.pll.ring_read_offset(offset - bitn * 2)
 			win_val = 1 if win_val else 0
 
 			shift3 = (shift3 << 1) + win_val
@@ -924,10 +910,8 @@ class Decoder(srd.Decoder):
 				self.put(bit_start, win_end, self.out_ann, [ann.bit, ['%d' % win_val]])
 
 			bitn -= 1
-		# end while
 
 		self.byte_end = win_end
-		#print_('byte_', self.byte_start, self.byte_end)
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Annotate one byte and its 8 bits/16 windows.
@@ -1179,7 +1163,7 @@ class Decoder(srd.Decoder):
 				self.pb_state = state.Data_Record
 			# FM Index Mark
 			elif val == 0xFC:
-				self.annotate_byte(0xFC, special.clock)
+				self.annotate_byte(0xFC, special_clock = True)
 				self.display_field(field.Sync)
 				self.display_field(field.Index_Mark)
 				self.pb_state = state.first_Gap_Byte
@@ -1235,7 +1219,7 @@ class Decoder(srd.Decoder):
 
 		elif self.pb_state in (state.second_C2h_prefix, state.third_C2h_prefix):
 			if val == 0xC2:
-				self.annotate_byte(0xC2, special.clock)
+				self.annotate_byte(0xC2, special_clock = True)
 				if self.pb_state == state.second_C2h_prefix:
 					self.pb_state = state.third_C2h_prefix
 				elif self.pb_state == state.third_C2h_prefix:
@@ -1517,7 +1501,7 @@ class Decoder(srd.Decoder):
 		if self.pb_state == state.ID_Address_Mark:
 			self.IDmark = [(val & 0x0FF)]
 			self.annotate_byte_legacy(0x00)
-			self.annotate_byte_legacy(0xFE, special.clock)
+			self.annotate_byte_legacy(0xFE, special_clock = True)
 			self.field_start = self.byte_start
 			self.display_field(field.ID_Address_Mark)
 			self.IDcrc = 0
@@ -1549,7 +1533,7 @@ class Decoder(srd.Decoder):
 
 		elif self.pb_state == state.Data_Address_Mark:
 			self.annotate_byte_legacy(0x00)
-			self.annotate_byte_legacy(val, special.clock)
+			self.annotate_byte_legacy(val, special_clock = True)
 			self.DRmark = [val]
 			self.field_start = self.byte_start
 			self.display_field(field.Data_Address_Mark)
@@ -1581,7 +1565,7 @@ class Decoder(srd.Decoder):
 
 		elif self.pb_state == state.Index_Mark:
 			self.annotate_byte_legacy(0x00)
-			self.annotate_byte_legacy(0xFC, special.clock)
+			self.annotate_byte_legacy(0xFC, special_clock = True)
 			self.field_start = self.byte_start
 			self.display_field(field.Index_Mark)
 			self.pb_state = state.first_Gap_Byte
@@ -1604,14 +1588,14 @@ class Decoder(srd.Decoder):
 		if self.pb_state == state.first_A1h_prefix:
 			self.A1 = [0xA1]
 			self.annotate_byte_legacy(0x00)
-			self.annotate_byte_legacy(0xA1, special.clock)
+			self.annotate_byte_legacy(0xA1, special_clock = True)
 			self.field_start = self.byte_start
 			self.pb_state = state.second_A1h_prefix
 
 		elif self.pb_state in (state.second_A1h_prefix, state.third_A1h_prefix):
 			if val == 0x2A1:
 				self.A1.append(0xA1)
-				self.annotate_byte_legacy(0xA1, special.clock)
+				self.annotate_byte_legacy(0xA1, special_clock = True)
 				if self.pb_state == state.second_A1h_prefix:
 					self.pb_state = state.third_A1h_prefix
 				elif self.pb_state == state.third_A1h_prefix:
@@ -1687,13 +1671,13 @@ class Decoder(srd.Decoder):
 
 		elif self.pb_state == state.first_C2h_prefix:
 			self.annotate_byte_legacy(0x00)
-			self.annotate_byte_legacy(0xC2, special.clock)
+			self.annotate_byte_legacy(0xC2, special_clock = True)
 			self.field_start = self.byte_start
 			self.pb_state = state.second_C2h_prefix
 
 		elif self.pb_state in (state.second_C2h_prefix, state.third_C2h_prefix):
 			if val == 0x2C2:
-				self.annotate_byte_legacy(0xC2, special.clock)
+				self.annotate_byte_legacy(0xC2, special_clock = True)
 				if self.pb_state == state.second_C2h_prefix:
 					self.pb_state = state.third_C2h_prefix
 				elif self.pb_state == state.third_C2h_prefix:
