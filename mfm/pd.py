@@ -470,7 +470,7 @@ class Decoder(srd.Decoder):
 	# ------------------------------------------------------------------------
 
 	class SimplePLL:
-		def __init__(self, owner, halfbit_ticks=10.0, kp=0.5, ki=0.0005, lock_threshold=32, sync_tolerance=0.25, cells_allowed=(2, 3, 4), sync_pattern=2, rll_table={}):
+		def __init__(self, owner, halfbit_ticks=10.0, kp=0.5, ki=0.0005, sync_pattern=2, lock_threshold=32, sync_tolerance=0.25, cells_allowed=(2, 3, 4), rll_table={}):
 			self.owner = owner
 			self.halfbit_nom = halfbit_ticks
 			self.halfbit_nom05 = 0.5 * halfbit_ticks
@@ -480,10 +480,11 @@ class Decoder(srd.Decoder):
 			self.sync_pattern = sync_pattern
 			self.sync_lock_threshold = lock_threshold
 			# sync_tolerance: fractional percentage of tolerated deviations during initial PLL sync lock
-			self.sync_tolerance = halfbit_ticks * sync_tolerance 
+			self.sync_tolerance = halfbit_ticks * sync_tolerance
 			self.cells_allowed = cells_allowed
 			self.cells_allowed_min = min(cells_allowed)
 			self.cells_allowed_max = max(cells_allowed)
+			self.rll_table = rll_table
 
 			# PLL state
 			self.phase_ref = 0				# float: reference sample for half-bit 0
@@ -510,8 +511,7 @@ class Decoder(srd.Decoder):
 			self.ring_ws = array('l', [0 for _ in range(self.ring_size)])	# win_start
 			self.ring_we = array('l', [0 for _ in range(self.ring_size)])	# win_end
 			self.ring_wv = array('l', [0 for _ in range(self.ring_size)])	# value
-			self.rll_table = rll_table
-			
+
 			if self.owner.encoding in (encoding.FM, encoding.MFM_FDD, encoding.MFM_HDD):
 				self.decode = self.fm_mfm_decode
 			elif self.owner.encoding in (encoding.RLL_SEA, encoding.RLL_WD):
@@ -532,6 +532,7 @@ class Decoder(srd.Decoder):
 			self.phase_ref = 0
 			self.halfbit = self.halfbit_nom
 			self.integrator = 0.0
+
 			self.sync_lock_count = 0
 			self.locked = False
 			self.byte_synced = False
