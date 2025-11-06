@@ -120,7 +120,7 @@ class Decoder(srd.Decoder):
 			'default': '5000000', 'values': ('125000', '150000',
 			'250000', '300000', '500000', '5000000', '7500000', '10000000')},
 		{'id': 'encoding', 'desc': 'Encoding',
-			'default': 'MFM_HDD', 'values': ('FM', , 'MFM_FDD', 'MFM_HDD', 'RLL_SEA', 'RLL_WD')},
+			'default': 'MFM_HDD', 'values': ('FM', 'MFM_FDD', 'MFM_HDD', 'RLL_SEA', 'RLL_WD')},
 		{'id': 'sect_len', 'desc': 'Sector length',
 			'default': '512', 'values': ('128', '256', '512', '1024')},
 		{'id': 'header_bytes', 'desc': 'Header bytes',
@@ -672,7 +672,7 @@ class Decoder(srd.Decoder):
 						self.byte_synced = True
 						self.shift_index = 1
 
-					elif self.owner.encoding in (encoding.MFM, encoding.MFM_FD, encoding.MFM_HD) and self.halfbit_cells == 3:
+					elif self.owner.encoding in (encoding.MFM_FD, encoding.MFM_HD) and self.halfbit_cells == 3:
 						print_("byte_synced", self.halfbit_cells, self.last_samplenum, edge_samplenum)
 						self.byte_synced = True
 						self.shift_index = -1
@@ -747,7 +747,7 @@ class Decoder(srd.Decoder):
 				self.shift_index += self.halfbit_cells
 				#print_('pll_shift1', bin(self.shift)[1:], self.shift_index, self.halfbit_cells, self.shift_index +self.halfbit_cells)
 				if self.shift_index >= 16:
-					if self.owner.encoding in (encoding.FM, encoding.MFM, encoding.MFM_FD, encoding.MFM_HD):
+					if self.owner.encoding in (encoding.FM, encoding.MFM_FD, encoding.MFM_HD):
 						self.shift_index -= 16
 						self.shift_win = (self.shift >> self.shift_index) & 0xffff
 						self.shift_byte = 0
@@ -913,7 +913,7 @@ class Decoder(srd.Decoder):
 
 			#print_(bit_start, win_end, win_val)
 			# Display annotation for bit using value in data window.
-			if (self.encoding in (encoding.MFM, encoding.MFM_FD, encoding.MFM_HD) and (shift3 & 0b111) in (0b000, 0b011, 0b110, 0b111)) \
+			if (self.encoding in (encoding.MFM_FD, encoding.MFM_HD) and (shift3 & 0b111) in (0b000, 0b011, 0b110, 0b111)) \
 				or (self.encoding == encoding.FM and not (shift3 & 0b10)):
 				if not special_clock:
 					self.put(bit_start, win_end, self.out_ann, message.errorClock)
@@ -1472,7 +1472,7 @@ class Decoder(srd.Decoder):
 			# bit for the previous byte has already been displayed previously.
 
 			if bitn < 8:
-				if (self.encoding in (encoding.MFM, encoding.MFM_FD, encoding.MFM_HD) and (shift3 == 0 or shift3 == 3 or shift3 == 6 or shift3 == 7)) \
+				if (self.encoding in (encoding.MFM_FD, encoding.MFM_HD) and (shift3 == 0 or shift3 == 3 or shift3 == 6 or shift3 == 7)) \
 				 or (self.encoding == encoding.FM and (shift3 == 0 or shift3 == 1 or shift3 == 4 or shift3 == 5)):
 					if not special_clock:
 						self.put(bit_end - 1, bit_end, self.out_ann, message.error)
