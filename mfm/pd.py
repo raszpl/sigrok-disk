@@ -756,9 +756,9 @@ class Decoder(srd.Decoder):
 		if crc_poly == 0x1021 and crc_bits == 16:
 			# fast lookup table for CRC-16-CCITT
 			CRC16CCITT_tab = array('I', [0x0000, 0x1021, 0x2042, 0x3063,
-							   0x4084, 0x50A5, 0x60C6, 0x70E7,
-							   0x8108, 0x9129, 0xA14A, 0xB16B,
-							   0xC18C, 0xD1AD, 0xE1CE, 0xF1EF])
+										0x4084, 0x50A5, 0x60C6, 0x70E7,
+										0x8108, 0x9129, 0xA14A, 0xB16B,
+										0xC18C, 0xD1AD, 0xE1CE, 0xF1EF])
 			for byte in bytearray:
 				crc_accum = (CRC16CCITT_tab[((crc_accum >> 12) ^ (byte >>	4)) & 0x0F]
 								^ (crc_accum << 4)) & 0xFFFF
@@ -819,12 +819,10 @@ class Decoder(srd.Decoder):
 	#		A1h no clock between bits 4/5
 	# IN: special_clock	True = don't generate error on clock gritches
 	#					False or omitted = normal clocking, generate error
-	#	  self.fifo_rp, self.fifo_cnt
-	# OUT: self.byte_start, self.byte_end, self.fifo_rp, self.fifo_cnt updated
+	# OUT: self.byte_start, self.byte_end updated
 	# ------------------------------------------------------------------------
 
-	def annotate_bits(self, special_clock):
-		# Define (and initialize) function variables.
+	def annotate_bits_FM_MFM(self, special_clock):
 		win_start = 0			# start of window (sample number)
 		win_end = 0				# end of window (sample number)
 		win_val = 0				# window value (0..n)
@@ -836,7 +834,7 @@ class Decoder(srd.Decoder):
 
 		# we need to initialize self.byte_start, lets use byte_end of last bit of previous byte.
 		_, self.byte_start, win_val = self.pll.ring_read_offset(offset - 16)
-		# MFM error checking requires 3 consecutive windows, fetch last bit of previous byte.
+		# MFM error checking requires 3 consecutive windows, use last bit of previous byte.
 		shift3 = 1 if win_val else 0
 
 		while bitn >= 0:
@@ -850,7 +848,7 @@ class Decoder(srd.Decoder):
 			#print_(ann.clk, win_start, win_end, win_val, - bitn * 2 - 1 - pll.shift_index, pll.shift_index)
 			self.annotate_window(ann.clk, win_start, win_end, win_val)
 
-			# Display annotation for second (data) half-bit-cell window of a pair,
+			# Display annotation for second (data) half-bit-cell window of a pair.
 			win_start, win_end, win_val = self.pll.ring_read_offset(offset - bitn * 2)
 			win_val = 1 if win_val else 0
 
@@ -861,7 +859,75 @@ class Decoder(srd.Decoder):
 			#print_(ann.dat, pll.fifo_wv, pll.fifo_ws, pll.fifo_we)
 
 			#print_(bit_start, win_end, win_val)
-			# Display annotation for bit using value in data window.
+			# Display annotation for bit using value from data window.
+			if (self.encoding in (encoding.MFM_FDD, encoding.MFM_HDD) and (shift3 & 0b111) in (0b000, 0b011, 0b110, 0b111)) \
+				or (self.encoding == encoding.FM and not (shift3 & 0b10)):
+				if not special_clock:
+					self.put(bit_start, win_end, self.out_ann, message.errorClock)
+					self.CkEr += 1
+				self.put(bit_start, win_end, self.out_ann, [ann.erb, ['%d (clock error)' % win_val, '%d' % win_val]])
+			else:
+				self.put(bit_start, win_end, self.out_ann, [ann.bit, ['%d' % win_val]])
+
+			bitn -= 1
+
+		self.byte_end = win_end
+
+	# ------------------------------------------------------------------------
+	# PURPOSE: Annotate 8 bits and 16 windows of one byte using pll.ring_buffer.
+	# NOTES:
+	#	Synchronisation marks implemented by emitting illegal 100000001001 sequence.
+	#	RLL_SEA:
+	#		FCh with D7h (11010111) clock	IAM		Index Mark
+	#		FEh with C7h (11000111) clock	IDAM	ID Address Mark
+	#		FBh with C7h clock				DAM		Data Address Mark
+	#		F8h..FAh with C7h clock			DDAM	Deleted Data Address Mark
+	#	RLL_WD:
+	#		C2h no clock between bits 3/4
+	#		A1h no clock between bits 4/5
+	# IN: special_clock	True = don't generate error on clock gritches
+	#					False or omitted = normal clocking, generate error
+	# OUT: self.byte_start, self.byte_end updated
+	# ------------------------------------------------------------------------
+
+	def annotate_bits_RLL(self, special_clock):
+		win_start = 0			# start of window (sample number)
+		win_end = 0				# end of window (sample number)
+		win_val = 0				# window value (0..n)
+		bit_start = 0			# start of bit (sample number)
+		bit_end = 0				# end of bit (sample number)
+		shift3 = 0				# 3-bit shift register of window values
+		bitn = 7				# starting bit
+		offset = self.pll.shift_decoded_1 - self.pll.shift_index
+
+		# we need to initialize self.byte_start, lets use byte_end of last bit of previous byte.
+		_, self.byte_start, win_val = self.pll.ring_read_offset(offset - 16)
+		# MFM error checking requires 3 consecutive windows, use last bit of previous byte.
+		shift3 = 1 if win_val else 0
+
+		while bitn >= 0:
+			# Display annotation for first (clock) half-bit-cell window of a pair.
+			win_start, win_end, win_val = self.pll.ring_read_offset(offset - bitn * 2 - 1)
+			bit_start = win_start
+			win_val = 1 if win_val else 0
+
+			shift3 = (shift3 << 1) + win_val
+
+			#print_(ann.clk, win_start, win_end, win_val, - bitn * 2 - 1 - pll.shift_index, pll.shift_index)
+			self.annotate_window(ann.clk, win_start, win_end, win_val)
+
+			# Display annotation for second (data) half-bit-cell window of a pair.
+			win_start, win_end, win_val = self.pll.ring_read_offset(offset - bitn * 2)
+			win_val = 1 if win_val else 0
+
+			shift3 = (shift3 << 1) + win_val
+
+			#print_(ann.dat, win_start, win_end, win_val, - bitn * 2 - pll.shift_index)
+			self.annotate_window(ann.dat, win_start, win_end, win_val)
+			#print_(ann.dat, pll.fifo_wv, pll.fifo_ws, pll.fifo_we)
+
+			#print_(bit_start, win_end, win_val)
+			# Display annotation for bit using value from data window.
 			if (self.encoding in (encoding.MFM_FDD, encoding.MFM_HDD) and (shift3 & 0b111) in (0b000, 0b011, 0b110, 0b111)) \
 				or (self.encoding == encoding.FM and not (shift3 & 0b10)):
 				if not special_clock:
@@ -877,20 +943,19 @@ class Decoder(srd.Decoder):
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Annotate one byte and its 8 bits/16 windows.
-	# NOTES:
-	#  - On entry the FIFO must have exactly 33 or 17 entries in it, and on
-	#	 exit the FIFO will have 16 fewer entries in it (17 or 1).
 	# IN: val  byte value (00h..FFh)
 	#	  special_clock	True = special clocking, don't generate error
 	#					False or omitted = normal clocking, generate error
-	#	  self.fifo_rp
 	# OUT: self.byte_start, self.byte_end, self.fifo_rp	 updated
 	# ------------------------------------------------------------------------
 
 	def annotate_byte(self, val, special_clock = False):
 		# Display annotations for bits and windows of this byte.
 		print_('annotate_bits',hex(val), special_clock)
-		self.annotate_bits(special_clock)
+		if self.encoding in (encoding.FM, encoding.MFM_FDD, encoding.MFM_HDD):
+			self.annotate_bits_FM_MFM(special_clock)
+		else:
+			self.annotate_bits_RLL(special_clock)
 
 		# Display annotation for this byte.
 		short_ann = '%02X' % val
