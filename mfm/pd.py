@@ -299,8 +299,8 @@ class Decoder(srd.Decoder):
 	}
 	class encoding(Enum):
 		FM		= 0
-		MFM_FD	= 1
-		MFM_HD	= 2
+		MFM_FDD	= 1
+		MFM_HDD	= 2
 		RLL		= 3
 		RLL_SEA	= 4
 		RLL_WD	= 5
@@ -312,13 +312,13 @@ class Decoder(srd.Decoder):
 			"sync_pattern": 2,
 			"pb_state": state.IDData_Address_Mark,
 		},
-		encoding.MFM_FD: {	# (1,3) RLL
+		encoding.MFM_FDD: {	# (1,3) RLL
 			"table": FM_R,
 			"cells_allowed": (2, 3, 4),
 			"sync_pattern": 2,
 			"pb_state": state.sync_mark,
 		},
-		encoding.MFM_HD: {	# (1,3) RLL
+		encoding.MFM_HDD: {	# (1,3) RLL
 			"table": FM_R,
 			"cells_allowed": (2, 3, 4),
 			"sync_pattern": 2,
@@ -672,7 +672,7 @@ class Decoder(srd.Decoder):
 						self.byte_synced = True
 						self.shift_index = 1
 
-					elif self.owner.encoding in (encoding.MFM_FD, encoding.MFM_HD) and self.halfbit_cells == 3:
+					elif self.owner.encoding in (encoding.MFM_FDD, encoding.MFM_HDD) and self.halfbit_cells == 3:
 						print_("byte_synced", self.halfbit_cells, self.last_samplenum, edge_samplenum)
 						self.byte_synced = True
 						self.shift_index = -1
@@ -747,7 +747,7 @@ class Decoder(srd.Decoder):
 				self.shift_index += self.halfbit_cells
 				#print_('pll_shift1', bin(self.shift)[1:], self.shift_index, self.halfbit_cells, self.shift_index +self.halfbit_cells)
 				if self.shift_index >= 16:
-					if self.owner.encoding in (encoding.FM, encoding.MFM_FD, encoding.MFM_HD):
+					if self.owner.encoding in (encoding.FM, encoding.MFM_FDD, encoding.MFM_HDD):
 						self.shift_index -= 16
 						self.shift_win = (self.shift >> self.shift_index) & 0xffff
 						self.shift_byte = 0
@@ -913,7 +913,7 @@ class Decoder(srd.Decoder):
 
 			#print_(bit_start, win_end, win_val)
 			# Display annotation for bit using value in data window.
-			if (self.encoding in (encoding.MFM_FD, encoding.MFM_HD) and (shift3 & 0b111) in (0b000, 0b011, 0b110, 0b111)) \
+			if (self.encoding in (encoding.MFM_FDD, encoding.MFM_HDD) and (shift3 & 0b111) in (0b000, 0b011, 0b110, 0b111)) \
 				or (self.encoding == encoding.FM and not (shift3 & 0b10)):
 				if not special_clock:
 					self.put(bit_start, win_end, self.out_ann, message.errorClock)
@@ -981,7 +981,7 @@ class Decoder(srd.Decoder):
 
 		elif typ == field.Data_Address_Mark:
 			# DDAMs only on floppies
-			if self.encoding in (encoding.FM, encoding.MFM_FD) and self.DRmark[0] in (0xF8, 0xF9, 0xFA):
+			if self.encoding in (encoding.FM, encoding.MFM_FDD) and self.DRmark[0] in (0xF8, 0xF9, 0xFA):
 				self.DDAMs += 1
 				self.put(self.field_start, self.byte_end, self.out_ann, message.ddam)
 				self.report_last = field.Deleted_Data_Mark
@@ -1133,7 +1133,7 @@ class Decoder(srd.Decoder):
 					elif self.DRmark:
 						self.DRmark = []
 						self.pb_state = state.IDData_Address_Mark
-				elif self.encoding == encoding.MFM_FD:
+				elif self.encoding == encoding.MFM_FDD:
 					self.pb_state = state.second_mA1h_prefix
 			# RLL_SEA header
 			elif val == 0x1E:
@@ -1147,7 +1147,7 @@ class Decoder(srd.Decoder):
 				self.DRmark = [0xDE]
 				self.annotate_byte(0xDE)
 				self.display_field(field.Sync)
-			# MFM_FD Index Mark
+			# MFM_FDD Index Mark
 			elif val == 0xC2:
 				self.annotate_byte(0xC2, special_clock = True)
 				self.display_field(field.Sync)
@@ -1472,7 +1472,7 @@ class Decoder(srd.Decoder):
 			# bit for the previous byte has already been displayed previously.
 
 			if bitn < 8:
-				if (self.encoding in (encoding.MFM_FD, encoding.MFM_HD) and (shift3 == 0 or shift3 == 3 or shift3 == 6 or shift3 == 7)) \
+				if (self.encoding in (encoding.MFM_FDD, encoding.MFM_HDD) and (shift3 == 0 or shift3 == 3 or shift3 == 6 or shift3 == 7)) \
 				 or (self.encoding == encoding.FM and (shift3 == 0 or shift3 == 1 or shift3 == 4 or shift3 == 5)):
 					if not special_clock:
 						self.put(bit_end - 1, bit_end, self.out_ann, message.error)
