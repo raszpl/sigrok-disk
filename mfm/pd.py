@@ -890,49 +890,33 @@ class Decoder(srd.Decoder):
 	# OUT: self.byte_start, self.byte_end updated
 	# ------------------------------------------------------------------------
 
-	def annotate_bits_RLL(self, special_clock):
+	def annotate_bits_RLL(self, val, special_clock):
 		win_start = 0			# start of window (sample number)
 		win_end = 0				# end of window (sample number)
 		win_val = 0				# window value (0..n)
 		bit_start = 0			# start of bit (sample number)
 		bit_end = 0				# end of bit (sample number)
-		shift3 = 0				# 3-bit shift register of window values
 		bitn = 7				# starting bit
 		offset = self.pll.shift_decoded_1 - self.pll.shift_index
 
 		# we need to initialize self.byte_start, lets use byte_end of last bit of previous byte.
-		_, self.byte_start, win_val = self.pll.ring_read_offset(offset - 16)
-		# MFM error checking requires 3 consecutive windows, use last bit of previous byte.
-		shift3 = 1 if win_val else 0
+		_, self.byte_start, _ = self.pll.ring_read_offset(offset - 16)
 
 		while bitn >= 0:
-			# Display annotation for first (clock) half-bit-cell window of a pair.
 			win_start, win_end, win_val = self.pll.ring_read_offset(offset - bitn * 2 - 1)
 			bit_start = win_start
 			win_val = 1 if win_val else 0
 
-			shift3 = (shift3 << 1) + win_val
+			self.annotate_window(ann.dat, win_start, win_end, win_val)
 
-			#print_(ann.clk, win_start, win_end, win_val, - bitn * 2 - 1 - pll.shift_index, pll.shift_index)
-			self.annotate_window(ann.clk, win_start, win_end, win_val)
-
-			# Display annotation for second (data) half-bit-cell window of a pair.
 			win_start, win_end, win_val = self.pll.ring_read_offset(offset - bitn * 2)
 			win_val = 1 if win_val else 0
 
-			shift3 = (shift3 << 1) + win_val
-
-			#print_(ann.dat, win_start, win_end, win_val, - bitn * 2 - pll.shift_index)
 			self.annotate_window(ann.dat, win_start, win_end, win_val)
-			#print_(ann.dat, pll.fifo_wv, pll.fifo_ws, pll.fifo_we)
 
-			#print_(bit_start, win_end, win_val)
 			# Display annotation for bit using value from data window.
-			if (self.encoding in (encoding.MFM_FDD, encoding.MFM_HDD) and (shift3 & 0b111) in (0b000, 0b011, 0b110, 0b111)) \
-				or (self.encoding == encoding.FM and not (shift3 & 0b10)):
-				if not special_clock:
-					self.put(bit_start, win_end, self.out_ann, message.errorClock)
-					self.CkEr += 1
+			win_val = 1 if (val & (1 << bitn)) else 0
+			if special_clock:
 				self.put(bit_start, win_end, self.out_ann, [ann.erb, ['%d (clock error)' % win_val, '%d' % win_val]])
 			else:
 				self.put(bit_start, win_end, self.out_ann, [ann.bit, ['%d' % win_val]])
@@ -955,7 +939,7 @@ class Decoder(srd.Decoder):
 		if self.encoding in (encoding.FM, encoding.MFM_FDD, encoding.MFM_HDD):
 			self.annotate_bits_FM_MFM(special_clock)
 		else:
-			self.annotate_bits_RLL(special_clock)
+			self.annotate_bits_RLL(val, special_clock)
 
 		# Display annotation for this byte.
 		short_ann = '%02X' % val
