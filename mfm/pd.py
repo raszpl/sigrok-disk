@@ -860,7 +860,6 @@ class Decoder(srd.Decoder):
 	# OUT: self.byte_start, self.byte_end, self.fifo_rp, self.fifo_cnt updated
 	# ------------------------------------------------------------------------
 
-	
 	def annotate_bits(self, special_clock):
 		# Define (and initialize) function variables.
 		win_start = 0			# start of window (sample number)
@@ -872,10 +871,10 @@ class Decoder(srd.Decoder):
 		bitn = 7				# starting bit
 		offset = self.pll.shift_decoded_1 - self.pll.shift_index
 
-		# MFM requires 3 consecutive windows for error checking, have to fetch last bit of previous byte.
-		if self.encoding in (encoding.MFM_FDD, encoding.MFM_HDD):
-			_, _, win_val = self.pll.ring_read_offset(offset - 16)
-			shift3 = 1 if win_val else 0
+		# we need to initialize self.byte_start, lets use byte_end of last bit of previous byte.
+		_, self.byte_start, win_val = self.pll.ring_read_offset(offset - 16)
+		# MFM error checking requires 3 consecutive windows, fetch last bit of previous byte.
+		shift3 = 1 if win_val else 0
 
 		while bitn >= 0:
 			# Display annotation for first (clock) half-bit-cell window of a pair.
