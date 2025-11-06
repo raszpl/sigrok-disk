@@ -538,7 +538,6 @@ class Decoder(srd.Decoder):
 			self.shift = 0xfffff
 			self.shift_decoded = ''
 			self.shift_decoded_1 = 0
-			self.ring_ptr = 0
 			# reset Decoder pb_state instance variable directly
 			self.owner.pb_state = encoding_table[self.owner.encoding]['pb_state']
 
