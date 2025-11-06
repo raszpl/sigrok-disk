@@ -538,7 +538,6 @@ class Decoder(srd.Decoder):
 			self.unsync = False
 			self.sync_start = None
 			self.shift = 0xfffff
-			self.shift_byte = 0
 			self.shift_decoded = ''
 			self.shift_decoded_1 = 0
 			self.ring_ptr = 0
@@ -564,7 +563,6 @@ class Decoder(srd.Decoder):
 
 		def rll_decode(self):
 			RLL_TABLE = self.rll_table
-			self.shift_byte = 0
 
 			# FIXME: we need a way to only rewrite_sync_mark before fully syncing!
 			# SEAGATE?
@@ -615,7 +613,7 @@ class Decoder(srd.Decoder):
 			#print_("RLL decoded", decoded, i)
 			#self.shift_index -= i
 			print_('RLL_shift', bin(self.shift)[1:], decoded[:8], self.shift_index, self.shift_decoded_1, self.last_samplenum)
-			self.shift_byte = int(decoded[:8], 2) if isinstance(decoded, str) and all(c in '01' for c in decoded) else "Error: Invalid decoded string"
+			self.shift_byte = int(decoded[:8], 2)
 			self.shift_decoded = decoded[8:]
 			self.shift_decoded_1 += 16
 			return 16
