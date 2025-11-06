@@ -1057,7 +1057,7 @@ class Decoder(srd.Decoder):
 			# IDmark & 0b0001 = 9th bit
 			# (IDmark & 0b0010) ^ 0b0010 = 10th bit
 			# (IDmark & 0b1000) ^ 0b1000 = 11th bit
-			self.IDcyl = val | ((msb & 0b11) << 8) | ((msb & 0b1000) << 7)
+			self.IDcyl = val + ((msb & 0b11) << 8) + ((msb & 0b1000) << 7)
 		elif fld_code == 2:
 			self.IDsid = val & 0x0F
 			self.IDlenc = 512
