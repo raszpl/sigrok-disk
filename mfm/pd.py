@@ -791,7 +791,7 @@ class Decoder(srd.Decoder):
 						ann.clk:	' c',
 						ann.erw:	'',
 						ann.unk:	'',
-			}[target]
+					}[target]
 
 		if value > 1:
 			# no need to emit error message, it was already caught by out-of-tolerance leading edge (OoTI) detector
