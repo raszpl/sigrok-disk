@@ -1058,7 +1058,12 @@ class Decoder(srd.Decoder):
 			if self.IDmark == []:
 				raise raise_exception('decode_id_rec_3byte: Cant have empty IDmark here, most likely wrong Encoding selected')
 			msb = self.IDmark[0] ^ 0xFE
-			self.IDcyl = val | (msb << 8)
+			# val holds Cylinder Number Low
+			# IDmark encodes 3 bits of Cylinder Number High
+			# IDmark & 0b0001 = 9th bit
+			# (IDmark & 0b0010) ^ 0b0010 = 10th bit
+			# (IDmark & 0b1000) ^ 0b1000 = 11th bit
+			self.IDcyl = val | ((msb & 0b11) << 8) | ((msb & 0b1000) << 7)
 		elif fld_code == 2:
 			self.IDsid = val & 0x0F
 			self.IDlenc = 512
