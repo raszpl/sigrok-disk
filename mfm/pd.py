@@ -495,7 +495,6 @@ class Decoder(srd.Decoder):
 			self.unsync = False
 			self.sync_start = None
 			self.shift = 0xfffff
-			self.shift_win = 0xffff
 			self.shift_byte = 0
 			self.shift_decoded = ''
 			self.shift_decoded_1 = 0
@@ -511,6 +510,11 @@ class Decoder(srd.Decoder):
 			self.ring_we = array('l', [0 for _ in range(self.ring_size)])	# win_end
 			self.ring_wv = array('l', [0 for _ in range(self.ring_size)])	# value
 			self.rll_table = rll_table
+			
+			if self.owner.encoding in (encoding.FM, encoding.MFM_FDD, encoding.MFM_HDD):
+				self.decode = self.fm_mfm_decode
+			elif self.owner.encoding in (encoding.RLL_SEA, encoding.RLL_WD):
+				self.decode = self.rll_decode
 
 		def ring_write(self, win_start, win_end, value):
 			self.ring_ptr = (self.ring_ptr + 1) % self.ring_size
@@ -534,7 +538,6 @@ class Decoder(srd.Decoder):
 			self.unsync = False
 			self.sync_start = None
 			self.shift = 0xfffff
-			self.shift_win = 0xffff
 			self.shift_byte = 0
 			self.shift_decoded = ''
 			self.shift_decoded_1 = 0
@@ -546,7 +549,20 @@ class Decoder(srd.Decoder):
 		def read(self):
 			return self.last_samplenum, self.pulse_ticks
 
-		def rll(self):
+		def fm_mfm_decode(self):
+			self.shift_index -= 16
+			shift_win = (self.shift >> self.shift_index) & 0xffff
+			self.shift_byte = ((shift_win & 0b100000000000000) >> 7) \
+							| ((shift_win & 0b1000000000000) >> 6) \
+							| ((shift_win & 0b10000000000) >> 5) \
+							| ((shift_win & 0b100000000) >> 4) \
+							| ((shift_win & 0b1000000) >> 3) \
+							| ((shift_win & 0b10000) >> 2) \
+							| ((shift_win & 0b100) >> 1) \
+							| (shift_win & 1)
+			return 16
+
+		def rll_decode(self):
 			RLL_TABLE = self.rll_table
 			self.shift_byte = 0
 
@@ -564,12 +580,12 @@ class Decoder(srd.Decoder):
 				print_('RLL rewrite mark?3', bin(self.shift)[1:], bin(self.shift ^ (1 << 12))[1:])
 				self.shift = self.shift ^ (1 << 12)
 
-			self.shift_win = self.shift & (2 ** self.shift_index -1)
+			shift_win = self.shift & (2 ** self.shift_index -1)
 
-			#print_('RLL_1', bin(self.shift)[1:], self.shift_index, bin(self.shift_win)[2:].zfill(self.shift_index))
-			#self.shift_win = self.shift & 0x3ffff
-			binary_str = bin(self.shift_win)[2:].zfill(self.shift_index)
-			print_('RLL input', bin(self.shift_win)[1:], binary_str)
+			#print_('RLL_1', bin(self.shift)[1:], self.shift_index, bin(shift_win)[2:].zfill(self.shift_index))
+			#shift_win = self.shift & 0x3ffff
+			binary_str = bin(shift_win)[2:].zfill(self.shift_index)
+			print_('RLL input', bin(shift_win)[1:], binary_str)
 			binary_str_len = len(binary_str)
 			decoded = self.shift_decoded
 			i = 0
@@ -747,16 +763,7 @@ class Decoder(srd.Decoder):
 				self.shift_index += self.halfbit_cells
 				#print_('pll_shift1', bin(self.shift)[1:], self.shift_index, self.halfbit_cells, self.shift_index +self.halfbit_cells)
 				if self.shift_index >= 16:
-					if self.owner.encoding in (encoding.FM, encoding.MFM_FDD, encoding.MFM_HDD):
-						self.shift_index -= 16
-						self.shift_win = (self.shift >> self.shift_index) & 0xffff
-						self.shift_byte = 0
-						for i in range(8):
-							self.shift_byte |= ((self.shift_win >> 2 * i) & 1) << i
-						#print_('self.shift_byte', bin(self.shift_byte)[1:], hex(self.shift_byte))
-						ret = 16
-					elif self.owner.encoding in (encoding.RLL_SEA, encoding.RLL_WD):
-						ret = self.rll()
+					ret = self.decode()
 
 					if self.unsync:
 						self.byte_synced = False
