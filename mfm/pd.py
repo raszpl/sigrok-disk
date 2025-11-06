@@ -1094,22 +1094,6 @@ class Decoder(srd.Decoder):
 				self.IDlenv = 0
 
 	# ------------------------------------------------------------------------
-	# PURPOSE: Process one byte extracted from FM pulse stream.
-	# NOTES:
-	#  - Index/Address Mark prefixes are preceded by a 00h byte.
-	#  - When called with 0x1FC/0x1FE/0x1F8..0x1FB values, the FIFO must have
-	#	 exactly 33 entries in it, otherwise it must have exactly 17 entries.
-	#	 On exit the FIFO will have exactly 1 entry in it.
-	# IN: val  00h..FFh	 normal byte
-	#		   1FCh = 00h + FCh with D7h clock = Index Mark
-	#		   1FEh = 00h + FEh with C7h clock = ID Address Mark
-	#		   1FBh = 00h + FBh with C7h clock = normal Data Address Mark
-	#		   1F8h..1FAh = 00h + F8h..FAh with C7h clock = deleted Data Address Mark
-	# RETURNS: 0 = OK, get next byte
-	#		   -1 = resync (end of Index Mark, end of ID/Data Record, or error)
-	# ------------------------------------------------------------------------
-
-	# ------------------------------------------------------------------------
 	# PURPOSE: State machine to process one byte extracted from pulse stream.
 	# IN: val
 	# RETURNS: True  = OK, get next byte
