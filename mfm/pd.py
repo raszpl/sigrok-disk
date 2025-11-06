@@ -55,7 +55,7 @@ def print_(*args):
 # PURPOSE: Handle missing sample rate.
 # ----------------------------------------------------------------------------
 
-class SamplerateError(Exception):
+class raise_exception(Exception):
 	pass
 
 # ----------------------------------------------------------------------------
@@ -417,7 +417,7 @@ class Decoder(srd.Decoder):
 				if value not in self.options_valid[key]:
 					print("Error: '" + value + "' is not an allowed value for '" + key + "'.")
 					print('Allowed values are: {' + ', '.join(self.options_valid[key]) + '}.')
-					raise SamplerateError("Error: '" + value + "' is not an allowed value for '" + key + "'.")
+					raise raise_exception("Error: '" + value + "' is not an allowed value for '" + key + "'.")
 
 		# Initialize user options.
 		self.rising_edge = True if self.options['leading_edge'] == 'rising' else False
@@ -596,7 +596,7 @@ class Decoder(srd.Decoder):
 				if not matched:
 					if binary_str_len - i > 7:
 						print_("RLL catastrophic fail, resetting", self.shift_decoded_1, binary_str_len, i, decoded, RLL_TABLE, binary_str, pattern)
-						raise SamplerateError("RLL catastrophic fail, resetting")
+						raise raise_exception("RLL catastrophic fail, resetting")
 						self.reset_pll()
 						return 0
 					print_("RLL not matched", binary_str[i:], decoded, i)
@@ -821,7 +821,7 @@ class Decoder(srd.Decoder):
 		self.fifo_cnt -= 1
 		if self.fifo_cnt < 0:
 			self.fifo_cnt = 0
-			raise SamplerateError('FIFO below 0!!')
+			raise raise_exception('FIFO below 0!!')
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Increment FIFO write pointer and increment entry count.
@@ -832,7 +832,7 @@ class Decoder(srd.Decoder):
 		self.fifo_cnt += 1
 		if self.fifo_cnt > self.fifo_size:
 			self.fifo_cnt = self.fifo_size
-			raise SamplerateError('FIFO over 33!!')
+			raise raise_exception('FIFO over 33!!')
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Annotate single half-bit-cell window.
@@ -1056,7 +1056,7 @@ class Decoder(srd.Decoder):
 	def decode_id_rec_3byte(self, fld_code, val):
 		if fld_code == 3:
 			if self.IDmark == []:
-				raise SamplerateError('decode_id_rec_3byte: Cant have empty IDmark here, most likely wrong Encoding selected')
+				raise raise_exception('decode_id_rec_3byte: Cant have empty IDmark here, most likely wrong Encoding selected')
 			msb = self.IDmark[0] ^ 0xFE
 			self.IDcyl = val | (msb << 8)
 		elif fld_code == 2:
@@ -1486,7 +1486,7 @@ class Decoder(srd.Decoder):
 	def decode_PLL(self):
 		# --- Verify that a sample rate was specified.
 		if not self.samplerate:
-			raise SamplerateError('Cannot decode without samplerate.')
+			raise raise_exception('Cannot decode without samplerate.')
 
 		# Calculate maximum number of samples allowed between ID and Data Address Marks.
 		# Cant put it in start() or metadata() becaue we cant be sure of order those
@@ -1535,10 +1535,10 @@ class Decoder(srd.Decoder):
 
 		def interval_time_func(interval):
 			return str(round(interval * interval_multi)) + interval_unit
-		
+
 		def interval_window_func(interval):
 			return str(round(interval / window_size))
-		
+
 		interval_func = {
 			'ns':		interval_time_func,
 			'us':		interval_time_func,
@@ -1916,7 +1916,7 @@ class Decoder(srd.Decoder):
 		# --- Verify that a sample rate was specified.
 
 		if not self.samplerate:
-			raise SamplerateError('Cannot decode without samplerate.')
+			raise raise_exception('Cannot decode without samplerate.')
 
 		# Calculate maximum number of samples allowed between ID and Data Address Marks.
 		# Cant put it in start() or metadata() becaue we cant be sure of order those
