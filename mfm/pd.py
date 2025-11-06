@@ -504,7 +504,6 @@ class Decoder(srd.Decoder):
 			self.last_last_samplenum = 0
 
 			self.ring_ptr = 0
-			self.ring_cnt = 0
 			self.ring_size = 255											# in halfbit windows
 			self.ring_ws = array('l', [0 for _ in range(self.ring_size)])	# win_start
 			self.ring_we = array('l', [0 for _ in range(self.ring_size)])	# win_end
@@ -518,7 +517,6 @@ class Decoder(srd.Decoder):
 
 		def ring_write(self, win_start, win_end, value):
 			self.ring_ptr = (self.ring_ptr + 1) % self.ring_size
-			self.ring_cnt = min(self.ring_cnt + 1, self.ring_size)
 			self.ring_ws[self.ring_ptr] = win_start
 			self.ring_we[self.ring_ptr] = win_end
 			self.ring_wv[self.ring_ptr] = value
@@ -541,7 +539,6 @@ class Decoder(srd.Decoder):
 			self.shift_decoded = ''
 			self.shift_decoded_1 = 0
 			self.ring_ptr = 0
-			self.ring_cnt = 0
 			# reset Decoder pb_state instance variable directly
 			self.owner.pb_state = encoding_table[self.owner.encoding]['pb_state']
 
