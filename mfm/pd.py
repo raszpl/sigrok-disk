@@ -1119,13 +1119,13 @@ class Decoder(srd.Decoder):
 			elif val == 0x1E:
 				# we only set IDmark as a signal, will be removed on next byte
 				self.IDmark = [0x1E]
-				self.annotate_byte(0x1E)
+				self.annotate_byte(0x1E, special_clock = True)
 				self.display_field(field.Sync)
 			# RLL_SEA data
 			elif val == 0xDE:
 				# we only set DRmark as a signal, will be removed on next byte
 				self.DRmark = [0xDE]
-				self.annotate_byte(0xDE)
+				self.annotate_byte(0xDE, special_clock = True)
 				self.display_field(field.Sync)
 			# MFM_FDD Index Mark
 			elif val == 0xC2:
