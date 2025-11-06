@@ -503,6 +503,7 @@ class Decoder(srd.Decoder):
 			self.last_samplenum = 0
 			self.last_last_samplenum = 0
 
+			# ring buffer for storing info on individual halfbit windows, used by annotate_bits()
 			self.ring_ptr = 0
 			self.ring_size = 255											# in halfbit windows
 			self.ring_ws = array('l', [0 for _ in range(self.ring_size)])	# win_start
