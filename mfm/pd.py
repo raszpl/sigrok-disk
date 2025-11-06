@@ -66,8 +66,8 @@ class Decoder(srd.Decoder):
 	api_version = 3
 	id = 'mfm'
 	name = 'MFM'
-	longname = 'FM/MFM decoding'
-	desc = 'Decode floppy and hard disk FM or MFM pulse stream.'
+	longname = 'FM/MFM/RLL decoding'
+	desc = 'Decode floppy and hard disk FM, MFM or RLL pulse stream.'
 	license = 'gplv3+'
 	inputs = ['logic']
 	outputs = []
@@ -120,7 +120,7 @@ class Decoder(srd.Decoder):
 			'default': '5000000', 'values': ('125000', '150000',
 			'250000', '300000', '500000', '5000000', '7500000', '10000000')},
 		{'id': 'encoding', 'desc': 'Encoding',
-			'default': 'MFM_HD', 'values': ('FM', 'MFM', 'MFM_FD', 'MFM_HD', 'RLL_SEA', 'RLL_WD')},
+			'default': 'MFM_HDD', 'values': ('FM', , 'MFM_FDD', 'MFM_HDD', 'RLL_SEA', 'RLL_WD')},
 		{'id': 'sect_len', 'desc': 'Sector length',
 			'default': '512', 'values': ('128', '256', '512', '1024')},
 		{'id': 'header_bytes', 'desc': 'Header bytes',
@@ -299,12 +299,11 @@ class Decoder(srd.Decoder):
 	}
 	class encoding(Enum):
 		FM		= 0
-		MFM		= 1
-		MFM_FD	= 2
-		MFM_HD	= 3
-		RLL		= 4
-		RLL_SEA	= 5
-		RLL_WD	= 6
+		MFM_FD	= 1
+		MFM_HD	= 2
+		RLL		= 3
+		RLL_SEA	= 4
+		RLL_WD	= 5
 
 	encoding_table = {
 		encoding.FM: {		# (0,1) RLL
@@ -312,12 +311,6 @@ class Decoder(srd.Decoder):
 			"cells_allowed": (1, 2),
 			"sync_pattern": 2,
 			"pb_state": state.IDData_Address_Mark,
-		},
-		encoding.MFM: {		# (1,3) RLL
-			"table": FM_R,
-			"cells_allowed": (2, 3, 4),
-			"sync_pattern": 2,
-			"pb_state": state.sync_mark,
 		},
 		encoding.MFM_FD: {	# (1,3) RLL
 			"table": FM_R,
@@ -1117,20 +1110,10 @@ class Decoder(srd.Decoder):
 	# ------------------------------------------------------------------------
 
 	# ------------------------------------------------------------------------
-	# PURPOSE: Process one byte extracted from MFM pulse stream.
-	# NOTES:
-	#  - Index/Address Mark prefixes are preceded by a 00h byte.
-	#  - When called with 0x1C2/0x1A1 values, the FIFO must have exactly 33
-	#	 entries in it, otherwise it must have exactly 17 entries.	On exit the
-	#	 FIFO will have exactly 1 entry in it, unless there is an error, in which
-	#	 case it will still have 17 entries.
-	# IN: val  00h..FFh	 normal byte
-	#		   1C2h	 00h + first mC2h prefix byte (no clock between bits 3/4)
-	#		   2C2h	 subsequent mC2h prefix byte (no clock between bits 3/4)
-	#		   1A1h	 00h + first mA1h prefix byte (no clock between bits 4/5)
-	#		   2A1h	 subsequent mA1h prefix byte (no clock between bits 4/5)
-	# RETURNS: 0 = OK, get next byte
-	#		   -1 = resync (end of Index Mark, end of ID/Data Record, or error)
+	# PURPOSE: State machine to process one byte extracted from pulse stream.
+	# IN: val
+	# RETURNS: True  = OK, get next byte
+	#		   False = start of Gap or error, resync
 	# ------------------------------------------------------------------------
 
 	def process_byte(self, val):
