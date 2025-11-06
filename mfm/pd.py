@@ -602,8 +602,8 @@ class Decoder(srd.Decoder):
 							break
 				if not matched:
 					if binary_str_len - i > 7:
-						print_("RLL catastrophic fail, resetting", self.shift_decoded_1, binary_str_len, i, decoded, RLL_TABLE, binary_str, pattern)
-						raise raise_exception("RLL catastrophic fail, resetting")
+						print_("rll_decode catastrophic fail, resetting", self.shift_decoded_1, binary_str_len, i, decoded, RLL_TABLE, binary_str, pattern)
+						raise raise_exception("rll_decode catastrophic fail, resetting")
 						self.reset_pll()
 						return 0
 					print_("RLL not matched", binary_str[i:], decoded, i)
