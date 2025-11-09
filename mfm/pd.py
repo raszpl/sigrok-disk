@@ -291,35 +291,51 @@ class Decoder(srd.Decoder):
 		RLL_SEA	= 3
 		RLL_WD	= 4
 
+	# encoding_table holds data allowing reusing same code with different encodings/formats
+	# cells_allowed: anything outside resets PLL
+	# sync_pattern: anything other halts PLLstate.locking phase
+	# sync_mark: used by PLLstate.scanning_sync_mark
+	# shift_index: every sync_mark entry has its own offset defining number of valid halfbit windows already shifted in
+	# pb_state: starting process_byte() state machine state
 	encoding_table = {
 		encoding.FM: {		# (0,1) RLL
 			"table": FM_R,
 			"cells_allowed": (1, 2),
 			"sync_pattern": 2,
+			"sync_mark": [[1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 2], [1, 1, 1, 2, 2, 2, 1, 2, 1, 1, 1], [1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 2]],
+			"shift_index": [15, 15, 15],
 			"pb_state": state.IDData_Address_Mark,
 		},
 		encoding.MFM_FDD: {	# (1,3) RLL
 			"table": FM_R,
 			"cells_allowed": (2, 3, 4),
 			"sync_pattern": 2,
+			"sync_mark": [[3, 4, 3, 4, 3], [3, 2, 3, 4, 3, 4]],
+			"shift_index": [13, 14],
 			"pb_state": state.sync_mark,
 		},
 		encoding.MFM_HDD: {	# (1,3) RLL
 			"table": FM_R,
 			"cells_allowed": (2, 3, 4),
 			"sync_pattern": 2,
+			"sync_mark": [[3, 4, 3, 4, 3], [3, 2, 3, 4, 3, 4]],
+			"shift_index": [13, 14],
 			"pb_state": state.sync_mark,
 		},
 		encoding.RLL_SEA: {	# (2,7) RLL
 			"table": RLL_IBM_R,
 			"cells_allowed": (3, 4, 5, 6, 7, 8),
 			"sync_pattern": 3,
+			"sync_mark": [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4]],
+			"shift_index": [18, 18],
 			"pb_state": state.sync_mark,
 		},
 		encoding.RLL_WD: {	# (2,7) RLL
 			"table": RLL_WD_R,
 			"cells_allowed": (3, 4, 5, 6, 7, 8),
 			"sync_pattern": 3,
+			"sync_mark": [[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]],
+			"shift_index": [12, 12, 12],
 			"pb_state": state.sync_mark,
 		}
 	}
