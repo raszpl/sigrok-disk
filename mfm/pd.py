@@ -724,11 +724,11 @@ class Decoder(srd.Decoder):
 			x = last_samplenum + 0.5 * self.halfbit
 			y = last_samplenum + 1.5 * self.halfbit
 			for _ in range (0, self.halfbit_cells-1):
-				self.ring_write(int(round(x)), int(round(y)), 0)
+				self.ring_write(int(round(x)), int(round(y)), False)
 				x += self.halfbit
 				y += self.halfbit
 			y = edge_samplenum + 0.5 * self.halfbit
-			self.ring_write(int(round(x)), int(round(y)), 1)
+			self.ring_write(int(round(x)), int(round(y)), True)
 
 			if not self.locked:
 				return 0
