@@ -150,6 +150,10 @@ class Decoder(srd.Decoder):
 			'default': '9'},
 		{'id': 'decoder', 'desc': 'Decoder',
 			'default': 'PLL', 'values': ('PLL', 'legacy')},
+		{'id': 'pll_kp', 'desc': 'PLL PI Filter Kp (proportinal)',
+			'default': '0.5'},
+		{'id': 'pll_ki', 'desc': 'PLL PI Filter Ki (integral)',
+			'default': '0.0005'},
 		{'id': 'sync_tolerance', 'desc': 'PLL: Initial tolerance when catching synchronization sequence',
 			'default': '20%', 'values': ('10%', '15%', '20%', '25%', '30%')},
 		{'id': 'dsply_pfx', 'desc': 'Legacy decoder: Display all MFM prefix bytes.',
@@ -414,9 +418,6 @@ class Decoder(srd.Decoder):
 		if self.options['data_crc_poly_custom']:
 			self.data_crc_poly = int(self.options['data_crc_poly_custom'], 0) & ((1 << int(self.options['data_crc_bits'])) -1)
 		self.time_unit = self.options['time_unit']
-		self.sync_tolerance = int(self.options['sync_tolerance'][:-1]) * 0.01
-
-		self.dsply_pfx = True if self.options['dsply_pfx'] == 'yes' else False
 		self.show_sample_num = True if self.options['dsply_sn'] == 'yes' else False
 
 		self.report = {
@@ -431,6 +432,10 @@ class Decoder(srd.Decoder):
 		self.reports_called = 0
 
 		self.decoder_legacy = True if self.options['decoder'] == 'legacy' else False
+		self.pll_kp = float(self.options['pll_kp'])
+		self.pll_ki = float(self.options['pll_ki'])
+		self.sync_tolerance = int(self.options['sync_tolerance'][:-1]) * 0.01
+		self.dsply_pfx = True if self.options['dsply_pfx'] == 'yes' else False
 
 		# precompute crc constants
 		self.header_crc_bytes = self.header_crc_bits // 8
@@ -1340,7 +1345,7 @@ class Decoder(srd.Decoder):
 
 		#print_(window_size, bc10N)
 		#print(11111111111, encoding_table[self.encoding]['table'])
-		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, sync_tolerance = self.sync_tolerance, cells_allowed=cells_allowed, sync_pattern=sync_pattern, rll_table=rll_table)
+		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, kp=self.pll_kp, ki=self.pll_ki, sync_pattern=sync_pattern, sync_tolerance = self.sync_tolerance, cells_allowed=cells_allowed, rll_table=rll_table)
 
 		# all this pain below to support dynamic Interval/window annotation
 		interval_multi = {
