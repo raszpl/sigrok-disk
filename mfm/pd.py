@@ -288,9 +288,8 @@ class Decoder(srd.Decoder):
 		FM		= 0
 		MFM_FDD	= 1
 		MFM_HDD	= 2
-		RLL		= 3
-		RLL_SEA	= 4
-		RLL_WD	= 5
+		RLL_SEA	= 3
+		RLL_WD	= 4
 
 	encoding_table = {
 		encoding.FM: {		# (0,1) RLL
