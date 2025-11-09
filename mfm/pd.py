@@ -848,16 +848,14 @@ class Decoder(srd.Decoder):
 		bitn = 7				# starting bit
 		offset = self.pll.shift_decoded_1 - self.pll.shift_index
 
-		# we need to initialize self.byte_start, lets use byte_end of last bit of previous byte.
-		_, self.byte_start, win_val = self.pll.ring_read_offset(offset - 16)
-		# MFM error checking requires 3 consecutive windows, use last bit of previous byte.
-		shift3 = 1 if win_val else 0
+		# MFM error checking requires 3 consecutive windows, initialize shift3 with last bit of
+		# previous byte. Initialize self.byte_start with byte_end of last bit of previous byte.
+		_, self.byte_start, shift3 = self.pll.ring_read_offset(offset - 16)
 
 		while bitn >= 0:
 			# Display annotation for first (clock) half-bit-cell window of a pair.
 			win_start, win_end, win_val = self.pll.ring_read_offset(offset - bitn * 2 - 1)
 			bit_start = win_start
-			win_val = 1 if win_val else 0
 
 			shift3 = (shift3 << 1) + win_val
 
@@ -866,7 +864,6 @@ class Decoder(srd.Decoder):
 
 			# Display annotation for second (data) half-bit-cell window of a pair.
 			win_start, win_end, win_val = self.pll.ring_read_offset(offset - bitn * 2)
-			win_val = 1 if win_val else 0
 
 			shift3 = (shift3 << 1) + win_val
 
