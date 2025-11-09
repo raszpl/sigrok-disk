@@ -1412,14 +1412,7 @@ class Decoder(srd.Decoder):
 				else:
 					self.put(last_samplenum, self.samplenum, self.out_ann,	[ann.erp, ['%s out-of-tolerance leading edge' % interval_annotation, '%s OoTI' % interval_annotation, 'OoTI']])
 
-			if not pll_ret:
-				continue
-			elif pll_ret < 16:
-				#print_('pll_ret', pll_ret, self.samplenum)
-				#self.annotate_window(ann.unk, win_start, win_end, win_val)
-				pass
-			elif pll_ret >= 16:
-				#print_('data_byte', hex(self.pll.shift_byte), self.pb_state)
+			if pll_ret >= 16:
 				byte_sync = self.process_byte(self.pll.shift_byte)
 				print_('data_byte', hex(self.pll.shift_byte), self.pb_state, byte_sync)
 
