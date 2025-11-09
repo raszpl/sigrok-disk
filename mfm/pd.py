@@ -721,13 +721,14 @@ class Decoder(srd.Decoder):
 				self.halfbit = self.halfbit_nom15
 
 			#print_('byyyte', pulse_ticks, self.halfbit_cells, self.halfbit, self.last_samplenum, edge_samplenum)
-			x = last_samplenum + 0.5 * self.halfbit
-			y = last_samplenum + 1.5 * self.halfbit
+			halfbit = (edge_samplenum - last_samplenum) / self.halfbit_cells
+			_, x, _ = self.ring_read_offset(0)
+			y = last_samplenum + 1.5 * halfbit
 			for _ in range (0, self.halfbit_cells-1):
 				self.ring_write(int(round(x)), int(round(y)), False)
-				x += self.halfbit
-				y += self.halfbit
-			y = edge_samplenum + 0.5 * self.halfbit
+				x = y
+				y += halfbit
+			y = edge_samplenum + 0.5 * halfbit
 			self.ring_write(int(round(x)), int(round(y)), True)
 
 			if not self.locked:
