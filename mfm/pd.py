@@ -120,7 +120,7 @@ class Decoder(srd.Decoder):
 			'default': '5000000', 'values': ('125000', '150000',
 			'250000', '300000', '500000', '5000000', '7500000', '10000000')},
 		{'id': 'encoding', 'desc': 'Encoding',
-			'default': 'MFM_HDD', 'values': ('FM', 'MFM_FDD', 'MFM_HDD', 'RLL_SEA', 'RLL_WD')},
+			'default': 'MFM_HDD', 'values': ('FM', 'MFM_FDD', 'MFM_HDD', 'RLL_SEA', 'RLL_Adaptec', 'RLL_WD')},
 		{'id': 'sect_len', 'desc': 'Sector length',
 			'default': '512', 'values': ('128', '256', '512', '1024')},
 		{'id': 'header_bytes', 'desc': 'Header bytes',
@@ -289,11 +289,12 @@ class Decoder(srd.Decoder):
 		'00001000': '0011'
 	}
 	class encoding(Enum):
-		FM		= 0
-		MFM_FDD	= 1
-		MFM_HDD	= 2
-		RLL_SEA	= 3
-		RLL_WD	= 4
+		FM			= 0
+		MFM_FDD		= 1
+		MFM_HDD		= 2
+		RLL_SEA		= 3
+		RLL_Adaptec = 4
+		RLL_WD		= 5
 
 	# encoding_table holds data allowing reusing same code with different encodings/formats
 	# cells_allowed: anything outside resets PLL
@@ -334,6 +335,17 @@ class Decoder(srd.Decoder):
 			'shift_index': [18, 18],
 			'ID_prefix_mark': [0x1E],
 			'Data_prefix_mark': [0xDE],
+			'pb_state': state.sync_mark,
+		},
+		encoding.RLL_Adaptec: {	# (2,7) RLL Adaptec ACB-237x
+			'table': RLL_IBM_R,
+			'cells_allowed': (3, 4, 5, 6, 7, 8),
+			'sync_pattern': 3,
+			'sync_marks': [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4], [8, 3, 4]],
+			'shift_index': [18, 18, 18],
+			'IDsync_mark': [0xA1],
+			'IDData_mark': [0xA0],
+			'nop_mark': [0x1E, 0x5E, 0xDE],
 			'pb_state': state.sync_mark,
 		},
 		encoding.RLL_WD: {	# (2,7) RLL
