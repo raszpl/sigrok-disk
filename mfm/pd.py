@@ -1115,35 +1115,46 @@ class Decoder(srd.Decoder):
 
 	def process_byte(self, val):
 		if self.pb_state == state.sync_mark:
-			if val in (0xA1, 0xF0):
+			if encoding_table[self.encoding].get('IDsync_mark') and val in encoding_table[self.encoding]['IDsync_mark']:
+				self.A1 = [0xA1]
+				self.annotate_byte(val, special_clock = True)
+				self.display_field(field.Sync)
+				self.display_field(field.ID_Address_Mark)
+				self.IDcrc = 0
+				self.byte_cnt = self.header_bytes
+				self.pb_state = state.ID_Record
+			elif encoding_table[self.encoding].get('IDData_mark') and val in  encoding_table[self.encoding]['IDData_mark']:
 				self.A1 = [0xA1]
 				self.annotate_byte(val, special_clock = True)
 				self.display_field(field.Sync)
 				self.pb_state = state.IDData_Address_Mark
-				if self.encoding == encoding.RLL_SEA:
-					if self.IDmark:
-						self.IDmark = []
-						self.display_field(field.ID_Address_Mark)
-						self.IDcrc = 0
-						self.byte_cnt = self.header_bytes
-						self.pb_state = state.ID_Record
-					elif self.DRmark:
-						self.DRmark = []
-						self.pb_state = state.IDData_Address_Mark
+			elif encoding_table[self.encoding].get('ID_prefix_mark') and val in encoding_table[self.encoding]['ID_prefix_mark']:
+				self.IDmark = [val]
+				self.annotate_byte(val, special_clock = True)
+				self.display_field(field.Sync)
+			elif encoding_table[self.encoding].get('Data_prefix_mark') and val in encoding_table[self.encoding]['Data_prefix_mark']:
+				self.DRmark = [val]
+				self.annotate_byte(val, special_clock = True)
+				self.display_field(field.Sync)
+			elif encoding_table[self.encoding].get('nop_mark') and val in  encoding_table[self.encoding]['nop_mark']:
+				self.annotate_byte(val, special_clock = True)
+				self.display_field(field.Sync)
+			elif val ==0xA1:
+				self.A1 = [0xA1]
+				self.annotate_byte(val, special_clock = True)
+				self.display_field(field.Sync)
+				self.pb_state = state.IDData_Address_Mark
+				if self.IDmark:
+					self.IDmark = []
+					self.display_field(field.ID_Address_Mark)
+					self.IDcrc = 0
+					self.byte_cnt = self.header_bytes
+					self.pb_state = state.ID_Record
+				elif self.DRmark:
+					self.DRmark = []
+					self.pb_state = state.IDData_Address_Mark
 				elif self.encoding == encoding.MFM_FDD:
 					self.pb_state = state.second_A1h_prefix
-			# RLL_SEA header
-			elif val == 0x1E:
-				# we only set IDmark as a signal, will be removed on next byte
-				self.IDmark = [0x1E]
-				self.annotate_byte(0x1E, special_clock = True)
-				self.display_field(field.Sync)
-			# RLL_SEA data
-			elif val == 0xDE:
-				# we only set DRmark as a signal, will be removed on next byte
-				self.DRmark = [0xDE]
-				self.annotate_byte(0xDE, special_clock = True)
-				self.display_field(field.Sync)
 			# MFM_FDD Index Mark
 			elif val == 0xC2:
 				self.annotate_byte(0xC2, special_clock = True)
