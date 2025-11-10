@@ -462,6 +462,12 @@ class Decoder(srd.Decoder):
 	# ------------------------------------------------------------------------
 
 	class SimplePLL:
+		global PLLstate
+		class PLLstate(Enum):
+			locking				= 0
+			scanning_sync_mark	= 1
+			decoding			= 2
+
 		def __init__(self, owner, halfbit_ticks=10.0, kp=0.5, ki=0.0005, sync_pattern=2, lock_threshold=32, sync_tolerance=0.25, cells_allowed=(2, 3, 4), rll_table={}):
 			self.owner = owner
 			self.halfbit_nom = halfbit_ticks
@@ -486,6 +492,7 @@ class Decoder(srd.Decoder):
 			self.sync_lock_count = 0
 			self.locked = False
 			self.byte_synced = False
+			self.sync_mark_tries = []
 			self.unsync_after_decode = False
 			self.sync_start = None
 			self.shift = 0xfffff
@@ -509,6 +516,8 @@ class Decoder(srd.Decoder):
 			elif self.owner.encoding in (encoding.RLL_SEA, encoding.RLL_WD):
 				self.decode = self.rll_decode
 
+			self.state = PLLstate.locking
+
 		def ring_write(self, win_start, win_end, value):
 			self.ring_ptr = (self.ring_ptr + 1) % self.ring_size
 			self.ring_ws[self.ring_ptr] = win_start
@@ -525,9 +534,11 @@ class Decoder(srd.Decoder):
 			self.halfbit = self.halfbit_nom
 			self.integrator = 0.0
 
+			self.state = PLLstate.locking
 			self.sync_lock_count = 0
 			self.locked = False
 			self.byte_synced = False
+			self.sync_mark_tries = []
 			self.unsync_after_decode = False
 			self.sync_start = None
 			self.shift = 0xfffff
@@ -554,21 +565,6 @@ class Decoder(srd.Decoder):
 
 		def rll_decode(self):
 			RLL_TABLE = self.rll_table
-
-			# FIXME: we need a way to only rewrite_sync_mark before fully syncing!
-			# SEAGATE?
-			if self.shift & 0xFFF == 0b100000001001:
-				print_('RLL rewrite mark?1', bin(self.shift)[1:], bin(self.shift ^ (1 << 7))[1:])
-				self.shift = self.shift ^ (1 << 7)
-			# ?
-			elif self.shift & 0xFFFF == 0b1000000010010001:
-				print_('RLL rewrite mark?2', bin(self.shift)[1:], bin(self.shift ^ (1 << 11))[1:])
-				self.shift = self.shift ^ (1 << 11)
-			# WD?
-			if self.shift & 0xFFFF == 0b0000000100100001:
-				print_('RLL rewrite mark?3', bin(self.shift)[1:], bin(self.shift ^ (1 << 12))[1:])
-				self.shift = self.shift ^ (1 << 12)
-
 			shift_win = self.shift & (2 ** self.shift_index -1)
 
 			#print_('RLL_1', bin(self.shift)[1:], self.shift_index, bin(shift_win)[2:].zfill(self.shift_index))
@@ -608,7 +604,10 @@ class Decoder(srd.Decoder):
 
 		def edge(self, edge_samplenum):
 			# edge_samplenum: sample index of rising edge (flux transition)
-			# pulse_ticks: distance from previous edge (samples)
+			# State Machine with 3 stages:
+			# - PLLstate.locking looks for sync_lock_threshold number of sync_pattern pulses
+			# - PLLstate.scanning_sync_mark keeps scanning for either sync_pattern or encoding_table[self.owner.encoding]['sync_mark'], anything else resets PLL.
+			# - PLLstate.decoding
 
 			#print_('pll edge', edge_samplenum, pulse_ticks, self.locked, f'{abs(pulse_ticks - 2.0 * self.halfbit):.4f}', f'{self.halfbit:.4f}')
 			#'%02X' % val
@@ -616,6 +615,7 @@ class Decoder(srd.Decoder):
 			last_samplenum = self.last_last_samplenum
 			self.last_samplenum = last_samplenum
 			self.last_last_samplenum = edge_samplenum
+			# pulse_ticks: distance from previous edge (samples)
 			pulse_ticks = edge_samplenum - last_samplenum
 			self.pulse_ticks = pulse_ticks
 
@@ -623,7 +623,7 @@ class Decoder(srd.Decoder):
 			self.halfbit_cells = round(pulse_ticks / self.halfbit)
 
 			# Sync pattern detection using pulse width
-			if not self.locked:
+			if self.state == PLLstate.locking:
 				#print_('self.locked__', abs(pulse_ticks - self.halfbit * self.sync_pattern), abs(pulse_ticks - self.halfbit * self.sync_pattern) <= self.sync_tolerance, self.last_samplenum)
 				#print_('self.locked___', pulse_ticks * (1000000000 / self.owner.samplerate), self.halfbit * self.sync_pattern * (1000000000 / self.owner.samplerate), self.halfbit, '=', self.halfbit * (1000000000 / self.owner.samplerate), self.halfbit_cells)
 				if abs(pulse_ticks - self.halfbit * self.sync_pattern) <= self.sync_tolerance:
@@ -635,12 +635,11 @@ class Decoder(srd.Decoder):
 						self.sync_start = edge_samplenum - pulse_ticks - round(self.halfbit * 0.5)
 						self.phase_ref = edge_samplenum
 						#print_('sync_start', edge_samplenum - pulse_ticks - round(self.halfbit * 0.5), edge_samplenum, pulse_ticks, round(self.halfbit * 0.5), self.last_samplenum)
-						return 0
 					elif self.sync_lock_count >= self.sync_lock_threshold:
 						# seen enough clock pulses, PLL locked in
-						self.locked = True
+						self.state = PLLstate.scanning_sync_mark
 						print_('pll locked', self.sync_start, self.last_samplenum)
-						self.sync_lock_count -= 1 # it will be incremented again lower down
+						#self.sync_lock_count -= 1 # it will be incremented again lower down
 				elif self.sync_lock_count:
 					#print_('pll sync pattern interrupted -> reset')
 					self.reset_pll()
@@ -648,55 +647,22 @@ class Decoder(srd.Decoder):
 				else:
 					return 0
 
-			# self.locked here
-			else:
-				# check pulse constraints
-				if self.halfbit_cells < self.cells_allowed_min:
-					print_("pll pulse out-of-tolerance, too short", pulse_ticks, self.halfbit_cells, edge_samplenum)
+			# check pulse constraints
+			if self.halfbit_cells < self.cells_allowed_min:
+				print_("pll pulse out-of-tolerance, too short", pulse_ticks, self.halfbit_cells, edge_samplenum)
+				self.reset_pll()
+				return 0
+			elif self.halfbit_cells > self.cells_allowed_max:
+				print_("pll pulse out-of-tolerance, too long", pulse_ticks, self.halfbit_cells, edge_samplenum)
+				#print_(self.halfbit_cells, self.cells_allowed_max, pulse_ticks, self.halfbit, pulse_ticks / self.halfbit)
+				# now handle special case of pulse too long but covering end of last good byte
+				if self.byte_synced and self.shift_index + self.halfbit_cells >= 16:
+					# little rube goldberg here, unsync will set byte_synced to False to immediatelly trigger pll.reset_pll() in decode_PLL()
+					self.unsync_after_decode = True
+				else:
+					print_("pll pulse out-of-tolerance, not in cells_allowed")
 					self.reset_pll()
 					return 0
-				elif self.halfbit_cells > self.cells_allowed_max:
-					print_("pll pulse out-of-tolerance, too long", pulse_ticks, self.halfbit_cells, edge_samplenum)
-					#print_(self.halfbit_cells, self.cells_allowed_max, pulse_ticks, self.halfbit, pulse_ticks / self.halfbit)
-					# now handle special case of pulse too long but covering end of last good byte
-					if self.byte_synced and self.shift_index + self.halfbit_cells >= 16:
-						# little rube goldberg here, unsync will set byte_synced to False to immediatelly trigger pll.reset_pll() in decode_PLL()
-						self.unsync_after_decode = True
-					else:
-						print_("pll pulse out-of-tolerance, not in cells_allowed")
-						self.reset_pll()
-						return 0
-
-				# now check sync mark
-				elif not self.byte_synced:
-					if self.owner.encoding == encoding.FM and self.halfbit_cells == 1:
-						print_("byte_synced", self.halfbit_cells, self.last_samplenum)
-						self.byte_synced = True
-						self.shift_index = 1
-
-					elif self.owner.encoding in (encoding.MFM_FDD, encoding.MFM_HDD) and self.halfbit_cells == 3:
-						print_("byte_synced", self.halfbit_cells, self.last_samplenum, edge_samplenum)
-						self.byte_synced = True
-						self.shift_index = -1
-						self.sync_lock_count += 1
-
-					elif self.owner.encoding == encoding.RLL_SEA and self.halfbit_cells == 5:
-						print_("byte_synced", self.halfbit_cells, self.last_samplenum)
-						self.byte_synced = True
-						self.shift_index = -4
-					elif self.owner.encoding == encoding.RLL_SEA and self.halfbit_cells == 4:
-						print_("byte_synced", self.halfbit_cells, self.last_samplenum)
-						self.byte_synced = True
-						self.shift_index = 0
-
-					elif self.owner.encoding == encoding.RLL_WD and self.halfbit_cells == 8:
-						print_("byte_synced", self.halfbit_cells, self.last_samplenum)
-						self.byte_synced = True
-						self.shift_index = 1
-
-					else:
-						self.sync_lock_count += 1
-						#print_('self.sync_lock_count', self.sync_lock_count, self.last_samplenum)
 
 			# expected clock position for this transition
 			nearest_clock = self.phase_ref + self.halfbit_cells * self.halfbit
@@ -736,16 +702,45 @@ class Decoder(srd.Decoder):
 			y = edge_samplenum + 0.5 * halfbit
 			self.ring_write(int(round(x)), int(round(y)), True)
 
-			if not self.locked:
-				return 0
-
 			self.shift = ((self.shift << self.halfbit_cells) + 1) & 0xffffffffff
 			#print_('pll_shift', bin(self.shift)[1:], self.halfbit_cells, self.last_samplenum)
 
-			if not self.byte_synced:
-				# at this point we have a good pulse spanning cells_allowed (2, 3 or 4 in MFM) halfbit_cells
-				return self.halfbit_cells
-			else:
+			if self.state == PLLstate.scanning_sync_mark:
+				# just another sync pulse
+				if not self.sync_mark_tries and self.halfbit_cells == self.sync_pattern:
+						self.sync_lock_count += 1
+
+				# scan for start of sync mark
+				else:
+					#print_('scanning_sync_mark', self.sync_mark_tries, self.last_samplenum)
+					pulse_match = 0
+					table = encoding_table[self.owner.encoding]
+					for sequence_number in range (0, len(table['sync_mark'])):
+						#print_('scanning_sync_mark_', sequence_number, self.sync_mark_tries)
+						if self.sync_mark_tries + [self.halfbit_cells] == table['sync_mark'][sequence_number][:len(self.sync_mark_tries)+1]:
+							pulse_match = sequence_number+1
+							self.sync_mark_tries += [self.halfbit_cells]
+							if self.sync_mark_tries == table['sync_mark'][sequence_number]:
+								self.state = PLLstate.decoding
+								self.byte_synced = True
+								self.shift_index = table['shift_index'][sequence_number]
+								#print_('pll byte_synced', self.last_samplenum)
+							break
+	
+					if not pulse_match:
+						self.reset_pll()
+						return 0
+
+					# RLL rewrite mark, this illegal sequence should only ever show up in RLL marks
+					# We rewrite it so rll_decode() doesnt choke on it.
+					if self.shift & 0xFFF == 0b100000001001:
+						#print_('RLL rewrite mark?1', bin(self.shift)[1:], bin(self.shift ^ (1 << 7))[1:])
+						self.shift = self.shift ^ (1 << 7)
+
+					if not self.byte_synced:
+						return 0
+
+			if self.state == PLLstate.decoding:
 				# accumulate at least 16 bits, only return 16 bits at a time.
 				self.shift_index += self.halfbit_cells
 				#print_('pll_shift1', bin(self.shift)[1:], self.shift_index, self.halfbit_cells, self.shift_index +self.halfbit_cells)
@@ -753,7 +748,7 @@ class Decoder(srd.Decoder):
 					ret = self.decode()
 
 					if self.unsync_after_decode:
-						self.byte_synced = False
+						self.reset_pll()
 					return ret
 			return 0
 
