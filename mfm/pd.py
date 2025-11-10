@@ -490,7 +490,6 @@ class Decoder(srd.Decoder):
 			self.halfbit_cells = 0
 			self.integrator = 0.0
 			self.sync_lock_count = 0
-			self.locked = False
 			self.byte_synced = False
 			self.sync_mark_tries = []
 			self.unsync_after_decode = False
@@ -536,7 +535,6 @@ class Decoder(srd.Decoder):
 
 			self.state = PLLstate.locking
 			self.sync_lock_count = 0
-			self.locked = False
 			self.byte_synced = False
 			self.sync_mark_tries = []
 			self.unsync_after_decode = False
@@ -609,7 +607,7 @@ class Decoder(srd.Decoder):
 			# - PLLstate.scanning_sync_mark keeps scanning for either sync_pattern or encoding_table[self.owner.encoding]['sync_mark'], anything else resets PLL.
 			# - PLLstate.decoding
 
-			#print_('pll edge', edge_samplenum, pulse_ticks, self.locked, f'{abs(pulse_ticks - 2.0 * self.halfbit):.4f}', f'{self.halfbit:.4f}')
+			#print_('pll edge', edge_samplenum, pulse_ticks, f'{abs(pulse_ticks - 2.0 * self.halfbit):.4f}', f'{self.halfbit:.4f}')
 			#'%02X' % val
 
 			last_samplenum = self.last_last_samplenum
@@ -624,8 +622,8 @@ class Decoder(srd.Decoder):
 
 			# Sync pattern detection using pulse width
 			if self.state == PLLstate.locking:
-				#print_('self.locked__', abs(pulse_ticks - self.halfbit * self.sync_pattern), abs(pulse_ticks - self.halfbit * self.sync_pattern) <= self.sync_tolerance, self.last_samplenum)
-				#print_('self.locked___', pulse_ticks * (1000000000 / self.owner.samplerate), self.halfbit * self.sync_pattern * (1000000000 / self.owner.samplerate), self.halfbit, '=', self.halfbit * (1000000000 / self.owner.samplerate), self.halfbit_cells)
+				#print_('PLLstate.locking', abs(pulse_ticks - self.halfbit * self.sync_pattern), abs(pulse_ticks - self.halfbit * self.sync_pattern) <= self.sync_tolerance, self.last_samplenum)
+				#print_('PLLstate.locking2', pulse_ticks * (1000000000 / self.owner.samplerate), self.halfbit * self.sync_pattern * (1000000000 / self.owner.samplerate), self.halfbit, '=', self.halfbit * (1000000000 / self.owner.samplerate), self.halfbit_cells)
 				if abs(pulse_ticks - self.halfbit * self.sync_pattern) <= self.sync_tolerance:
 					self.sync_lock_count += 1
 					#print_('pll sync', pulse_ticks, self.halfbit, self.last_samplenum)
