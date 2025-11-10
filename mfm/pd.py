@@ -664,14 +664,14 @@ class Decoder(srd.Decoder):
 					self.reset_pll()
 					return 0
 
+			# PLL PI Filter ------------------------------------------------------------
 			# expected clock position for this transition
-			nearest_clock = self.phase_ref + self.halfbit_cells * self.halfbit
-			self.phase_ref = nearest_clock
+			self.phase_ref = self.phase_ref + self.halfbit_cells * self.halfbit
 
 			# PHASE ERROR: positive -> edge arrived after expected clock (we're late)
-			phase_err = edge_samplenum - nearest_clock
+			phase_err = edge_samplenum - self.phase_ref
 
-			#print_('phase_err', pulse_ticks, self.halfbit_cells, f'{self.halfbit:.4f}', f'{nearest_clock:.4f}', f'{phase_err:.4f}')
+			#print_('phase_err', pulse_ticks, self.halfbit_cells, f'{self.halfbit:.4f}', f'{self.phase_ref:.4f}', f'{phase_err:.4f}')
 
 			# Proportional: nudge phase_ref toward the edge
 			self.phase_ref += self.kp * phase_err
@@ -682,6 +682,7 @@ class Decoder(srd.Decoder):
 			self.halfbit += self.integrator
 
 			#print_('pll phase_ref %.4f' % self.phase_ref, 'inte %.4f' % self.integrator, 'halfbit %.4f' % self.halfbit)
+			# ------------------------------------------------------------
 
 			# clamp halfbit within reasonable 0.5-1.5 bounds
 			if self.halfbit < self.halfbit_nom05:
