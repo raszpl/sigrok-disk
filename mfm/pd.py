@@ -490,7 +490,6 @@ class Decoder(srd.Decoder):
 			self.halfbit_cells = 0
 			self.integrator = 0.0
 			self.sync_lock_count = 0
-			self.byte_synced = False
 			self.sync_mark_tries = []
 			self.unsync_after_decode = False
 			self.sync_start = None
@@ -535,7 +534,6 @@ class Decoder(srd.Decoder):
 
 			self.state = PLLstate.locking
 			self.sync_lock_count = 0
-			self.byte_synced = False
 			self.sync_mark_tries = []
 			self.unsync_after_decode = False
 			self.sync_start = None
@@ -654,7 +652,7 @@ class Decoder(srd.Decoder):
 				print_("pll pulse out-of-tolerance, too long", pulse_ticks, self.halfbit_cells, edge_samplenum)
 				#print_(self.halfbit_cells, self.cells_allowed_max, pulse_ticks, self.halfbit, pulse_ticks / self.halfbit)
 				# now handle special case of pulse too long but covering end of last good byte
-				if self.byte_synced and self.shift_index + self.halfbit_cells >= 16:
+				if self.state == PLLstate.decoding and self.shift_index + self.halfbit_cells >= 16:
 					# little rube goldberg here, unsync will set byte_synced to False to immediatelly trigger pll.reset_pll() in decode_PLL()
 					self.unsync_after_decode = True
 				else:
@@ -721,7 +719,6 @@ class Decoder(srd.Decoder):
 							self.sync_mark_tries += [self.halfbit_cells]
 							if self.sync_mark_tries == table['sync_mark'][sequence_number]:
 								self.state = PLLstate.decoding
-								self.byte_synced = True
 								self.shift_index = table['shift_index'][sequence_number]
 								#print_('pll byte_synced', self.last_samplenum)
 							break
@@ -735,9 +732,6 @@ class Decoder(srd.Decoder):
 					if self.shift & 0xFFF == 0b100000001001:
 						#print_('RLL rewrite mark?1', bin(self.shift)[1:], bin(self.shift ^ (1 << 7))[1:])
 						self.shift = self.shift ^ (1 << 7)
-
-					if not self.byte_synced:
-						return 0
 
 			if self.state == PLLstate.decoding:
 				# accumulate at least 16 bits, only return 16 bits at a time.
