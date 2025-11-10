@@ -214,7 +214,7 @@ class Decoder(srd.Decoder):
 	# Sadly those need to be up here, otherwise one has to use self. prefix
 	# ----------------------------------------------------------------------------
 
-	global state, field, encoding, encoding_table
+	global state, field, encoding, encoding_table, FM_R
 	class state(Enum):
 		first_C2h_prefix	= 0		#auto()
 		second_C2h_prefix	= 1
@@ -303,44 +303,47 @@ class Decoder(srd.Decoder):
 	# pb_state: starting process_byte() state machine state
 	encoding_table = {
 		encoding.FM: {		# (0,1) RLL
-			"table": FM_R,
-			"cells_allowed": (1, 2),
-			"sync_pattern": 2,
-			"sync_mark": [[1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 2], [1, 1, 1, 2, 2, 2, 1, 2, 1, 1, 1], [1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 2]],
-			"shift_index": [15, 15, 15],
-			"pb_state": state.IDData_Address_Mark,
+			'table': FM_R,
+			'cells_allowed': (1, 2),
+			'sync_pattern': 2,
+			'sync_marks': [[1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 2], [1, 1, 1, 2, 2, 2, 1, 2, 1, 1, 1], [1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 2]],
+			'shift_index': [15, 15, 15],
+			'pb_state': state.IDData_Address_Mark,
 		},
 		encoding.MFM_FDD: {	# (1,3) RLL
-			"table": FM_R,
-			"cells_allowed": (2, 3, 4),
-			"sync_pattern": 2,
-			"sync_mark": [[3, 4, 3, 4, 3], [3, 2, 3, 4, 3, 4]],
-			"shift_index": [13, 14],
-			"pb_state": state.sync_mark,
+			'table': FM_R,
+			'cells_allowed': (2, 3, 4),
+			'sync_pattern': 2,
+			'sync_marks': [[3, 4, 3, 4, 3], [3, 2, 3, 4, 3, 4]],
+			'shift_index': [13, 14],
+			'pb_state': state.sync_mark,
 		},
 		encoding.MFM_HDD: {	# (1,3) RLL
-			"table": FM_R,
-			"cells_allowed": (2, 3, 4),
-			"sync_pattern": 2,
-			"sync_mark": [[3, 4, 3, 4, 3], [3, 2, 3, 4, 3, 4]],
-			"shift_index": [13, 14],
-			"pb_state": state.sync_mark,
+			'table': FM_R,
+			'cells_allowed': (2, 3, 4),
+			'sync_pattern': 2,
+			'sync_marks': [[3, 4, 3, 4, 3], [3, 2, 3, 4, 3, 4]],
+			'shift_index': [13, 14],
+			'pb_state': state.sync_mark,
 		},
 		encoding.RLL_SEA: {	# (2,7) RLL
-			"table": RLL_IBM_R,
-			"cells_allowed": (3, 4, 5, 6, 7, 8),
-			"sync_pattern": 3,
-			"sync_mark": [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4]],
-			"shift_index": [18, 18],
-			"pb_state": state.sync_mark,
+			'table': RLL_IBM_R,
+			'cells_allowed': (3, 4, 5, 6, 7, 8),
+			'sync_pattern': 3,
+			'sync_marks': [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4]],
+			'shift_index': [18, 18],
+			'ID_prefix_mark': [0x1E],
+			'Data_prefix_mark': [0xDE],
+			'pb_state': state.sync_mark,
 		},
 		encoding.RLL_WD: {	# (2,7) RLL
-			"table": RLL_WD_R,
-			"cells_allowed": (3, 4, 5, 6, 7, 8),
-			"sync_pattern": 3,
-			"sync_mark": [[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]],
-			"shift_index": [12, 12, 12],
-			"pb_state": state.sync_mark,
+			'table': RLL_WD_R,
+			'cells_allowed': (3, 4, 5, 6, 7, 8),
+			'sync_pattern': 3,
+			'sync_marks': [[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]],
+			'shift_index': [12, 12, 12],
+			'IDData_mark': [0xF0],
+			'pb_state': state.sync_mark,
 		}
 	}
 
@@ -387,6 +390,9 @@ class Decoder(srd.Decoder):
 
 		self.report_start = 0
 		self.reports_called = 0
+		
+		self.IDmark = []
+		self.DRmark = []
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Various initialization when decoder started.
@@ -509,9 +515,9 @@ class Decoder(srd.Decoder):
 			self.ring_we = array('l', [0 for _ in range(self.ring_size)])	# win_end
 			self.ring_wv = array('l', [0 for _ in range(self.ring_size)])	# value
 
-			if self.owner.encoding in (encoding.FM, encoding.MFM_FDD, encoding.MFM_HDD):
+			if encoding_table[self.owner.encoding]['table'] == FM_R:
 				self.decode = self.fm_mfm_decode
-			elif self.owner.encoding in (encoding.RLL_SEA, encoding.RLL_WD):
+			else:
 				self.decode = self.rll_decode
 
 			self.state = PLLstate.locking
@@ -542,6 +548,8 @@ class Decoder(srd.Decoder):
 			self.shift_decoded_1 = 0
 			# reset Decoder pb_state instance variable directly
 			self.owner.pb_state = encoding_table[self.owner.encoding]['pb_state']
+			self.owner.IDmark = []
+			self.owner.DRmark = []
 
 		def read(self):
 			return self.last_samplenum, self.pulse_ticks
@@ -602,7 +610,7 @@ class Decoder(srd.Decoder):
 			# edge_samplenum: sample index of rising edge (flux transition)
 			# State Machine with 3 stages:
 			# - PLLstate.locking looks for sync_lock_threshold number of sync_pattern pulses
-			# - PLLstate.scanning_sync_mark keeps scanning for either sync_pattern or encoding_table[self.owner.encoding]['sync_mark'], anything else resets PLL.
+			# - PLLstate.scanning_sync_mark keeps scanning for either sync_pattern or encoding_table[self.owner.encoding]['sync_marks'], anything else resets PLL.
 			# - PLLstate.decoding
 
 			#print_('pll edge', edge_samplenum, pulse_ticks, f'{abs(pulse_ticks - 2.0 * self.halfbit):.4f}', f'{self.halfbit:.4f}')
@@ -705,19 +713,19 @@ class Decoder(srd.Decoder):
 			if self.state == PLLstate.scanning_sync_mark:
 				# just another sync pulse
 				if not self.sync_mark_tries and self.halfbit_cells == self.sync_pattern:
-						self.sync_lock_count += 1
+					self.sync_lock_count += 1
 
 				# scan for start of sync mark
 				else:
 					#print_('scanning_sync_mark', self.sync_mark_tries, self.last_samplenum)
 					pulse_match = 0
 					table = encoding_table[self.owner.encoding]
-					for sequence_number in range (0, len(table['sync_mark'])):
+					for sequence_number in range (0, len(table['sync_marks'])):
 						#print_('scanning_sync_mark_', sequence_number, self.sync_mark_tries)
-						if self.sync_mark_tries + [self.halfbit_cells] == table['sync_mark'][sequence_number][:len(self.sync_mark_tries)+1]:
+						if self.sync_mark_tries + [self.halfbit_cells] == table['sync_marks'][sequence_number][:len(self.sync_mark_tries)+1]:
 							pulse_match = sequence_number+1
 							self.sync_mark_tries += [self.halfbit_cells]
-							if self.sync_mark_tries == table['sync_mark'][sequence_number]:
+							if self.sync_mark_tries == table['sync_marks'][sequence_number]:
 								self.state = PLLstate.decoding
 								self.shift_index = table['shift_index'][sequence_number]
 								#print_('pll byte_synced', self.last_samplenum)
