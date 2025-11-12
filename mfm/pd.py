@@ -1271,25 +1271,24 @@ class Decoder(srd.Decoder):
 				return False
 
 		elif self.pb_state in (state.second_A1h_prefix, state.third_A1h_prefix):
+			self.annotate_byte(val, special_clock = True)
 			if val == 0xA1:
 				self.A1.append(0xA1)
-				self.annotate_byte(0xA1, special_clock = True)
 				if self.pb_state == state.second_A1h_prefix:
 					self.pb_state = state.third_A1h_prefix
 				elif self.pb_state == state.third_A1h_prefix:
 					self.pb_state = state.IDData_Address_Mark
 			else:
-				self.annotate_byte(val)
 				self.display_field(field.Unknown_Byte)
 				return False
 
 		elif self.pb_state == state.IDData_Address_Mark:
+			self.annotate_byte(val)
+			self.display_field(field.Sync)
 			if (self.header_bytes == 4 and val == 0xFE) or \
 				(self.header_bytes == 3 and (val & 0xF4) == 0xF4):
 				# FEh FC-FFh ID Address Mark
 				self.IDmark = [val]
-				self.annotate_byte(val)
-				self.display_field(field.Sync)
 				self.display_field(field.ID_Address_Mark)
 				self.IDcrc = 0
 				self.byte_cnt = self.header_bytes
@@ -1297,14 +1296,11 @@ class Decoder(srd.Decoder):
 			elif val >= 0xF8 and val <= 0xFB:
 				# F8h..FBh Data Address Mark
 				self.DRmark = [val]
-				self.annotate_byte(val)
-				self.display_field(field.Sync)
 				self.display_field(field.Data_Address_Mark)
 				self.DRcrc = 0
 				self.byte_cnt = self.sector_len
 				self.pb_state = state.Data_Record
 			else:
-				self.annotate_byte(val)
 				self.display_field(field.Unknown_Byte)
 				return False
 
@@ -1354,24 +1350,22 @@ class Decoder(srd.Decoder):
 				self.pb_state = state.first_Gap_Byte
 
 		elif self.pb_state in (state.second_C2h_prefix, state.third_C2h_prefix):
+			self.annotate_byte(val, special_clock = True)
 			if val == 0xC2:
-				self.annotate_byte(0xC2, special_clock = True)
 				if self.pb_state == state.second_C2h_prefix:
 					self.pb_state = state.third_C2h_prefix
 				elif self.pb_state == state.third_C2h_prefix:
 					self.pb_state = state.Index_Mark
 			else:
-				self.annotate_byte(val)
 				self.display_field(field.Unknown_Byte)
 				return False
 
 		elif self.pb_state == state.Index_Mark:
+			self.annotate_byte(val)
 			if val == 0xFC:
-				self.annotate_byte(val)
 				self.display_field(field.Index_Mark)
 				self.pb_state = state.first_Gap_Byte
 			else:
-				self.annotate_byte(val)
 				self.display_field(field.Unknown_Byte)
 				return False
 
@@ -1427,25 +1421,14 @@ class Decoder(srd.Decoder):
 		bc10N = self.samplerate / self.data_rate	# nominal 1.0 bit cell window size (in fractional samples)
 		window_size = bc10N / 2.0	# current half-bit-cell window size (in fractional samples)
 
+		byte_sync = False			# True = bit/byte-sync'd, False = not sync'd
+		interval = 0				# current interval (in samples, 1..n)
+
 		map = encoding_table[self.encoding]['map']
 		cells_allowed = encoding_table[self.encoding]['limits']
 		sync_pattern = encoding_table[self.encoding]['sync_pattern']
 
-		shift31 = 0					# 31-bit pattern shift register (of half-bit-cells)
-		shift32 = 0
-
-		data_byte = 0				# 8-bit data byte shift register (of bit cells)
-		bit_cnt = 0					# number of bits processed in current byte (0..8)
-		byte_sync = False			# True = bit/byte-sync'd, False = not sync'd
-		win_sync = False			# True = half-bit-cell window sync'd re ann.clk vs. ann.dat ?
-
-		interval = 0				# current interval (in samples, 1..n)
-
-		sync_start = 0
-		sync_end = 0
-
-		#print_(window_size, bc10N)
-		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, kp=self.pll_kp, ki=self.pll_ki, sync_pattern=sync_pattern, sync_tolerance = self.sync_tolerance, cells_allowed=cells_allowed, map=map)
+		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, kp=self.pll_kp, ki=self.pll_ki, sync_pattern=sync_pattern, sync_tolerance=self.sync_tolerance, cells_allowed=cells_allowed, map=map)
 
 		# all this pain below to support dynamic Interval/window annotation
 		interval_multi = {
