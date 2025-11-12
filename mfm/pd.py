@@ -311,7 +311,8 @@ class Decoder(srd.Decoder):
 	# sync_marks: used by PLLstate.scanning_sync_mark
 	# shift_index: every sync_mark entry has its own offset defining number of valid halfbit windows
 	#  already shifted in (minus last entry because PLLstate.decoding adds self.halfbit_cells) at the
-	#  moment of PLLstate.scanning_sync_mark mathing whole sync_marks.
+	#  moment of PLLstate.scanning_sync_mark mathing whole sync_marks. Define one common value or
+	# provide list of values for every sync_marks entry.
 	# IDData_mark: replaces A1
 	# ID_mark: skip straight to decoding Header
 	# Data_mark: skip straight to decoding Data
@@ -324,7 +325,7 @@ class Decoder(srd.Decoder):
 			'limits': encoding_limits['FM'],
 			'sync_pattern': 2,
 			'sync_marks': [[1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 2], [1, 1, 1, 2, 2, 2, 1, 2, 1, 1, 1], [1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 2]],
-			'shift_index': [15, 15, 15],
+			'shift_index': [15],
 			'pb_state': state.IDData_Address_Mark,
 		},
 		encoding.MFM_FDD: {
@@ -349,7 +350,7 @@ class Decoder(srd.Decoder):
 			'limits': encoding_limits['RLL'],
 			'sync_pattern': 3,
 			'sync_marks': [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4]],
-			'shift_index': [18, 18],
+			'shift_index': [18],
 			'ID_prefix_mark': [0x1E],
 			'Data_prefix_mark': [0xDE],
 			'pb_state': state.sync_mark,
@@ -360,7 +361,7 @@ class Decoder(srd.Decoder):
 			'limits': encoding_limits['RLL'],
 			'sync_pattern': 3,
 			'sync_marks': [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4], [8, 3, 4]],
-			'shift_index': [18, 18, 18],
+			'shift_index': [18],
 			'IDsync_mark': [0xA1],
 			'IDData_mark': [0xA0],
 			'nop_mark': [0x1E, 0x5E, 0xDE],
@@ -371,7 +372,7 @@ class Decoder(srd.Decoder):
 			'limits': encoding_limits['RLL'],
 			'sync_pattern': 3,
 			'sync_marks': [[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]],
-			'shift_index': [12, 12, 12],
+			'shift_index': [12],
 			'IDData_mark': [0xF0],
 			'pb_state': state.sync_mark,
 		}
@@ -755,15 +756,23 @@ class Decoder(srd.Decoder):
 					#print_('scanning_sync_mark', self.sync_mark_tries, self.last_samplenum)
 					pulse_match = 0
 					table = encoding_table[self.owner.encoding]
-					for sequence_number in range (0, len(table['sync_marks'])):
+					sync_marks = table['sync_marks']
+					shift_index = table['shift_index']
+					# let user define just one common shift_index for all the marks
+					# we will automagically duplicate it here
+					if len(shift_index) == 1:
+						shift_index = shift_index * len(sync_marks)
+					elif len(sync_marks) != len(shift_index):
+						raise raise_exception('scanning_sync_mark: Mistmatched number of shift_index defined. Requires either one common or equal number to sync_marks variants.')
+					for sequence_number in range (0, len(sync_marks)):
 						#print_('scanning_sync_mark_', sequence_number, self.sync_mark_tries)
-						if self.sync_mark_tries + [self.halfbit_cells] == table['sync_marks'][sequence_number][:len(self.sync_mark_tries)+1]:
+						if self.sync_mark_tries + [self.halfbit_cells] == sync_marks[sequence_number][:len(self.sync_mark_tries)+1]:
 							pulse_match = sequence_number+1
 							self.sync_mark_tries += [self.halfbit_cells]
-							if self.sync_mark_tries == table['sync_marks'][sequence_number]:
+							if self.sync_mark_tries == sync_marks[sequence_number]:
 								self.state = PLLstate.decoding
-								self.shift_index = table['shift_index'][sequence_number]
-								#print_('pll byte_synced', self.last_samplenum)
+								self.shift_index = shift_index[sequence_number]
+								print_('pll byte_synced', self.last_samplenum)
 							break
 	
 					if not pulse_match:
