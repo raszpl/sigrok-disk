@@ -692,6 +692,7 @@ class Decoder(srd.Decoder):
 				# now handle special case of pulse too long but covering end of last good byte
 				if self.state == PLLstate.decoding and self.shift_index + self.halfbit_cells >= 16:
 					# little rube goldberg here, unsync will set byte_synced to False to immediatelly trigger pll.reset_pll() in decode_PLL()
+					print_("self.unsync_after_decode")
 					self.unsync_after_decode = True
 				else:
 					print_("pll pulse out-of-tolerance, not in cells_allowed")
@@ -1450,7 +1451,7 @@ class Decoder(srd.Decoder):
 
 			if pll_ret >= 16:
 				byte_sync = self.process_byte(self.pll.shift_byte)
-				print_('data_byte', hex(self.pll.shift_byte), self.pb_state, byte_sync)
+				print_('data_byte', hex(self.pll.shift_byte), self.pb_state, 'sync', byte_sync)
 
 				if not byte_sync:
 					print_('not byte_sync')
