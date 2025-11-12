@@ -120,7 +120,7 @@ class Decoder(srd.Decoder):
 			'default': '5000000', 'values': ('125000', '150000',
 			'250000', '300000', '500000', '5000000', '7500000', '10000000')},
 		{'id': 'encoding', 'desc': 'Encoding',
-			'default': 'MFM_HDD', 'values': ('FM', 'MFM_FDD', 'MFM_HDD', 'RLL_SEA', 'RLL_Adaptec', 'RLL_WD')},
+			'default': 'MFM_HDD', 'values': ('FM', 'MFM_FDD', 'MFM_HDD', 'RLL_SEA', 'RLL_Adaptec', 'RLL_WD', 'custom')},
 		{'id': 'sect_len', 'desc': 'Sector length',
 			'default': '512', 'values': ('128', '256', '512', '1024')},
 		{'id': 'header_bytes', 'desc': 'Header bytes',
@@ -158,6 +158,27 @@ class Decoder(srd.Decoder):
 			'default': '20%', 'values': ('10%', '15%', '20%', '25%', '30%')},
 		{'id': 'dsply_pfx', 'desc': 'Legacy decoder: Display all MFM prefix bytes.',
 			'default': 'no', 'values': ('yes', 'no')},
+
+		{'id': 'custom_encoder_map', 'desc': 'Custom encoder: map',
+			'default': 'IBM', 'values': ('FM/MFM', 'IBM', 'WD')},
+		{'id': 'custom_encoder_limits', 'desc': 'Custom encoder: coding',
+			'default': 'RLL', 'values': ('FM', 'MFM', 'RLL')},
+		{'id': 'custom_encoder_sync_pattern', 'desc': 'Custom encoder: sync_pattern',
+			'default': 4, 'values': (2, 3, 4)},
+		{'id': 'custom_encoder_sync_marks', 'desc': 'Custom encoder: sync_marks. Example: [6, 8, 3], [5, 3, 8, 3]',
+			'default': ''},
+		{'id': 'custom_encoder_shift_index', 'desc': 'Custom encoder: shift_index. Example: 11 or 11, 11',
+			'default': ''},
+		{'id': 'custom_encoder_IDData_mark', 'desc': 'Custom encoder: IDData_mark. Example: 0xA1',
+			'default': ''},
+		{'id': 'custom_encoder_ID_mark', 'desc': 'Custom encoder: ID_mark',
+			'default': ''},
+		{'id': 'custom_encoder_Data_mark', 'desc': 'Custom encoder: Data_mark',
+			'default': ''},
+		{'id': 'custom_encoder_ID_prefix_mark', 'desc': 'Custom encoder: ID_prefix_mark',
+			'default': ''},
+		{'id': 'custom_encoder_nop_mark', 'desc': 'Custom encoder: nop_mark',
+			'default': ''},
 	)
 
 	# build list of valid options, we will be verifying sigrok-cli command line input
@@ -303,6 +324,7 @@ class Decoder(srd.Decoder):
 		RLL_SEA		= 3
 		RLL_Adaptec = 4
 		RLL_WD		= 5
+		custom		= 6
 
 	# encoding_table holds data for configuring process_byte() and SimplePLL State Machines
 	#
@@ -473,6 +495,38 @@ class Decoder(srd.Decoder):
 		self.pll_ki = float(self.options['pll_ki'])
 		self.sync_tolerance = int(self.options['sync_tolerance'][:-1]) * 0.01
 		self.dsply_pfx = True if self.options['dsply_pfx'] == 'yes' else False
+
+		# sigrok-cli command line input doesnt support "" strings nor commas. Have to resort
+		# to stupid parsing tricks:
+		#  '8-3-5_5-8-3-5_7-8-3-5' to [[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]]
+		#  '8-3-5' to [[8, 3, 5]]
+		# Also accept various formats thru the GUI like:
+		#  '8,3,5' to [[8, 3, 5]]
+		#  [8, 3, 5], [5, 8, 3, 5] to [[8, 3, 5], [5, 8, 3, 5]]
+		def helper_parse(s):
+			s = s.strip().replace(' ', '')
+			if any(c in s for c in '[,]'):
+				s = s.replace('],[', '_').replace('][', '_').replace('[', '').replace(']', '').replace(',', '-')
+			return [[int(x, 0) for x in part.split('-') if x] for part in s.split('_') if part]
+		# custom _mark are single list, reuse above code for parsing then strip outer []
+		def helper_list(groups):
+			return groups[0] if len(groups) == 1 else []
+
+		# RLL_custom
+		if self.encoding == encoding.custom:
+			encoding_table[encoding.custom] = {
+				'map': encoding_map[self.options['custom_encoder_map']],
+				'limits': encoding_limits[self.options['custom_encoder_limits']],
+				'sync_pattern': self.options['custom_encoder_sync_pattern'],
+				'sync_marks': helper_parse(self.options['custom_encoder_sync_marks']),
+				'shift_index': helper_list(helper_parse(self.options['custom_encoder_shift_index'])),
+				'ID_prefix_mark': helper_list(helper_parse(self.options['custom_encoder_ID_prefix_mark'])),
+				'ID_mark': helper_list(helper_parse(self.options['custom_encoder_ID_mark'])),
+				'IDData_mark': helper_list(helper_parse(self.options['custom_encoder_IDData_mark'])),
+				'Data_mark': helper_list(helper_parse(self.options['custom_encoder_Data_mark'])),
+				'nop_mark': helper_list(helper_parse(self.options['custom_encoder_nop_mark'])),
+				'pb_state': state.sync_mark,
+			}
 
 		# precompute crc constants
 		self.header_crc_bytes = self.header_crc_bits // 8
