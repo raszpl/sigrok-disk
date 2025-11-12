@@ -326,7 +326,8 @@ class Decoder(srd.Decoder):
 			'sync_pattern': 2,
 			'sync_marks': [[1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 2], [1, 1, 1, 2, 2, 2, 1, 2, 1, 1, 1], [1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 2]],
 			'shift_index': [15],
-			'pb_state': state.IDData_Address_Mark,
+			'ID_mark': [0xFE],
+			'Data_mark': [0xFB]
 		},
 		encoding.MFM_FDD: {
 			'map': encoding_map['FM/MFM'],
@@ -334,7 +335,7 @@ class Decoder(srd.Decoder):
 			'sync_pattern': 2,
 			'sync_marks': [[3, 4, 3, 4, 3], [3, 2, 3, 4, 3, 4]],
 			'shift_index': [13, 14],
-			'pb_state': state.sync_mark,
+			'IDData_mark': [0xA1]
 		},
 		encoding.MFM_HDD: {
 			'map': encoding_map['FM/MFM'],
@@ -342,7 +343,7 @@ class Decoder(srd.Decoder):
 			'sync_pattern': 2,
 			'sync_marks': [[3, 4, 3, 4, 3], [3, 2, 3, 4, 3, 4]],
 			'shift_index': [13, 14],
-			'pb_state': state.sync_mark,
+			'IDData_mark': [0xA1]
 		},
 		# Seagate ST11M/21M
 		encoding.RLL_SEA: {
@@ -351,9 +352,9 @@ class Decoder(srd.Decoder):
 			'sync_pattern': 3,
 			'sync_marks': [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4]],
 			'shift_index': [18],
+			'IDData_mark': [0xA1],
 			'ID_prefix_mark': [0x1E],
-			'Data_prefix_mark': [0xDE],
-			'pb_state': state.sync_mark,
+			'nop_mark': [0xDE]
 		},
 		# Adaptec ACB-237x, ACB-4070
 		encoding.RLL_Adaptec: {
@@ -362,10 +363,9 @@ class Decoder(srd.Decoder):
 			'sync_pattern': 3,
 			'sync_marks': [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4], [8, 3, 4]],
 			'shift_index': [18],
-			'IDsync_mark': [0xA1],
-			'IDData_mark': [0xA0],
-			'nop_mark': [0x1E, 0x5E, 0xDE],
-			'pb_state': state.sync_mark,
+			'ID_mark': [0xA1],
+			'Data_mark': [0xA0],
+			'nop_mark': [0x1E, 0x5E, 0xDE]
 		},
 		encoding.RLL_WD: {
 			'map': encoding_map['WD'],
@@ -373,8 +373,7 @@ class Decoder(srd.Decoder):
 			'sync_pattern': 3,
 			'sync_marks': [[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]],
 			'shift_index': [12],
-			'IDData_mark': [0xF0],
-			'pb_state': state.sync_mark,
+			'IDData_mark': [0xF0]
 		}
 	}
 
@@ -578,8 +577,8 @@ class Decoder(srd.Decoder):
 			self.shift = 0xfffff
 			self.shift_decoded = ''
 			self.shift_decoded_1 = 0
-			# reset Decoder pb_state instance variable directly
-			self.owner.pb_state = encoding_table[self.owner.encoding]['pb_state']
+			# reset Decoder variables directly FIXME: mixing contexts is UGLY and bad
+			self.owner.pb_state = state.sync_mark
 			self.owner.IDmark = []
 			self.owner.DRmark = []
 
@@ -1155,34 +1154,10 @@ class Decoder(srd.Decoder):
 
 	def process_byte(self, val):
 		if self.pb_state == state.sync_mark:
-			if encoding_table[self.encoding].get('IDsync_mark') and val in encoding_table[self.encoding]['IDsync_mark']:
+			self.annotate_byte(val, special_clock = True)
+			self.display_field(field.Sync)
+			if val in encoding_table[self.encoding].get('IDData_mark', []):
 				self.A1 = [0xA1]
-				self.annotate_byte(val, special_clock = True)
-				self.display_field(field.Sync)
-				self.display_field(field.ID_Address_Mark)
-				self.IDcrc = 0
-				self.byte_cnt = self.header_bytes
-				self.pb_state = state.ID_Record
-			elif encoding_table[self.encoding].get('IDData_mark') and val in  encoding_table[self.encoding]['IDData_mark']:
-				self.A1 = [0xA1]
-				self.annotate_byte(val, special_clock = True)
-				self.display_field(field.Sync)
-				self.pb_state = state.IDData_Address_Mark
-			elif encoding_table[self.encoding].get('ID_prefix_mark') and val in encoding_table[self.encoding]['ID_prefix_mark']:
-				self.IDmark = [val]
-				self.annotate_byte(val, special_clock = True)
-				self.display_field(field.Sync)
-			elif encoding_table[self.encoding].get('Data_prefix_mark') and val in encoding_table[self.encoding]['Data_prefix_mark']:
-				self.DRmark = [val]
-				self.annotate_byte(val, special_clock = True)
-				self.display_field(field.Sync)
-			elif encoding_table[self.encoding].get('nop_mark') and val in  encoding_table[self.encoding]['nop_mark']:
-				self.annotate_byte(val, special_clock = True)
-				self.display_field(field.Sync)
-			elif val ==0xA1:
-				self.A1 = [0xA1]
-				self.annotate_byte(val, special_clock = True)
-				self.display_field(field.Sync)
 				self.pb_state = state.IDData_Address_Mark
 				if self.IDmark:
 					self.IDmark = []
@@ -1190,18 +1165,35 @@ class Decoder(srd.Decoder):
 					self.IDcrc = 0
 					self.byte_cnt = self.header_bytes
 					self.pb_state = state.ID_Record
-				elif self.DRmark:
-					self.DRmark = []
-					self.pb_state = state.IDData_Address_Mark
+				# MFM_FDD triple A1 Sync Mark
 				elif self.encoding == encoding.MFM_FDD:
 					self.pb_state = state.second_A1h_prefix
+			elif val in encoding_table[self.encoding].get('ID_mark', []):
+				self.IDmark = [val]
+				self.display_field(field.ID_Address_Mark)
+				self.IDcrc = 0
+				self.byte_cnt = self.header_bytes
+				self.pb_state = state.ID_Record
+			elif val in encoding_table[self.encoding].get('Data_mark', []):
+				self.DRmark = [val]
+				self.display_field(field.Data_Address_Mark)
+				self.DRcrc = 0
+				self.byte_cnt = self.sector_len
+				self.pb_state = state.Data_Record
+			elif val in encoding_table[self.encoding].get('ID_prefix_mark', []):
+				self.IDmark = [val]
+			elif val in encoding_table[self.encoding].get('nop_mark', []):
+				pass
+			# FM Index Mark
+			elif val == 0xFC:
+				self.annotate_byte(0xFC, special_clock = True)
+				self.display_field(field.Sync)
+				self.display_field(field.Index_Mark)
+				self.pb_state = state.first_Gap_Byte
 			# MFM_FDD Index Mark
 			elif val == 0xC2:
-				self.annotate_byte(0xC2, special_clock = True)
-				self.display_field(field.Sync)
 				self.pb_state = state.second_C2h_prefix
 			else:
-				self.annotate_byte(val)
 				self.display_field(field.Unknown_Byte)
 				return False
 
@@ -1219,13 +1211,11 @@ class Decoder(srd.Decoder):
 				return False
 
 		elif self.pb_state == state.IDData_Address_Mark:
-			if self.encoding == encoding.FM:
-				self.A1 = []
 			if (self.header_bytes == 4 and val == 0xFE) or \
 				(self.header_bytes == 3 and (val & 0xF4) == 0xF4):
 				# FEh FC-FFh ID Address Mark
 				self.IDmark = [val]
-				self.annotate_byte(val, special_clock = (self.encoding == encoding.FM))
+				self.annotate_byte(val)
 				self.display_field(field.Sync)
 				self.display_field(field.ID_Address_Mark)
 				self.IDcrc = 0
@@ -1234,18 +1224,12 @@ class Decoder(srd.Decoder):
 			elif val >= 0xF8 and val <= 0xFB:
 				# F8h..FBh Data Address Mark
 				self.DRmark = [val]
-				self.annotate_byte(val, special_clock = (self.encoding == encoding.FM))
+				self.annotate_byte(val)
 				self.display_field(field.Sync)
 				self.display_field(field.Data_Address_Mark)
 				self.DRcrc = 0
 				self.byte_cnt = self.sector_len
 				self.pb_state = state.Data_Record
-			# FM Index Mark
-			elif val == 0xFC:
-				self.annotate_byte(0xFC, special_clock = True)
-				self.display_field(field.Sync)
-				self.display_field(field.Index_Mark)
-				self.pb_state = state.first_Gap_Byte
 			else:
 				self.annotate_byte(val)
 				self.display_field(field.Unknown_Byte)
@@ -1375,7 +1359,6 @@ class Decoder(srd.Decoder):
 		map = encoding_table[self.encoding]['map']
 		cells_allowed = encoding_table[self.encoding]['limits']
 		sync_pattern = encoding_table[self.encoding]['sync_pattern']
-		self.pb_state = encoding_table[self.encoding]['pb_state']
 
 		shift31 = 0					# 31-bit pattern shift register (of half-bit-cells)
 		shift32 = 0
