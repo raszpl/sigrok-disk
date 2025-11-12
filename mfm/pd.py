@@ -159,10 +159,10 @@ class Decoder(srd.Decoder):
 		{'id': 'dsply_pfx', 'desc': 'Legacy decoder: Display all MFM prefix bytes.',
 			'default': 'no', 'values': ('yes', 'no')},
 
-		{'id': 'custom_encoder_map', 'desc': 'Custom encoder: map',
-			'default': 'IBM', 'values': ('FM/MFM', 'IBM', 'WD')},
 		{'id': 'custom_encoder_limits', 'desc': 'Custom encoder: coding',
 			'default': 'RLL', 'values': ('FM', 'MFM', 'RLL')},
+		{'id': 'custom_encoder_map', 'desc': 'Custom encoder: map',
+			'default': 'IBM', 'values': ('FM/MFM', 'IBM', 'WD')},
 		{'id': 'custom_encoder_sync_pattern', 'desc': 'Custom encoder: sync_pattern',
 			'default': 4, 'values': (2, 3, 4)},
 		{'id': 'custom_encoder_sync_marks', 'desc': 'Custom encoder: sync_marks. Example: [6, 8, 3], [5, 3, 8, 3]',
@@ -345,8 +345,8 @@ class Decoder(srd.Decoder):
 	# pb_state: starting process_byte() state machine state
 	encoding_table = {
 		encoding.FM: {
-			'map': encoding_map['FM/MFM'],
 			'limits': encoding_limits['FM'],
+			'map': encoding_map['FM/MFM'],
 			'sync_pattern': 2,
 			'sync_marks': [[1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 2], [1, 1, 1, 2, 2, 2, 1, 2, 1, 1, 1], [1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 2]],
 			'shift_index': [15],
@@ -354,16 +354,16 @@ class Decoder(srd.Decoder):
 			'Data_mark': [0xFB]
 		},
 		encoding.MFM_FDD: {
-			'map': encoding_map['FM/MFM'],
 			'limits': encoding_limits['MFM'],
+			'map': encoding_map['FM/MFM'],
 			'sync_pattern': 2,
 			'sync_marks': [[3, 4, 3, 4, 3], [3, 2, 3, 4, 3, 4]],
 			'shift_index': [13, 14],
 			'IDData_mark': [0xA1]
 		},
 		encoding.MFM_HDD: {
-			'map': encoding_map['FM/MFM'],
 			'limits': encoding_limits['MFM'],
+			'map': encoding_map['FM/MFM'],
 			'sync_pattern': 2,
 			'sync_marks': [[3, 4, 3, 4, 3], [3, 2, 3, 4, 3, 4]],
 			'shift_index': [13, 14],
@@ -371,8 +371,8 @@ class Decoder(srd.Decoder):
 		},
 		# Seagate ST11M/21M
 		encoding.RLL_SEA: {
-			'map': encoding_map['IBM'],
 			'limits': encoding_limits['RLL'],
+			'map': encoding_map['IBM'],
 			'sync_pattern': 3,
 			'sync_marks': [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4]],
 			'shift_index': [18],
@@ -382,8 +382,8 @@ class Decoder(srd.Decoder):
 		},
 		# Adaptec ACB-237x, ACB-4070
 		encoding.RLL_Adaptec: {
-			'map': encoding_map['IBM'],
 			'limits': encoding_limits['RLL'],
+			'map': encoding_map['IBM'],
 			'sync_pattern': 3,
 			'sync_marks': [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4], [8, 3, 4]],
 			'shift_index': [18],
@@ -392,8 +392,8 @@ class Decoder(srd.Decoder):
 			'nop_mark': [0x1E, 0x5E, 0xDE]
 		},
 		encoding.RLL_WD: {
-			'map': encoding_map['WD'],
 			'limits': encoding_limits['RLL'],
+			'map': encoding_map['WD'],
 			'sync_pattern': 3,
 			'sync_marks': [[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]],
 			'shift_index': [12],
@@ -402,8 +402,8 @@ class Decoder(srd.Decoder):
 		# PLACEHOLDER! Weird format, almost as if it uses custom encoding_map?
 		# Data Technology Corporation DTC7287
 		encoding.RLL_DTC7287: {
-			'map': encoding_map['WD'],
 			'limits': encoding_limits['RLL'],
+			'map': encoding_map['WD'],
 			'sync_pattern': 4,
 			'sync_marks': [[5, 4, 4, 4, 4, 3, 8, 4]],
 			'shift_index': [17],
@@ -411,8 +411,8 @@ class Decoder(srd.Decoder):
 		},
 		# OMTI-8247
 		encoding.RLL_OMTI: {
-			'map': encoding_map['IBM'],
 			'limits': encoding_limits['RLL'],
+			'map': encoding_map['IBM'],
 			'sync_pattern': 4,
 			'sync_marks': [[6, 8, 3], [5, 3, 8, 3]],
 			'shift_index': [11],
@@ -536,8 +536,8 @@ class Decoder(srd.Decoder):
 		# RLL_custom
 		if self.encoding == encoding.custom:
 			encoding_table[encoding.custom] = {
-				'map': encoding_map[self.options['custom_encoder_map']],
 				'limits': encoding_limits[self.options['custom_encoder_limits']],
+				'map': encoding_map[self.options['custom_encoder_map']],
 				'sync_pattern': self.options['custom_encoder_sync_pattern'],
 				'sync_marks': helper_parse(self.options['custom_encoder_sync_marks']),
 				'shift_index': helper_list(helper_parse(self.options['custom_encoder_shift_index'])),
