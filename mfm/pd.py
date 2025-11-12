@@ -304,14 +304,22 @@ class Decoder(srd.Decoder):
 		RLL_Adaptec = 4
 		RLL_WD		= 5
 
-	# encoding_table holds data allowing reusing same code with different encodings/formats
-	# limits: anything outside resets PLL
-	# sync_pattern: anything other halts PLLstate.locking phase
-	# sync_mark: used by PLLstate.scanning_sync_mark
-	# shift_index: every sync_mark entry has its own offset defining number of valid halfbit windows already shifted in
+	# encoding_table holds data for configuring process_byte() and SimplePLL State Machines
+	#
+	# limits: pulse widths outside reset PLL
+	# sync_pattern: anything other halts PLLstate.locking phase and triggers reset_pll()
+	# sync_marks: used by PLLstate.scanning_sync_mark
+	# shift_index: every sync_mark entry has its own offset defining number of valid halfbit windows
+	#  already shifted in (minus last entry because PLLstate.decoding adds self.halfbit_cells) at the
+	#  moment of PLLstate.scanning_sync_mark mathing whole sync_marks.
+	# IDData_mark: replaces A1
+	# ID_mark: skip straight to decoding Header
+	# Data_mark: skip straight to decoding Data
+	# ID_prefix_mark: Header Mark to be followed by IDData_mark
+	# nop_mark: inert mark
 	# pb_state: starting process_byte() state machine state
 	encoding_table = {
-		encoding.FM: {		# (0,1) RLL
+		encoding.FM: {
 			'map': encoding_map['FM/MFM'],
 			'limits': encoding_limits['FM'],
 			'sync_pattern': 2,
@@ -319,7 +327,7 @@ class Decoder(srd.Decoder):
 			'shift_index': [15, 15, 15],
 			'pb_state': state.IDData_Address_Mark,
 		},
-		encoding.MFM_FDD: {	# (1,3) RLL
+		encoding.MFM_FDD: {
 			'map': encoding_map['FM/MFM'],
 			'limits': encoding_limits['MFM'],
 			'sync_pattern': 2,
@@ -327,7 +335,7 @@ class Decoder(srd.Decoder):
 			'shift_index': [13, 14],
 			'pb_state': state.sync_mark,
 		},
-		encoding.MFM_HDD: {	# (1,3) RLL
+		encoding.MFM_HDD: {
 			'map': encoding_map['FM/MFM'],
 			'limits': encoding_limits['MFM'],
 			'sync_pattern': 2,
@@ -335,7 +343,8 @@ class Decoder(srd.Decoder):
 			'shift_index': [13, 14],
 			'pb_state': state.sync_mark,
 		},
-		encoding.RLL_SEA: {	# (2,7) RLL
+		# Seagate ST11M/21M
+		encoding.RLL_SEA: {
 			'map': encoding_map['IBM'],
 			'limits': encoding_limits['RLL'],
 			'sync_pattern': 3,
@@ -345,7 +354,8 @@ class Decoder(srd.Decoder):
 			'Data_prefix_mark': [0xDE],
 			'pb_state': state.sync_mark,
 		},
-		encoding.RLL_Adaptec: {	# (2,7) RLL Adaptec ACB-237x
+		# Adaptec ACB-237x, ACB-4070
+		encoding.RLL_Adaptec: {
 			'map': encoding_map['IBM'],
 			'limits': encoding_limits['RLL'],
 			'sync_pattern': 3,
@@ -356,7 +366,7 @@ class Decoder(srd.Decoder):
 			'nop_mark': [0x1E, 0x5E, 0xDE],
 			'pb_state': state.sync_mark,
 		},
-		encoding.RLL_WD: {	# (2,7) RLL
+		encoding.RLL_WD: {
 			'map': encoding_map['WD'],
 			'limits': encoding_limits['RLL'],
 			'sync_pattern': 3,
