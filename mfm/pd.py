@@ -19,8 +19,8 @@
 ## Available option1=value1:option2=value2 are in options Tuple List in the Decoder class.
 ## Available annotation1:annotation2 are in annotation_rows List of Lists in the Decoder class.
 ## ---------------------------------------------------------------------------
-## To Do:
-##	- add RLL
+## To-Do:
+##	- figure out crazy RLL_DTC7287 format
 ## ---------------------------------------------------------------------------
 ##
 ## This file is part of the libsigrokdecode project.
