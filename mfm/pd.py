@@ -647,6 +647,9 @@ class Decoder(srd.Decoder):
 			#print_('pll edge', edge_samplenum, pulse_ticks, f'{abs(pulse_ticks - 2.0 * self.halfbit):.4f}', f'{self.halfbit:.4f}')
 			#'%02X' % val
 
+			if self.unsync_after_decode:
+				self.reset_pll()
+
 			last_samplenum = self.last_last_samplenum
 			self.last_samplenum = last_samplenum
 			self.last_last_samplenum = edge_samplenum
@@ -778,11 +781,7 @@ class Decoder(srd.Decoder):
 				self.shift_index += self.halfbit_cells
 				#print_('pll_shift1', bin(self.shift)[1:], self.shift_index, self.halfbit_cells, self.shift_index +self.halfbit_cells)
 				if self.shift_index >= 16:
-					ret = self.decode()
-
-					if self.unsync_after_decode:
-						self.reset_pll()
-					return ret
+					return self.decode()
 			return 0
 
 	# ------------------------------------------------------------------------
