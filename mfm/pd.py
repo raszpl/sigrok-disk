@@ -421,6 +421,7 @@ class Decoder(srd.Decoder):
 		self.report_start = 0
 		self.reports_called = 0
 		
+		self.A1 = []
 		self.IDmark = []
 		self.DRmark = []
 
