@@ -52,7 +52,8 @@ def print_(*args):
 	#print(" ".join(map(str, args)))
 
 # ----------------------------------------------------------------------------
-# PURPOSE: Handle missing sample rate.
+# PURPOSE: Signal recoverable errors to DSView GUI and sigrok-cli output.
+# PulseView sadly doesnt display those messages :(
 # ----------------------------------------------------------------------------
 
 class raise_exception(Exception):
