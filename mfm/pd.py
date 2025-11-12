@@ -132,7 +132,7 @@ class Decoder(srd.Decoder):
 		{'id': 'header_crc_init', 'desc': 'Header field CRC init',
 			'default': '0xffffffff'},
 		{'id': 'data_crc_bits', 'desc': 'Data field CRC bits',
-			'default': '32', 'values': ('16', '32', '56')},
+			'default': '32', 'values': ('16', '32', '48', '56')},
 		{'id': 'data_crc_poly', 'desc': 'Data field CRC Polynomial',
 			'default': '0xA00805', 'values': ('0x1021', '0xA00805', '0x140a0445',
 			'0x0104c981', '0x41044185', '0x140a0445000101')},
