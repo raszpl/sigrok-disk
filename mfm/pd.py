@@ -160,6 +160,7 @@ class Decoder(srd.Decoder):
 			'default': 'no', 'values': ('yes', 'no')},
 	)
 
+	# build list of valid options, we will be verifying sigrok-cli command line input
 	options_valid = {item['id']: item['values'] for item in options if 'values' in item}
 
 	class Messages(object):
@@ -1363,7 +1364,6 @@ class Decoder(srd.Decoder):
 		sync_end = 0
 
 		#print_(window_size, bc10N)
-		#print(11111111111, encoding_table[self.encoding]['table'])
 		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, kp=self.pll_kp, ki=self.pll_ki, sync_pattern=sync_pattern, sync_tolerance = self.sync_tolerance, cells_allowed=cells_allowed, rll_table=rll_table)
 
 		# all this pain below to support dynamic Interval/window annotation
@@ -1811,7 +1811,7 @@ class Decoder(srd.Decoder):
 		interval = 0							# current interval (in samples, 1..n)
 
 		# FIFO (using circular buffers) of starting/ending sample numbers
-		# and data values for 33 half-bit-cell windows.  Data values are
+		# and data values for 33 half-bit-cell windows. Data values are
 		# number of leading edges per window (0..n).
 		self.fifo_size = 100
 		self.fifo_ws = array('l', [0 for _ in range(self.fifo_size)])
