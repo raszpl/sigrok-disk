@@ -120,7 +120,7 @@ class Decoder(srd.Decoder):
 			'default': '5000000', 'values': ('125000', '150000',
 			'250000', '300000', '500000', '5000000', '7500000', '10000000')},
 		{'id': 'encoding', 'desc': 'Encoding',
-			'default': 'MFM_HDD', 'values': ('FM', 'MFM_FDD', 'MFM_HDD', 'RLL_SEA', 'RLL_Adaptec', 'RLL_WD', 'custom')},
+			'default': 'MFM_HDD', 'values': ('FM', 'MFM_FDD', 'MFM_HDD', 'RLL_SEA', 'RLL_Adaptec', 'RLL_WD', 'RLL_OMTI', 'custom')},
 		{'id': 'sect_len', 'desc': 'Sector length',
 			'default': '512', 'values': ('128', '256', '512', '1024')},
 		{'id': 'header_bytes', 'desc': 'Header bytes',
@@ -324,7 +324,9 @@ class Decoder(srd.Decoder):
 		RLL_SEA		= 3
 		RLL_Adaptec = 4
 		RLL_WD		= 5
-		custom		= 6
+		RLL_DTC7287	= 6
+		RLL_OMTI	= 7
+		custom		= 8
 
 	# encoding_table holds data for configuring process_byte() and SimplePLL State Machines
 	#
@@ -395,7 +397,26 @@ class Decoder(srd.Decoder):
 			'sync_pattern': 3,
 			'sync_marks': [[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]],
 			'shift_index': [12],
-			'IDData_mark': [0xF0]
+			'IDData_mark': [0xF0],
+		},
+		# PLACEHOLDER! Weird format, almost as if it uses custom encoding_map?
+		# Data Technology Corporation DTC7287
+		encoding.RLL_DTC7287: {
+			'map': encoding_map['WD'],
+			'limits': encoding_limits['RLL'],
+			'sync_pattern': 4,
+			'sync_marks': [[5, 4, 4, 4, 4, 3, 8, 4]],
+			'shift_index': [17],
+			'IDData_mark': [0xF0],
+		},
+		# OMTI-8247
+		encoding.RLL_OMTI: {
+			'map': encoding_map['IBM'],
+			'limits': encoding_limits['RLL'],
+			'sync_pattern': 4,
+			'sync_marks': [[6, 8, 3], [5, 3, 8, 3]],
+			'shift_index': [11],
+			'IDData_mark': [0x7a],
 		}
 	}
 
