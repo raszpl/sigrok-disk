@@ -337,13 +337,12 @@ class Decoder(srd.Decoder):
 	# shift_index: every sync_mark entry has its own offset defining number of valid halfbit windows
 	#  already shifted in (minus last entry because PLLstate.decoding adds self.halfbit_cells) at the
 	#  moment of PLLstate.scanning_sync_mark mathing whole sync_marks. Define one common value or
-	# provide list of values for every sync_marks entry.
+	#  provide list of values for every sync_marks entry.
 	# IDData_mark: replaces A1
 	# ID_mark: skip straight to decoding Header
 	# Data_mark: skip straight to decoding Data
 	# ID_prefix_mark: Header Mark to be followed by IDData_mark
 	# nop_mark: inert mark
-	# pb_state: starting process_byte() state machine state
 	encoding_table = {
 		encoding.FM: {
 			'limits': encoding_limits['FM'],
@@ -518,8 +517,8 @@ class Decoder(srd.Decoder):
 		self.sync_tolerance = int(self.options['sync_tolerance'][:-1]) * 0.01
 		self.dsply_pfx = True if self.options['dsply_pfx'] == 'yes' else False
 
-		# sigrok-cli command line input doesnt support "" strings nor commas. Have to resort
-		# to stupid parsing tricks:
+		# sigrok-cli command line input doesnt support "" escaped strings nor commas.
+		# Have to resort to stupid parsing tricks:
 		#  '8-3-5_5-8-3-5_7-8-3-5' to [[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]]
 		#  '8-3-5' to [[8, 3, 5]]
 		# Also accept various formats thru the GUI like:
@@ -546,8 +545,7 @@ class Decoder(srd.Decoder):
 				'ID_mark': helper_list(helper_parse(self.options['custom_encoder_ID_mark'])),
 				'IDData_mark': helper_list(helper_parse(self.options['custom_encoder_IDData_mark'])),
 				'Data_mark': helper_list(helper_parse(self.options['custom_encoder_Data_mark'])),
-				'nop_mark': helper_list(helper_parse(self.options['custom_encoder_nop_mark'])),
-				'pb_state': state.sync_mark,
+				'nop_mark': helper_list(helper_parse(self.options['custom_encoder_nop_mark']))
 			}
 
 		# precompute crc constants
@@ -857,7 +855,7 @@ class Decoder(srd.Decoder):
 					# RLL rewrite mark, this illegal sequence should only ever show up in RLL marks
 					# We rewrite it so rll_decode() doesnt choke on it.
 					if self.shift & 0xFFF == 0b100000001001:
-						#print_('RLL rewrite mark?1', bin(self.shift)[1:], bin(self.shift ^ (1 << 7))[1:])
+						#print_('RLL rewrite mark', bin(self.shift)[1:], bin(self.shift ^ (1 << 7))[1:])
 						self.shift = self.shift ^ (1 << 7)
 
 			if self.state == PLLstate.decoding:
@@ -926,7 +924,7 @@ class Decoder(srd.Decoder):
 					}[target]
 
 		if value > 1:
-			# no need to emit error message, it was already caught by out-of-tolerance leading edge (OoTI) detector
+			# no need to emit error message, it was already caught by out-of-tolerance leading edge (OoTI) detector inside PLL
 			if self.show_sample_num:
 				self.put(start, end, self.out_ann, [ann.erw, ['%d%s (extra pulse in win) s%d' % (value, dataclock, start), '%d' % value]])
 			else:
@@ -944,14 +942,14 @@ class Decoder(srd.Decoder):
 	#	FM:
 	#		FCh with D7h (11010111) clock	IAM		Index Mark
 	#		FEh with C7h (11000111) clock	IDAM	ID Address Mark
-	#		FBh with C7h clock				DAM		Data Address Mark
-	#		F8h..FAh with C7h clock			DDAM	Deleted Data Address Mark
+	#		FBh with C7h (11000111) clock	DAM		Data Address Mark
+	#		F8h..FAh C7h (11000111) clock	DDAM	Deleted Data Address Mark
 	#	MFM:
 	#		C2h no clock between bits 3/4
-	#		A1h no clock between bits 4/5
+	#		A1h no clock between bits 2/3
 	# IN: special_clock	True = don't generate error on clock gritches
-	#					False or omitted = normal clocking, generate error
-	# OUT: self.byte_start, self.byte_end updated
+	#					False = normal clocking, generate error
+	# OUT: self.byte_start, self.byte_end	updated
 	# ------------------------------------------------------------------------
 
 	def annotate_bits_FM_MFM(self, special_clock):
@@ -1008,13 +1006,14 @@ class Decoder(srd.Decoder):
 	#	Synchronisation marks implemented by emitting illegal 0b100000001001 sequence.
 	#	PLLstate.scanning_sync_mark overrides those into 0b100010001001 creating:
 	#	RLL_SEA:
-	#		1Eh ID_Address_Mark
-	#		DEh Data_Address_Mark
+	#		1Eh ID_prefix_mark
+	#		DEh nop_mark
 	#	RLL_WD:
-	#		F0h all marks are the same
+	#		F0h IDData_mark
+	#	etc ...
 	# IN: special_clock	True = mark clock glitch
-	#					False or omitted = skip clock glitch checking
-	# OUT: self.byte_start, self.byte_end updated
+	#					False = skip clock glitch checking
+	# OUT: self.byte_start, self.byte_end	updated
 	# ------------------------------------------------------------------------
 
 	def annotate_bits_RLL(self, val, special_clock):
@@ -1059,10 +1058,10 @@ class Decoder(srd.Decoder):
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Annotate one byte and its 8 bits/16 windows.
-	# IN: val  byte value (00h..FFh)
-	#	  special_clock	True = special clocking, don't generate error
+	# IN: val	byte value (00h..FFh)
+	#	special_clock	True = special clocking, don't generate error
 	#					False or omitted = normal clocking, generate error
-	# OUT: self.byte_start, self.byte_end, self.fifo_rp	 updated
+	# OUT: self.byte_start, self.byte_end	updated
 	# ------------------------------------------------------------------------
 
 	def annotate_byte(self, val, special_clock = False):
@@ -1085,9 +1084,9 @@ class Decoder(srd.Decoder):
 
 	# ------------------------------------------------------------------------
 	# Display an annotation for a field.
-	# IN: typ  Enum field
+	# IN: typ	Enum field
 	#	  self.field_start, self.byte_end
-	# OUT: self.field_start	 updated
+	# OUT: self.field_start	updated
 	# ------------------------------------------------------------------------
 
 	def display_field(self, typ):
@@ -1262,8 +1261,6 @@ class Decoder(srd.Decoder):
 				pass
 			# FM Index Mark
 			elif val == 0xFC:
-				self.annotate_byte(0xFC, special_clock = True)
-				self.display_field(field.Sync)
 				self.display_field(field.Index_Mark)
 				self.pb_state = state.first_Gap_Byte
 			# MFM_FDD Index Mark
@@ -1424,11 +1421,9 @@ class Decoder(srd.Decoder):
 		if not self.samplerate:
 			raise raise_exception('Cannot decode without samplerate.')
 
-		# Calculate maximum number of samples allowed between ID and Data Address Marks.
+		# --- Initialize (half-)bit-cell-window
 		# Cant put it in start() or metadata() becaue we cant be sure of order those
 		# two are called, one initializes (samplerate) the other user options (data_rate)
-
-		# --- Initialize various (half-)bit-cell-window and other variables.
 		bc10N = self.samplerate / self.data_rate	# nominal 1.0 bit cell window size (in fractional samples)
 		window_size = bc10N / 2.0	# current half-bit-cell window size (in fractional samples)
 
