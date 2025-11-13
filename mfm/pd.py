@@ -265,6 +265,23 @@ class Decoder(srd.Decoder):
 		Sync				= 10
 		Gap					= 11
 
+	class encoding(Enum):
+		FM			= 0
+		MFM_FDD		= 1
+		MFM_HDD		= 2
+		RLL_SEA		= 3
+		RLL_Adaptec = 4
+		RLL_WD		= 5
+		RLL_DTC7287	= 6
+		RLL_OMTI	= 7
+		custom		= 8
+
+	encoding_limits = {
+		'FM': (1, 2),				# (0,1) RLL
+		'MFM': (2, 3, 4),			# (1,3) RLL
+		'RLL': (3, 4, 5, 6, 7, 8),	# (2,7) RLL
+	}
+
 	encoding_map = {
 		'FM/MFM': {
 			'11': '1',
@@ -309,21 +326,6 @@ class Decoder(srd.Decoder):
 	#	'0011':	'00001000',
 	#	'0010':	'00100100'
 	#}
-	encoding_limits = {
-		'FM': (1, 2),				# (0,1) RLL
-		'MFM': (2, 3, 4),			# (1,3) RLL
-		'RLL': (3, 4, 5, 6, 7, 8),	# (2,7) RLL
-	}
-	class encoding(Enum):
-		FM			= 0
-		MFM_FDD		= 1
-		MFM_HDD		= 2
-		RLL_SEA		= 3
-		RLL_Adaptec = 4
-		RLL_WD		= 5
-		RLL_DTC7287	= 6
-		RLL_OMTI	= 7
-		custom		= 8
 
 	# encoding_table holds data for configuring process_byte() and SimplePLL State Machines
 	#
@@ -497,13 +499,12 @@ class Decoder(srd.Decoder):
 		self.time_unit = self.options['time_unit']
 		self.show_sample_num = True if self.options['dsply_sn'] == 'yes' else False
 
-		self.report = {
-						'no':	'no',
+		self.report = {	'no':	'no',
 						'IAM':	field.Index_Mark,
 						'IDAM':	field.ID_Address_Mark,
 						'DAM':	field.Data_Address_Mark,
 						'DDAM':	field.Deleted_Data_Mark,
-			}[self.options['report']]
+					}[self.options['report']]
 		self.report_qty = int(self.options['report_qty'])
 		self.report_start = 0
 		self.reports_called = 0
