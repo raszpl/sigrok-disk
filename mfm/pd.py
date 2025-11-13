@@ -716,11 +716,11 @@ class Decoder(srd.Decoder):
 							break
 				if not matched:
 					if binary_str_len - i > 7:
-						# DOTO: Emit whatever and signal upstream we got decoder fail
+						# TODO: Emit whatever and signal upstream we got decoder fail
 						# but try to keep synced and handle bad data upstream using ECC?
 						# For now just raise exception
 						#print_("rll_decode catastrophic fail, Max codeword length reached without match, resetting!", self.shift_decoded_1, binary_str_len, i, decoded, self.codemap_key, binary_str, pattern)
-						raise raise_exception("rll_decode catastrophic fail! Max codeword length reached without match. Exception raised.")
+						#raise raise_exception("rll_decode catastrophic fail! Max codeword length reached without match. Exception raised.")
 						self.reset_pll()
 						return False
 					#print_("RLL not matched", binary_str[i:], decoded, i)
