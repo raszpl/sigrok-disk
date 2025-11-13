@@ -1,6 +1,6 @@
 ## ---------------------------------------------------------------------------
 ## FILE: decoders\mfm\pd.py
-## PURPOSE: Decode floppy and hard disk FM or MFM pulse stream.
+## PURPOSE: Decode floppy and hard disk FM, MFM and RLL pulse stream.
 ##
 ## Copyright (C) 2017 David C. Wiens <dcwiens@sardis-technologies.com>
 ## Copyright (c) 2025 MajenkoProjects
@@ -19,10 +19,6 @@
 ## Available option1=value1:option2=value2 are in options Tuple List in the Decoder class.
 ## Available annotation1:annotation2 are in annotation_rows List of Lists in the Decoder class.
 ## ---------------------------------------------------------------------------
-## To-Do:
-##	- figure out crazy RLL_DTC7287 format
-## ---------------------------------------------------------------------------
-##
 ## This file is part of the libsigrokdecode project.
 ##
 ## This program is free software: you can redistribute it and/or modify
@@ -361,6 +357,7 @@ class Decoder(srd.Decoder):
 			'shift_index': [13, 14],
 			'IDData_mark': [0xA1]
 		},
+		# Generic HDD MFM controller format, seems to work with most MFM drives.
 		encoding.MFM_HDD: {
 			'limits': encoding_limits['MFM'],
 			'map': encoding_map['FM/MFM'],
@@ -431,14 +428,13 @@ class Decoder(srd.Decoder):
 		# Initialize pre-defined variables.
 		self.samplerate = None
 		self.last_samplenum = None
-		self.last_n = deque()
 		self.chunks = 0
 
 		# Define (and initialize) various custom variables.
 		self.byte_start = 0			# start of byte (sample number)
 		self.byte_end = 0			# end of byte (sample number)
 		self.field_start = 0		# start of field (sample number)
-		self.pb_state = state.sync_mark # init State Machine
+		self.pb_state = state.sync_mark # init process_byte() State Machine
 		self.byte_cnt = 0			# number of bytes left to process in field (1024/512/256/128/4/2..0)
 		self.IDcyl = 0				# cylinder number field in ID record (0..244)
 		self.IDsid = 0				# side number field in ID record (0..1)
@@ -463,7 +459,8 @@ class Decoder(srd.Decoder):
 
 		self.report_start = 0
 		self.reports_called = 0
-		
+
+		# used by process_byte() for CRC calculations.
 		self.A1 = []
 		self.IDmark = []
 		self.DRmark = []
@@ -533,7 +530,6 @@ class Decoder(srd.Decoder):
 		def helper_list(groups):
 			return groups[0] if len(groups) == 1 else []
 
-		# RLL_custom
 		if self.encoding == encoding.custom:
 			encoding_table[encoding.custom] = {
 				'limits': encoding_limits[self.options['custom_encoder_limits']],
@@ -586,6 +582,7 @@ class Decoder(srd.Decoder):
 			self.halfbit_nom15 = 1.5 * halfbit_ticks
 			self.kp = kp
 			self.ki = ki
+
 			self.sync_pattern = sync_pattern
 			self.sync_lock_threshold = lock_threshold
 			# sync_tolerance: fractional percentage of tolerated deviations during initial PLL sync lock
@@ -612,7 +609,10 @@ class Decoder(srd.Decoder):
 			self.last_samplenum = 0
 			self.last_last_samplenum = 0
 
-			# ring buffer for storing info on individual halfbit windows, used by annotate_bits()
+			# Ring buffer for storing info on individual halfbit windows, used by annotate_bits()
+			# We need 16 halfbit windows + whatever the max shift_index is so we can rewind to
+			# annotate already shifted data at the moment of Sync Mark match. Hardcoded for now
+			# with safe margin.
 			self.ring_ptr = 0
 			self.ring_size = 255											# in halfbit windows
 			self.ring_ws = array('l', [0 for _ in range(self.ring_size)])	# win_start
@@ -784,7 +784,7 @@ class Decoder(srd.Decoder):
 			# PHASE ERROR: positive -> edge arrived after expected clock (we're late)
 			phase_err = edge_samplenum - self.phase_ref
 
-			#print_('phase_err', pulse_ticks, self.halfbit_cells, f'{self.halfbit:.4f}', f'{self.phase_ref:.4f}', f'{phase_err:.4f}')
+			#print_('phase_err', pulse_ticks, self.halfbit_cells, '%.4f' % self.halfbit, '%.4f' % self.phase_ref, '%.4f' % phase_err)
 
 			# Proportional: nudge phase_ref toward the edge
 			self.phase_ref += self.kp * phase_err
@@ -847,7 +847,7 @@ class Decoder(srd.Decoder):
 								self.shift_index = shift_index[sequence_number]
 								print_('pll byte_synced', self.last_samplenum)
 							break
-	
+
 					if not pulse_match:
 						self.reset_pll()
 						return 0
@@ -1421,7 +1421,6 @@ class Decoder(srd.Decoder):
 		bc10N = self.samplerate / self.data_rate	# nominal 1.0 bit cell window size (in fractional samples)
 		window_size = bc10N / 2.0	# current half-bit-cell window size (in fractional samples)
 
-		byte_sync = False			# True = bit/byte-sync'd, False = not sync'd
 		interval = 0				# current interval (in samples, 1..n)
 
 		map = encoding_table[self.encoding]['map']
