@@ -158,11 +158,11 @@ class Decoder(srd.Decoder):
 
 		{'id': 'custom_encoder_limits', 'desc': 'Custom encoder: coding',
 			'default': 'RLL', 'values': ('FM', 'MFM', 'RLL')},
-		{'id': 'custom_encoder_map', 'desc': 'Custom encoder: map',
+		{'id': 'custom_encoder_codemap', 'desc': 'Custom encoder: codemap',
 			'default': 'IBM', 'values': ('FM/MFM', 'IBM', 'WD')},
 		{'id': 'custom_encoder_sync_pattern', 'desc': 'Custom encoder: sync_pattern',
 			'default': 4, 'values': (2, 3, 4)},
-		{'id': 'custom_encoder_sync_marks', 'desc': 'Custom encoder: sync_marks. Example: [6, 8, 3], [5, 3, 8, 3]',
+		{'id': 'custom_encoder_sync_seqs', 'desc': 'Custom encoder: sync_seqs. Example: [6, 8, 3], [5, 3, 8, 3]',
 			'default': ''},
 		{'id': 'custom_encoder_shift_index', 'desc': 'Custom encoder: shift_index. Example: 11 or 11, 11',
 			'default': ''},
@@ -233,7 +233,7 @@ class Decoder(srd.Decoder):
 	# Sadly those need to be up here, otherwise one has to use self. prefix
 	# ----------------------------------------------------------------------------
 
-	global state, field, encoding, encoding_table, encoding_map, encoding_limits
+	global state, field, encoding
 	class state(Enum):
 		first_C2h_prefix	= 0		#auto()
 		second_C2h_prefix	= 1
@@ -275,21 +275,26 @@ class Decoder(srd.Decoder):
 		RLL_DTC7287	= 6
 		RLL_OMTI	= 7
 		custom		= 8
+		MFM			= 9
+		RLL			= 10
+		FM_MFM		= 11
+		WD			= 12
+		IBM			= 13
 
 	encoding_limits = {
-		'FM': (1, 2),				# (0,1) RLL
-		'MFM': (2, 3, 4),			# (1,3) RLL
-		'RLL': (3, 4, 5, 6, 7, 8),	# (2,7) RLL
+		encoding.FM:	(1, 2),				# (0,1) RLL
+		encoding.MFM:	(2, 3, 4),			# (1,3) RLL
+		encoding.RLL:	(3, 4, 5, 6, 7, 8),	# (2,7) RLL
 	}
 
-	encoding_map = {
-		'FM/MFM': {
+	encoding_codemap = {
+		encoding.FM_MFM: {
 			'11': '1',
 			'10': '0',
 			'01': '1',
 			'00': '0',
 		},
-		'IBM': {
+		encoding.IBM: {
 			'1000': '11',
 			'0100': '10',
 			'100100': '010',
@@ -298,7 +303,7 @@ class Decoder(srd.Decoder):
 			'00100100': '0010',
 			'00001000': '0011'
 		},
-		'WD': {
+		encoding.WD: {
 			'1000': '11',
 			'0100': '10',
 			'100100': '000',
@@ -330,12 +335,13 @@ class Decoder(srd.Decoder):
 	# encoding_table holds data for configuring process_byte() and SimplePLL State Machines
 	#
 	# limits: pulse widths outside reset PLL
+	# codemap: code translation map
 	# sync_pattern: anything other halts PLLstate.locking phase and triggers reset_pll()
-	# sync_marks: used by PLLstate.scanning_sync_mark
+	# sync_seqs: used by PLLstate.scanning_sync_mark
 	# shift_index: every sync_mark entry has its own offset defining number of valid halfbit windows
 	#  already shifted in (minus last entry because PLLstate.decoding adds self.halfbit_cells) at the
-	#  moment of PLLstate.scanning_sync_mark mathing whole sync_marks. Define one common value or
-	#  provide list of values for every sync_marks entry.
+	#  moment of PLLstate.scanning_sync_mark mathing whole sync_seqs. Define one common value or
+	#  provide list of values for every sync_seqs entry.
 	# IDData_mark: replaces A1
 	# ID_mark: skip straight to decoding Header
 	# Data_mark: skip straight to decoding Data
@@ -343,37 +349,37 @@ class Decoder(srd.Decoder):
 	# nop_mark: inert mark
 	encoding_table = {
 		encoding.FM: {
-			'limits': encoding_limits['FM'],
-			'map': encoding_map['FM/MFM'],
+			'limits_key': encoding.FM,
+			'codemap_key': encoding.FM_MFM,
 			'sync_pattern': 2,
-			'sync_marks': [[1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 2], [1, 1, 1, 2, 2, 2, 1, 2, 1, 1, 1], [1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 2]],
+			'sync_seqs': [[1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 2], [1, 1, 1, 2, 2, 2, 1, 2, 1, 1, 1], [1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 2]],
 			'shift_index': [15],
 			'ID_mark': [0xFE],
 			'Data_mark': [0xFB]
 		},
 		encoding.MFM_FDD: {
-			'limits': encoding_limits['MFM'],
-			'map': encoding_map['FM/MFM'],
+			'limits_key': encoding.MFM,
+			'codemap_key': encoding.FM_MFM,
 			'sync_pattern': 2,
-			'sync_marks': [[3, 4, 3, 4, 3], [3, 2, 3, 4, 3, 4]],
+			'sync_seqs': [[3, 4, 3, 4, 3], [3, 2, 3, 4, 3, 4]],
 			'shift_index': [13, 14],
 			'IDData_mark': [0xA1]
 		},
 		# Generic HDD MFM controller format, seems to work with most MFM drives.
 		encoding.MFM_HDD: {
-			'limits': encoding_limits['MFM'],
-			'map': encoding_map['FM/MFM'],
+			'limits_key': encoding.MFM,
+			'codemap_key': encoding.FM_MFM,
 			'sync_pattern': 2,
-			'sync_marks': [[3, 4, 3, 4, 3], [3, 2, 3, 4, 3, 4]],
+			'sync_seqs': [[3, 4, 3, 4, 3], [3, 2, 3, 4, 3, 4]],
 			'shift_index': [13, 14],
 			'IDData_mark': [0xA1]
 		},
 		# Seagate ST11M/21M
 		encoding.RLL_SEA: {
-			'limits': encoding_limits['RLL'],
-			'map': encoding_map['IBM'],
+			'limits_key': encoding.RLL,
+			'codemap_key': encoding.IBM,
 			'sync_pattern': 3,
-			'sync_marks': [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4]],
+			'sync_seqs': [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4]],
 			'shift_index': [18],
 			'IDData_mark': [0xA1],
 			'ID_prefix_mark': [0x1E],
@@ -381,39 +387,39 @@ class Decoder(srd.Decoder):
 		},
 		# Adaptec ACB-237x, ACB-4070
 		encoding.RLL_Adaptec: {
-			'limits': encoding_limits['RLL'],
-			'map': encoding_map['IBM'],
+			'limits_key': encoding.RLL,
+			'codemap_key': encoding.IBM,
 			'sync_pattern': 3,
-			'sync_marks': [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4], [8, 3, 4]],
+			'sync_seqs': [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4], [8, 3, 4]],
 			'shift_index': [18],
 			'ID_mark': [0xA1],
 			'Data_mark': [0xA0],
 			'nop_mark': [0x1E, 0x5E, 0xDE]
 		},
 		encoding.RLL_WD: {
-			'limits': encoding_limits['RLL'],
-			'map': encoding_map['WD'],
+			'limits_key': encoding.RLL,
+			'codemap_key': encoding.WD,
 			'sync_pattern': 3,
-			'sync_marks': [[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]],
+			'sync_seqs': [[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]],
 			'shift_index': [12],
 			'IDData_mark': [0xF0],
 		},
-		# PLACEHOLDER! Weird format, almost as if it uses custom encoding_map?
+		# PLACEHOLDER! Weird format, almost as if it uses custom encoding_codemap? are those sync marks ESDI like?
 		# Data Technology Corporation DTC7287
 		encoding.RLL_DTC7287: {
-			'limits': encoding_limits['RLL'],
-			'map': encoding_map['WD'],
+			'limits_key': encoding.RLL,
+			'codemap_key': encoding.WD,
 			'sync_pattern': 4,
-			'sync_marks': [[5, 4, 4, 4, 4, 3, 8, 4]],
+			'sync_seqs': [[5, 4, 4, 4, 4, 3, 8, 4]],
 			'shift_index': [17],
 			'IDData_mark': [0xF0],
 		},
 		# OMTI-8247
 		encoding.RLL_OMTI: {
-			'limits': encoding_limits['RLL'],
-			'map': encoding_map['IBM'],
+			'limits_key': encoding.RLL,
+			'codemap_key': encoding.IBM,
 			'sync_pattern': 4,
-			'sync_marks': [[6, 8, 3], [5, 3, 8, 3]],
+			'sync_seqs': [[6, 8, 3], [5, 3, 8, 3]],
 			'shift_index': [11],
 			'IDData_mark': [0x7a],
 		}
@@ -532,18 +538,29 @@ class Decoder(srd.Decoder):
 			return groups[0] if len(groups) == 1 else []
 
 		if self.encoding == encoding.custom:
-			encoding_table[encoding.custom] = {
-				'limits': encoding_limits[self.options['custom_encoder_limits']],
-				'map': encoding_map[self.options['custom_encoder_map']],
-				'sync_pattern': self.options['custom_encoder_sync_pattern'],
-				'sync_marks': helper_parse(self.options['custom_encoder_sync_marks']),
-				'shift_index': helper_list(helper_parse(self.options['custom_encoder_shift_index'])),
-				'ID_prefix_mark': helper_list(helper_parse(self.options['custom_encoder_ID_prefix_mark'])),
-				'ID_mark': helper_list(helper_parse(self.options['custom_encoder_ID_mark'])),
-				'IDData_mark': helper_list(helper_parse(self.options['custom_encoder_IDData_mark'])),
-				'Data_mark': helper_list(helper_parse(self.options['custom_encoder_Data_mark'])),
-				'nop_mark': helper_list(helper_parse(self.options['custom_encoder_nop_mark']))
+			self.encoding_current = {
+				'limits_key':		{	'FM':	encoding.FM,
+										'MFM':	encoding.MFM,
+										'RLL':	encoding.RLL,
+									}[self.options['custom_encoder_limits']],
+				'codemap_key':		{	'FM/MFM':	encoding.FM_MFM,
+										'IBM':		encoding.IBM,
+										'WD':		encoding.WD,
+									}[self.options['custom_encoder_codemap']],
+				'sync_pattern':		self.options['custom_encoder_sync_pattern'],
+				'sync_seqs':		helper_parse(self.options['custom_encoder_sync_seqs']),
+				'shift_index':		helper_list(helper_parse(self.options['custom_encoder_shift_index'])),
+				'ID_prefix_mark':	helper_list(helper_parse(self.options['custom_encoder_ID_prefix_mark'])),
+				'ID_mark':			helper_list(helper_parse(self.options['custom_encoder_ID_mark'])),
+				'IDData_mark':		helper_list(helper_parse(self.options['custom_encoder_IDData_mark'])),
+				'Data_mark':		helper_list(helper_parse(self.options['custom_encoder_Data_mark'])),
+				'nop_mark':			helper_list(helper_parse(self.options['custom_encoder_nop_mark']))
 			}
+		else:
+			self.encoding_current = self.encoding_table[self.encoding]
+
+		self.encoding_current['limits'] = self.encoding_limits[self.encoding_current['limits_key']]
+		self.encoding_current['codemap'] = self.encoding_codemap[self.encoding_current['codemap_key']]
 
 		# precompute crc constants
 		self.header_crc_bytes = self.header_crc_bits // 8
@@ -576,7 +593,7 @@ class Decoder(srd.Decoder):
 			scanning_sync_mark	= 1
 			decoding			= 2
 
-		def __init__(self, owner, halfbit_ticks=10.0, kp=0.5, ki=0.0005, sync_pattern=2, lock_threshold=32, sync_tolerance=0.25, cells_allowed=(2, 3, 4), map={}):
+		def __init__(self, owner, halfbit_ticks, kp, ki, sync_tolerance, lock_threshold, encoding_current):
 			self.owner = owner
 			self.halfbit_nom = halfbit_ticks
 			self.halfbit_nom05 = 0.5 * halfbit_ticks
@@ -584,19 +601,21 @@ class Decoder(srd.Decoder):
 			self.kp = kp
 			self.ki = ki
 
-			self.map = map
-			if map == encoding_map['FM/MFM']:
-				self.decode = self.fm_mfm_decode
-			else:
-				self.decode = self.rll_decode
+			self.encoding_current = encoding_current
+			self.codemap = encoding_current['codemap']
+			self.codemap_key = encoding_current['codemap_key']
+			self.decode = {
+				encoding.FM_MFM: self.fm_mfm_decode,
+				encoding.IBM: self.rll_decode,
+				encoding.WD: self.rll_decode,
+			}[self.codemap_key]
 
-			self.sync_pattern = sync_pattern
+			self.sync_pattern = encoding_current['sync_pattern']
 			self.sync_lock_threshold = lock_threshold
 			# sync_tolerance: fractional percentage of tolerated deviations during initial PLL sync lock
 			self.sync_tolerance = halfbit_ticks * sync_tolerance
-			self.cells_allowed = cells_allowed
-			self.cells_allowed_min = min(cells_allowed)
-			self.cells_allowed_max = max(cells_allowed)
+			self.cells_allowed_min = min(encoding_current['limits'])
+			self.cells_allowed_max = max(encoding_current['limits'])
 
 			# Ring buffer for storing info on individual halfbit windows, used by annotate_bits()
 			# We need 16 halfbit windows + whatever the max shift_index is so we can rewind to
@@ -615,7 +634,7 @@ class Decoder(srd.Decoder):
 			self.halfbit_cells = 0
 			self.integrator = 0.0
 			self.sync_lock_count = 0
-			self.sync_mark_tries = []
+			self.sync_sequence_try = []
 			self.unsync_after_decode = False
 			self.sync_start = None
 			self.shift = 0xfffff
@@ -645,7 +664,7 @@ class Decoder(srd.Decoder):
 
 			self.state = PLLstate.locking
 			self.sync_lock_count = 0
-			self.sync_mark_tries = []
+			self.sync_sequence_try = []
 			self.unsync_after_decode = False
 			self.sync_start = None
 			self.shift = 0xfffff
@@ -673,7 +692,7 @@ class Decoder(srd.Decoder):
 			return True
 
 		def rll_decode(self):
-			RLL_TABLE = self.map
+			RLL_TABLE = self.codemap
 			shift_win = self.shift & (2 ** self.shift_index -1)
 
 			#print_('RLL_1', bin(self.shift)[1:], self.shift_index, bin(shift_win)[2:].zfill(self.shift_index))
@@ -700,7 +719,7 @@ class Decoder(srd.Decoder):
 						# DOTO: Emit whatever and signal upstream we got decoder fail
 						# but try to keep synced and handle bad data upstream using ECC?
 						# For now just raise exception
-						#print_("rll_decode catastrophic fail, Max codeword length reached without match, resetting!", self.shift_decoded_1, binary_str_len, i, decoded, RLL_TABLE, binary_str, pattern)
+						#print_("rll_decode catastrophic fail, Max codeword length reached without match, resetting!", self.shift_decoded_1, binary_str_len, i, decoded, self.codemap_key, binary_str, pattern)
 						raise raise_exception("rll_decode catastrophic fail! Max codeword length reached without match. Exception raised.")
 						self.reset_pll()
 						return False
@@ -718,7 +737,7 @@ class Decoder(srd.Decoder):
 			# edge_samplenum: sample index of rising edge (flux transition)
 			# State Machine with 3 stages:
 			# - PLLstate.locking looks for sync_lock_threshold number of sync_pattern pulses
-			# - PLLstate.scanning_sync_mark keeps scanning for either sync_pattern or encoding_table[self.owner.encoding]['sync_marks'], anything else resets PLL.
+			# - PLLstate.scanning_sync_mark keeps scanning for either sync_pattern or self.encoding_current['sync_seqs'], anything else resets PLL.
 			# - PLLstate.decoding
 
 			#print_('pll edge', edge_samplenum, pulse_ticks, '%.4f' % abs(pulse_ticks - 2.0 * self.halfbit), '%.4f' % self.halfbit)
@@ -823,28 +842,27 @@ class Decoder(srd.Decoder):
 
 			if self.state == PLLstate.scanning_sync_mark:
 				# just another sync pulse
-				if not self.sync_mark_tries and self.halfbit_cells == self.sync_pattern:
+				if not self.sync_sequence_try and self.halfbit_cells == self.sync_pattern:
 					self.sync_lock_count += 1
 
 				# scan for start of sync mark
 				else:
-					#print_('scanning_sync_mark', self.sync_mark_tries, self.last_samplenum)
+					#print_('scanning_sync_mark', self.sync_sequence_try, self.last_samplenum)
 					pulse_match = 0
-					table = encoding_table[self.owner.encoding]
-					sync_marks = table['sync_marks']
-					shift_index = table['shift_index']
+					sync_seqs = self.encoding_current['sync_seqs']
+					shift_index = self.encoding_current['shift_index']
 					# let user define just one common shift_index for all the marks
 					# we will automagically duplicate it here
 					if len(shift_index) == 1:
-						shift_index = shift_index * len(sync_marks)
-					elif len(sync_marks) != len(shift_index):
-						raise raise_exception('scanning_sync_mark: Mistmatched number of shift_index defined. Requires either one common or equal number to sync_marks variants.')
-					for sequence_number in range (0, len(sync_marks)):
-						#print_('scanning_sync_mark_', sequence_number, self.sync_mark_tries)
-						if self.sync_mark_tries + [self.halfbit_cells] == sync_marks[sequence_number][:len(self.sync_mark_tries)+1]:
+						shift_index = shift_index * len(sync_seqs)
+					elif len(sync_seqs) != len(shift_index):
+						raise raise_exception('scanning_sync_mark: Mistmatched number of shift_index defined. Requires either one common or equal number to sync_seqs variants.')
+					for sequence_number in range (0, len(sync_seqs)):
+						#print_('scanning_sync_mark_', sequence_number, self.sync_sequence_try)
+						if self.sync_sequence_try + [self.halfbit_cells] == sync_seqs[sequence_number][:len(self.sync_sequence_try)+1]:
 							pulse_match = sequence_number+1
-							self.sync_mark_tries += [self.halfbit_cells]
-							if self.sync_mark_tries == sync_marks[sequence_number]:
+							self.sync_sequence_try += [self.halfbit_cells]
+							if self.sync_sequence_try == sync_seqs[sequence_number]:
 								self.state = PLLstate.decoding
 								self.shift_index = shift_index[sequence_number]
 								print_('pll byte_synced', self.last_samplenum)
@@ -1233,7 +1251,7 @@ class Decoder(srd.Decoder):
 		if self.pb_state == state.sync_mark:
 			self.annotate_byte(val, special_clock = True)
 			self.display_field(field.Sync)
-			if val in encoding_table[self.encoding].get('IDData_mark', []):
+			if val in self.encoding_current.get('IDData_mark', []):
 				self.A1 = [0xA1]
 				self.pb_state = state.IDData_Address_Mark
 				if self.IDmark:
@@ -1245,21 +1263,21 @@ class Decoder(srd.Decoder):
 				# MFM_FDD triple A1 Sync Mark
 				elif self.encoding == encoding.MFM_FDD:
 					self.pb_state = state.second_A1h_prefix
-			elif val in encoding_table[self.encoding].get('ID_mark', []):
+			elif val in self.encoding_current.get('ID_mark', []):
 				self.IDmark = [val]
 				self.display_field(field.ID_Address_Mark)
 				self.IDcrc = 0
 				self.byte_cnt = self.header_bytes
 				self.pb_state = state.ID_Record
-			elif val in encoding_table[self.encoding].get('Data_mark', []):
+			elif val in self.encoding_current.get('Data_mark', []):
 				self.DRmark = [val]
 				self.display_field(field.Data_Address_Mark)
 				self.DRcrc = 0
 				self.byte_cnt = self.sector_len
 				self.pb_state = state.Data_Record
-			elif val in encoding_table[self.encoding].get('ID_prefix_mark', []):
+			elif val in self.encoding_current.get('ID_prefix_mark', []):
 				self.IDmark = [val]
-			elif val in encoding_table[self.encoding].get('nop_mark', []):
+			elif val in self.encoding_current.get('nop_mark', []):
 				pass
 			# FM Index Mark
 			elif val == 0xFC:
@@ -1424,12 +1442,9 @@ class Decoder(srd.Decoder):
 		window_size = bc10N / 2.0	# current half-bit-cell window size (in fractional samples)
 
 		interval = 0				# current interval (in samples, 1..n)
+		cells_allowed = self.encoding_current['limits']
 
-		map = encoding_table[self.encoding]['map']
-		cells_allowed = encoding_table[self.encoding]['limits']
-		sync_pattern = encoding_table[self.encoding]['sync_pattern']
-
-		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, kp=self.pll_kp, ki=self.pll_ki, sync_pattern=sync_pattern, sync_tolerance=self.sync_tolerance, cells_allowed=cells_allowed, map=map)
+		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, kp=self.pll_kp, ki=self.pll_ki, sync_tolerance=self.sync_tolerance, lock_threshold=32, encoding_current=self.encoding_current)
 
 		# all this pain below to support dynamic Interval/window annotation
 		interval_multi = {
