@@ -583,6 +583,12 @@ class Decoder(srd.Decoder):
 			self.kp = kp
 			self.ki = ki
 
+			self.map = map
+			if map == encoding_map['FM/MFM']:
+				self.decode = self.fm_mfm_decode
+			else:
+				self.decode = self.rll_decode
+
 			self.sync_pattern = sync_pattern
 			self.sync_lock_threshold = lock_threshold
 			# sync_tolerance: fractional percentage of tolerated deviations during initial PLL sync lock
@@ -591,7 +597,18 @@ class Decoder(srd.Decoder):
 			self.cells_allowed_min = min(cells_allowed)
 			self.cells_allowed_max = max(cells_allowed)
 
+			# Ring buffer for storing info on individual halfbit windows, used by annotate_bits()
+			# We need 16 halfbit windows + whatever the max shift_index is so we can rewind to
+			# annotate already shifted data at the moment of Sync Mark match. Hardcoded for now
+			# with safe margin.
+			self.ring_ptr = 0
+			self.ring_size = 255											# in halfbit windows
+			self.ring_ws = array('l', [0 for _ in range(self.ring_size)])	# win_start
+			self.ring_we = array('l', [0 for _ in range(self.ring_size)])	# win_end
+			self.ring_wv = array('l', [0 for _ in range(self.ring_size)])	# value
+
 			# PLL state
+			self.state = PLLstate.locking
 			self.phase_ref = 0				# float: reference sample for half-bit 0
 			self.halfbit = halfbit_ticks	# current half-bit estimate
 			self.halfbit_cells = 0
@@ -608,24 +625,6 @@ class Decoder(srd.Decoder):
 			self.pulse_ticks = 0
 			self.last_samplenum = 0
 			self.last_last_samplenum = 0
-
-			# Ring buffer for storing info on individual halfbit windows, used by annotate_bits()
-			# We need 16 halfbit windows + whatever the max shift_index is so we can rewind to
-			# annotate already shifted data at the moment of Sync Mark match. Hardcoded for now
-			# with safe margin.
-			self.ring_ptr = 0
-			self.ring_size = 255											# in halfbit windows
-			self.ring_ws = array('l', [0 for _ in range(self.ring_size)])	# win_start
-			self.ring_we = array('l', [0 for _ in range(self.ring_size)])	# win_end
-			self.ring_wv = array('l', [0 for _ in range(self.ring_size)])	# value
-
-			self.map = map
-			if map == encoding_map['FM/MFM']:
-				self.decode = self.fm_mfm_decode
-			else:
-				self.decode = self.rll_decode
-
-			self.state = PLLstate.locking
 
 		def ring_write(self, win_start, win_end, value):
 			self.ring_ptr = (self.ring_ptr + 1) % self.ring_size
