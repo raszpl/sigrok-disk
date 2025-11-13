@@ -670,7 +670,7 @@ class Decoder(srd.Decoder):
 							+ ((shift_win & 0b10000) >> 2) \
 							+ ((shift_win & 0b100) >> 1) \
 							+ (shift_win & 1)
-			return 16
+			return True
 
 		def rll_decode(self):
 			RLL_TABLE = self.map
@@ -700,16 +700,16 @@ class Decoder(srd.Decoder):
 						#print_("rll_decode catastrophic fail, resetting", self.shift_decoded_1, binary_str_len, i, decoded, RLL_TABLE, binary_str, pattern)
 						raise raise_exception("rll_decode catastrophic fail, resetting")
 						self.reset_pll()
-						return 0
+						return False
 					#print_("RLL not matched", binary_str[i:], decoded, i)
 					self.shift_decoded = decoded
-					return 0
+					return False
 
 			#print_('RLL_shift', bin(self.shift)[1:], decoded[:8], self.shift_index, self.shift_decoded_1, self.last_samplenum)
 			self.shift_byte = int(decoded[:8], 2)
 			self.shift_decoded = decoded[8:]
 			self.shift_decoded_1 += 16
-			return 16
+			return True
 
 		def edge(self, edge_samplenum):
 			# edge_samplenum: sample index of rising edge (flux transition)
@@ -755,15 +755,15 @@ class Decoder(srd.Decoder):
 				elif self.sync_lock_count:
 					#print_('pll sync pattern interrupted -> reset')
 					self.reset_pll()
-					return 0
+					return False
 				else:
-					return 0
+					return False
 
 			# check pulse constraints
 			if self.halfbit_cells < self.cells_allowed_min:
 				print_("pll pulse out-of-tolerance, too short", pulse_ticks, self.halfbit_cells, edge_samplenum)
 				self.reset_pll()
-				return 0
+				return False
 			elif self.halfbit_cells > self.cells_allowed_max:
 				print_("pll pulse out-of-tolerance, too long", pulse_ticks, self.halfbit_cells, edge_samplenum)
 				#print_(self.halfbit_cells, self.cells_allowed_max, pulse_ticks, self.halfbit, pulse_ticks / self.halfbit)
@@ -775,7 +775,7 @@ class Decoder(srd.Decoder):
 				else:
 					print_("pll pulse out-of-tolerance, not in cells_allowed")
 					self.reset_pll()
-					return 0
+					return False
 
 			# PLL PI Filter ------------------------------------------------------------
 			# expected clock position for this transition
@@ -850,7 +850,7 @@ class Decoder(srd.Decoder):
 
 					if not pulse_match:
 						self.reset_pll()
-						return 0
+						return False
 
 					# RLL rewrite mark, this illegal sequence should only ever show up in RLL marks
 					# We rewrite it so rll_decode() doesnt choke on it.
@@ -864,7 +864,7 @@ class Decoder(srd.Decoder):
 				#print_('pll_shift1', bin(self.shift)[1:], self.shift_index, self.halfbit_cells, self.shift_index +self.halfbit_cells)
 				if self.shift_index >= 16:
 					return self.decode()
-			return 0
+			return False
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Calculate CRC of a bytearray.
@@ -1494,13 +1494,12 @@ class Decoder(srd.Decoder):
 				else:
 					self.put(last_samplenum, self.samplenum, self.out_ann,	[ann.erp, ['%s out-of-tolerance leading edge' % interval_annotation, '%s OoTI' % interval_annotation, 'OoTI']])
 
-			if pll_ret >= 16:
-				byte_sync = self.process_byte(self.pll.shift_byte)
-				print_('data_byte', hex(self.pll.shift_byte), self.pb_state, 'sync', byte_sync)
-
-				if not byte_sync:
+			if pll_ret:
+				if not self.process_byte(self.pll.shift_byte):
 					print_('not byte_sync')
 					self.pll.reset_pll()
+
+				print_('data_byte', hex(self.pll.shift_byte), self.pb_state)
 
 	# ------------------------------------------------------------------------
 	# Legacy decoder below
