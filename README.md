@@ -1,9 +1,10 @@
 # FM/MFM/RLL decoder for Sigrok/PulseView/DSView
-This [plugin](https://github.com/sigrokproject/libsigrokdecode) lets you explore and analyze data stored on floppy disks and MFM/RLL hard drives at a low level using [Sigrok](https://sigrok.org)/[Sigrok-cli](https://sigrok.org/wiki/Sigrok-cli)([github](https://github.com/sigrokproject/sigrok-cli))/[PulseView](https://sigrok.org/wiki/PulseView)([github](https://github.com/sigrokproject/pulseview))/[DSView](https://github.com/DreamSourceLab/DSView) Logic Analyzer software.   
-Start by loading one of available [test sample files](#available-test-sample-files) or capture you own data using Logic Analyzer hardware.
+This [plugin](https://github.com/sigrokproject/libsigrokdecode) lets you explore and analyze data stored on floppy disks and MFM/RLL hard drives at the very low level using [Sigrok](https://sigrok.org)/[Sigrok-cli](https://sigrok.org/wiki/Sigrok-cli)([github](https://github.com/sigrokproject/sigrok-cli))/[PulseView](https://sigrok.org/wiki/PulseView)([github](https://github.com/sigrokproject/pulseview))/[DSView](https://github.com/DreamSourceLab/DSView) Logic Analyzer software.  
 
-- Floppy drive requires at least ~12MHz sampling rate meaning ~$60 Hantek 6022 or $5 CY7C68013A dev board (aliexpress/ebay/amazon) as thats pretty much whats inside the Hantek/original Saleae https://sigrok.org/wiki/Lcsoft_Mini_Board.   
-- Hard drives are more demanding (5-15Mbit flux rate) requiring at least 200MHz sampling rate with commercial LAs starting around $200 ... or try your luck with $5 Pico/Pico2 board using open source https://github.com/gusmanb/logicanalyzer.
+Start by loading one of available [test sample files](#available-test-sample-files) or capture you own data using Logic Analyzer hardware. Aim for 20x oversampling for best results.
+
+- Floppy drive requires at least ~12MHz sampling rate meaning something like ~$60 Hantek 6022 or $5 CY7C68013A https://sigrok.org/wiki/Lcsoft_Mini_Board dev board (aliexpress/ebay/amazon) as thats pretty much whats inside the Hantek/original Saleae.  
+- Hard drives operate at 5-15Mbit flux rate and demand sampling rate of at least 200MHz. Commercial LAs start around $200, saner options are 200Ms/s Pico based [MFM-Hard-Disk-Dumper](https://github.com/Tronix286/MFM-Hard-Disk-Dumper) by Tronix286 or not so greatly named but outstandingly capable Pico/Pico2 based 400Ms/s [LogicAnalyzer](https://github.com/gusmanb/logicanalyzer). Both of those Open Source hardware LA solutions are vastly cheaper while delivering great results.
 
 <details open>
 <summary><h2>Table of Contents</h2></summary>
@@ -16,7 +17,7 @@ Start by loading one of available [test sample files](#available-test-sample-fil
 - [Installation](#installation)
 - [Resources](#resources)
   - [Polynomials](#polynomials)
-  - [Converting polynomial notations](#how-to-convert-polynomial-notations)
+  - [Converting polynomial notations](#converting-polynomial-notations)
   - [CRC](#crc)
   - [Tutorials](#tutorials)
   - [Patents](#patents)
@@ -25,6 +26,7 @@ Start by loading one of available [test sample files](#available-test-sample-fil
   - [Emulation](#emulation)
 - [Authors](#authors)
 - [Changelog](#changelog)
+- [Todo](#todo)
 </details>
 
 ## Screenshots
@@ -34,12 +36,12 @@ Typical track on MFM encoded hard drive.
 
 #### Sector Header close-up
 ![Sector Close-Up](doc/pulseview_idrecord.png)  
-This is a spare/unused sector created at the end of every track on MFM drive by Seagate ST21 controller. Notice the weird Sector number 254 (0b11111110, for easier hardware filtering?) and absence of GAP3 between end of Header and start of Sync pattern. Without GAP3 this sector is unwriteable without corruption. Every MFM/RLL drive I looked at so far wasted precious space leaving enought unwritten disk surface for one more sector per track. This translates to never using 6% of the MFM and 3% of RLL disk you paid for, about 2.5MB on typical 40MB MFM drive.
+This is a spare/unused sector created at the end of every track on MFM drive by Seagate ST21 controller. Notice the weird Sector number 254 (0b11111110, for easier hardware filtering?) and absence of GAP3 between end of Header and start of Sync pattern. Without GAP3 writing to this sector would causes corruption. Every MFM/RLL drive I looked at so far wasted precious space leaving enought unused disk surface for one more sector per track. This translates to never using 6% of the MFM and 3% of RLL disk you paid for, about 2.5MB on typical 40MB MFM drive.
 
 ## Available test sample files
- - [fdd_fm.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/fdd_fm.sr) 3 channels, 15000000 sample rate, FDD, FM encoding, 125000 bps, 256 Sectors, Data CRC 16bit, data poly 0x1021
- - [fdd_mfm.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/fdd_mfm.sr) 3 channels, 15000000 sample rate, FDD, MFM encoding, 250000 bps, 256 Sectors, Data CRC 16bit, data poly 0x1021
- - [hdd_mfm.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_mfm.sr) 3 channels, 100000000 sample rate, HDD, MFM encoding, 5000000 bps, 512 Sectors, Data CRC 32bit, data poly 0xA00805. VAX2000 HDD.
+ - [fdd_fm.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/fdd_fm.sr) 3 channels, 15MHz sample rate, FDD, FM encoding, 125000 bps, 256 Sectors, Data CRC 16bit, Data poly 0x1021
+ - [fdd_mfm.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/fdd_mfm.sr) 3 channels, 15MHz sample rate, FDD, MFM encoding, 250000 bps, 256 Sectors, Data CRC 16bit, Data poly 0x1021
+ - [hdd_mfm.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_mfm.sr) 3 channels, 100MHz sample rate, HDD, MFM encoding, 5000000 bps, 512 Sectors, Data CRC 32bit, Data poly 0xA00805. VAX2000 HDD.
  - [hdd_mfm.dsl](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_mfm.dsl) as above but in DSView format
  - [hdd_mfm_sector.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_mfm_sector.sr) one sector (sec=8) from above capture. ID CRC F38D, Data CRC C1847279
 
@@ -1029,53 +1031,108 @@ mfm-1: Data Address Mark
 `data_rate` Data Rate in bits per second (bps).  
 **Default**: `5000000` **Values**: `125000`, `150000`, `250000`, `300000`, `500000`, `5000000`, `7500000`, `10000000`
 
-`encoding` Encoding scheme.  
-**Default**: `MFM` **Values**: `FM`, `MFM`, `MFM_FD`, `MFM_HD`, `RLL_SEA`, `RLL_WD`
+`encoding` Encoding schemes available. 'custom' lets you build own decoder interactively in the GUI fully controlling its behavior.  
+**Default**: `MFM_HDD` **Values**: `FM`, `MFM_FDD`, `MFM_HDD`, `RLL_SEA`, `RLL_Adaptec`, `RLL_WD`, `RLL_OMTI`, `custom`
 
-`sect_len` Sector Length in bytes.  
+`sect_len` Sector length in bytes.  
 **Default**: `512` **Values**: `128`, `256`, `512`, `1024`
 
 `header_bytes` Header length in bytes.  
 **Default**: `4` **Values**: `3`, `4`
 
-`header_crc_bits` Header Field CRC size in bits.  
+`header_crc_bits` Header field CRC size in bits.  
 **Default**: `16` **Values**: `16`, `32`
 
-`header_crc_poly` Polynomial used in Header Field CRC calculation. Default is the standard CRC-CCITT polynomial (x16 + x12 + x5 + 1).  
+`header_crc_poly` Polynomial used in Header field CRC calculation. Default is the standard CRC-CCITT polynomial (x16 + x12 + x5 + 1).  
 **Default**: `0x1021` (CRC-CCITT)
 
-`header_crc_init` Initial value for Header Field CRC calculation.  
+`header_crc_init` Initial value for Header field CRC calculation.  
 **Default**: `0xffffffff`
 
-`data_crc_bits` Data Field CRC size in bits.  
-**Default**: `32` **Values**: `16`, `32`, `56`
+`data_crc_bits` Data field CRC size in bits.  
+**Default**: `32` **Values**: `16`, `32`, `48`, `56`
 
-`data_crc_poly` Polynomial used in Data Field CRC calculation.  
+`data_crc_poly` Polynomial used in Data field CRC calculation.  
 **Default**: `0xA00805` **Values**: `0x1021` (CRC-CCITT), `0xA00805` (CRC32-CCSDS), `0x140a0445`, `0x0104c981`, `0x41044185`, `0x140a0445000101`
 
-`data_crc_init` Initial value for Data Field CRC calculation.  
+`data_crc_init` Initial value for Data field CRC calculation.  
 **Default**: `0xffffffffffffff`
 
-`data_crc_poly_custom` Custom Data Field Polynomial, overrides `data_crc_poly` setting.  
+`data_crc_poly_custom` Custom Data field Polynomial, overrides `data_crc_poly` setting.  
 **Default**: `` (empty string)
 
-`time_unit` Pulse time units or windows.
+`time_unit` Select Pulse time units or number of half-bit windows.
 **Default**: `ns` **Values**: `ns`, `us`, `auto`, `window`
 
-`dsply_sn` Display Sample Numbers controls whether Windows (bit/clock) and Pulses (pul, erp) sample numbers are displayed.  
+`dsply_sn` Display additonal sample numbers for Pulses (pul, erp) and Windows (bit/clock).  
 **Default**: `no` **Values**: `yes`, `no`
 
-`dsply_pfx` Display all MFM C2 and A1 prefix bytes (encoded with special glitched clock) to help with locating damaged records.  
+`report` Display report after encountering specified field type.  
+**Default**: `no` **Values**: `no`, `IAM` (Index Mark), `IDAM` (ID Address Mark), `DAM` (Data Address Mark), `DDAM` (Deleted Data Address Mark)
+
+`report_qty` Number of Marks (specified above) between reports. This is a workaround for lack of sigrok/pulseview capability to signal end_of_capture.  
+**Default**: `9` **Example**: `9` for floppies, `17` for MFM hdd, `26` for RLL drives
+
+`decoder` Choice between PI Loop Filter based PLL, or 'legacy' with hardcoded immediate andustments.  
+**Default**: `PLL` **Values**: `PLL`, `legacy`
+
+`pll_kp` PLL PI Filter proportinal constant (Kp).  
+**Default**: `0.5`
+
+`pll_ki` PLL PI Filter integral constant (Ki).  
+**Default**: `0.0005`
+
+`sync_tolerance` PLL: Initial tolerance when catching synchronization sequence.  
+**Default**: `20%` **Values**: `10%`, `15%`, `20%`, `25%`, `30%`
+
+`dsply_pfx` Legacy decoder: Display all MFM C2 and A1 prefix bytes (encoded with special glitched clock) to help with locating damaged records.  
 **Default**: `no` **Values**: `yes`, `no`
 
-`report` Generate Report after specific Mark.  
-**Default**: `no` **Values**: `no`, `IAM` (Index Mark), `IDAM` (ID Address Mark), `DAM` (Data Address Mark), `DDAM` (Deleted Data Mark)
+Custom encoder options active when encoding=custom:
 
-`report_qty` Report Every X Marks specifies number of Marks between reports.  
-**Default**: `9`
+`custom_encoder_limits` Coding.  
+**Default**: `RLL` **Values**: `FM`, `MFM`, `RLL`
 
-`decoder` Choice between New PLL based one, or Legacy with hardcoded timings.  
-**Default**: `new` **Values**: `new`, `legacy`
+`custom_encoder_codemap` Code translation map.  
+**Default**: `IBM` **Values**: `FM/MFM`, `IBM`, `WD`
+
+`custom_encoder_sync_pattern` Width of pulses used in a repeating sequence (called PLO sync field or preamble) to train PLL and aquire initial lock.  
+**Default**: `4` **Values**: `2`, `3`, `4`
+
+*Warning!* All custom_encoder options below have some stupid rules when used from command line. sigrok-cli command line input doesnt support "" escaped strings nor commas. We have to resort to custom escaping. `,` becomes `-` and `_` is used to separate lists:  
+ for `[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]` pass `8-3-5_5-8-3-5_7-8-3-5`  
+ for `[8, 3, 5]` pass `8-3-5`  
+ for `11, 11` pass `11-11`  
+ for `0x1E, 0x5E, 0xDE` pass `0x1E-0x5E-0xDE` or `30-95-222`  
+PulseView/DSView GUI is much more flexible and allows omitting outer brackets, all of those are allowed:  
+ `8-3-5`  
+ `8,3,5`  
+ `[8, 3, 5]`  
+ `[[8, 3, 5]]`  
+ `[8, 3, 5], [5, 8, 3, 5]`  
+ `[[8, 3, 5], [5, 8, 3, 5]]`  
+ `8-3-5_5-8-3-5_7-8-3-5`  
+
+`custom_encoder_sync_seqs` Special (often invalid on purpose) sequences of pulses used to distinguish Synchronization Marks.  
+**Default**: `` (empty string) **Example**: `[[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]]` used by RLL_WD
+
+`custom_encoder_shift_index` Every sync_sequences entry has its own offset defining number of valid halfbit windows already shifted in (minus last entry because PLLstate.decoding adds self.halfbit_cells) at the moment of matched Sync Sequence. Define one common value or provide list of values for every sync_sequences entry.  
+**Default**: `` (empty string) **Example**: `11` or `11, 11` for RLL_OMTI
+
+`custom_encoder_IDData_mark` IDData_mark is usually 0xA1 for MFM FDD and HDD.   
+**Default**: `` (empty string) **Example**: `0xA1`
+
+`custom_encoder_ID_mark` ID_mark makes decoder skip straight to decoding Header.  
+**Default**: `` (empty string) **Example**: `0xFE` used by original FM floppies
+
+`custom_encoder_Data_mark` Data_mark makes decoder skip straight to decoding Data.  
+**Default**: `` (empty string) **Example**: `0xFB` used by original FM floppies
+
+`custom_encoder_ID_prefix_mark` ID_prefix_mark is a Header Mark to be followed by IDData_mark.  
+**Default**: `` (empty string) **Example**: `0x1E` weird arrangement used by RLL_SEA
+
+`custom_encoder_nop_mark` nop_mark is an inert Mark.  
+**Default**: `` (empty string) **Example**: `0x1E, 0x5E, 0xDE` for RLL_Adaptec
 
 ### Annotations
 Can use groupings like 'fields' or individual ones for example just 'crc'.  
@@ -1084,7 +1141,7 @@ Can use groupings like 'fields' or individual ones for example just 'crc'.
 `prefixes` includes `pfx` (A1, C1 MFM synchronization prefixes)  
 `bits` includes `erb` (bad bit = encoded using glitched clock with some omitted pulses, usually in synchronization Marks), `bit`  
 `bytes` includes `byt` (byte)  
-`fields` includes `mrk` (mark), `rec` (record), `crc` (crc ok), `cre` (crc bad)  
+`fields` includes `syn` (sync), `mrk` (mark), `rec` (record), `crc` (crc ok), `cre` (crc bad)  
 `errors` includes `err` (error)  
 `reports` includes `rpt` (report)  
 
@@ -1123,7 +1180,7 @@ Old user instructions are in [documentation](doc/PulseView-MFM-Decoder.wri.md)
 - 1983_Western_Digital_Components_Catalog.pdf WD1100-06 might have typos claiming:
   - ? 0x140a0405 X32 + X28 + X26 + X19 + X17 + X10 + X2 + 1
   - ? 0x140a0444 X32 + X28 + X26 + X19 + X17 + X10 + X6 + X2 + 0
-### How to convert polynomial notations
+### Converting polynomial notations
 Lets start with easy one, standard CRC-CCITT x16 + x12 + x5 + 1. This CRC-CCITT polynomial can also be written as x16 + x12 + x5 + x0 because any (non-zero number)^0 is 1. We will use that second representation.
 1. Write 1 in position of every X, becomes 0b10001000000100001 (0x11021)
 2. Drop most significant bit, becomes 0b1000000100001 (0x1021)
@@ -1147,26 +1204,34 @@ Now try CRC32-CCSDS x32 + x23 + x21 + x11 + x2 + 1
 ### Datasheets
 - Adaptec AIC-270 2,7 RLL Endec http://www.bitsavers.org/pdf/adaptec/asic/AIC-270_RLL_Encoder_Decoder.pdf
 - SSI 32D5321/5322, 32D535/5351, 32D5362 2,7 RLL Endec https://bitsavers.org/pdf/maxtor/ata/1990_7080AT/data_synchronizer_appnote.pdf https://bitsavers.trailing-edge.com/components/siliconSystems/_dataBooks/1989_Silicon_Systems_Microperipheral_Products.pdf (3-23)
+- National Semiconductor DP8463B 2,7 RLL Endec https://ftpmirror.your.org/pub/misc/bitsavers/components/national/_dataBooks/1989_National_Mass_Storage_Handbook/1989_Mass_Storage_Handbook_02.pdf (2-85)
 - WD1100-06 https://bitsavers.org/components/westernDigital/_dataBooks/1983_Western_Digital_Components_Catalog.pdf
 - WD50C12 Winchester Disk Controller (MFM/RLL/NRZ) https://bitsavers.org/components/westernDigital/_dataSheets/WD50C12_Winchester_Disk_Controller_198803.pdf
 ### Anecdotes
-- Help with HDD data encoding puzzle: RLL or ... what? (Iomega Alpha-10 / 10H / 20  proprietary RLL(1,8) 2/3 RLLC) https://forum.vcfed.org/index.php?threads/help-with-hdd-data-encoding-puzzle-rll-or-what.1250316/
+- "Help with HDD data encoding puzzle: RLL or ... what?" (Iomega Alpha-10 / 10H / 20  proprietary RLL(1,8) 2/3 RLLC) https://forum.vcfed.org/index.php?threads/help-with-hdd-data-encoding-puzzle-rll-or-what.1250316/
 ### Emulation
 - https://github.com/dgesswein/mfm and https://www.pdp8online.com/mfm/ BeagleBone based MFM Hard Disk Reader/Emulator
 - https://github.com/Tronix286/MFM-Hard-Disk-Dumper Pi Pico MFM Hard Disk Dumper
 - https://github.com/MajenkoProjects/RTmFM Pi Pico based MFM Hard Disk Emulator, early work in progress
 
 ## Authors
-Original project by David C. Wiens: https://www.sardis-technologies.com/ufdr/pulseview.htm    
-Updates Majenko Technologies https://github.com/MajenkoProjects/sigrok-mfm    
+Original project by David C. Wiens: https://www.sardis-technologies.com/ufdr/pulseview.htm  
+Majenko Technologies https://github.com/MajenkoProjects/sigrok-mfm (3byte headers, hard drive support, optional channels, DSView support)  
 Rasz_pl
 
 ## Changelog
 Full [Changelog](doc/changelog.md). Biggest changes from original:
-* Fixed for modern PulseView and sigrok-cli
-* Ported to support DSView
-* Added support for hard drives, 32 bit CRC, 56 bit ECC, custom polynomials
+* Modern PulseView and sigrok-cli fixes
+* DSView support
+* Hard drives, 32 bit CRC, 48/56 bit ECC, custom polynomials
 * Extra and suppress channels optional
 * Reworked report generation
-* Added new PLL based Decoder
-* Preliminary RLL support
+* New PI Loop Filter based PLL Decoder
+* Flexible custom encoder mode with live GUI control
+* RLL support
+
+## Todo
+- [x] Implement RLL decoding
+- [ ] Figure out crazy RLL_DTC7287 format
+- [ ] ESDI?
+- [ ] SMD??? :-)
