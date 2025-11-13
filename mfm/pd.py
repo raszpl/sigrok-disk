@@ -718,8 +718,7 @@ class Decoder(srd.Decoder):
 			# - PLLstate.scanning_sync_mark keeps scanning for either sync_pattern or encoding_table[self.owner.encoding]['sync_marks'], anything else resets PLL.
 			# - PLLstate.decoding
 
-			#print_('pll edge', edge_samplenum, pulse_ticks, f'{abs(pulse_ticks - 2.0 * self.halfbit):.4f}', f'{self.halfbit:.4f}')
-			#'%02X' % val
+			#print_('pll edge', edge_samplenum, pulse_ticks, '%.4f' % abs(pulse_ticks - 2.0 * self.halfbit), '%.4f' % self.halfbit)
 
 			if self.unsync_after_decode:
 				self.reset_pll()
