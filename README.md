@@ -1088,7 +1088,7 @@ mfm-1: Data Address Mark
 `dsply_pfx` Legacy decoder: Display all MFM C2 and A1 prefix bytes (encoded with special glitched clock) to help with locating damaged records.  
 **Default**: `no` **Values**: `yes`, `no`
 
-Custom encoder options active when encoding=custom:
+`encoding=custom` activates custom_encoder_ options.
 
 `custom_encoder_limits` Coding.  
 **Default**: `RLL` **Values**: `FM`, `MFM`, `RLL`
@@ -1099,25 +1099,28 @@ Custom encoder options active when encoding=custom:
 `custom_encoder_sync_pattern` Width of pulses used in a repeating sequence (called PLO sync field or preamble) to train PLL and aquire initial lock.  
 **Default**: `4` **Values**: `2`, `3`, `4`
 
-*Warning!* All custom_encoder options below have some stupid rules when used from command line. sigrok-cli command line input doesnt support "" escaped strings nor commas. We have to resort to custom escaping. `,` becomes `-` and `_` is used to separate lists:  
- for `[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]` pass `8-3-5_5-8-3-5_7-8-3-5`  
- for `[8, 3, 5]` pass `8-3-5`  
- for `11, 11` pass `11-11`  
- for `0x1E, 0x5E, 0xDE` pass `0x1E-0x5E-0xDE` or `30-95-222`  
+*Warning!* All custom_encoder_ options below must obey stupid rules when used from command line. sigrok-cli command line input doesnt support "" escaped strings nor commas. We have to resort to custom escaping with `,` becoming `-` and `_` used to separate lists:  
+&nbsp;&nbsp;&nbsp;&nbsp;for `[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]` pass `8-3-5_5-8-3-5_7-8-3-5`  
+&nbsp;&nbsp;&nbsp;&nbsp;for `[8, 3, 5]` pass `8-3-5`  
+&nbsp;&nbsp;&nbsp;&nbsp;for `11, 11` pass `11-11`  
+&nbsp;&nbsp;&nbsp;&nbsp;for `0x1E, 0x5E, 0xDE` pass `0x1E-0x5E-0xDE` or `30-95-222`  
+
 PulseView/DSView GUI is much more flexible and allows omitting outer brackets, all of those are allowed:  
- `8-3-5`  
- `8,3,5`  
- `[8, 3, 5]`  
- `[[8, 3, 5]]`  
- `[8, 3, 5], [5, 8, 3, 5]`  
- `[[8, 3, 5], [5, 8, 3, 5]]`  
- `8-3-5_5-8-3-5_7-8-3-5`  
+&nbsp;&nbsp;&nbsp;&nbsp;`8-3-5`  
+&nbsp;&nbsp;&nbsp;&nbsp;`8,3,5`  
+&nbsp;&nbsp;&nbsp;&nbsp;`[8, 3, 5]`  
+&nbsp;&nbsp;&nbsp;&nbsp;`[[8, 3, 5]]`  
+&nbsp;&nbsp;&nbsp;&nbsp;`[8, 3, 5], [5, 8, 3, 5]`  
+&nbsp;&nbsp;&nbsp;&nbsp;`[[8, 3, 5], [5, 8, 3, 5]]`  
+&nbsp;&nbsp;&nbsp;&nbsp;`8-3-5_5-8-3-5_7-8-3-5`  
 
 `custom_encoder_sync_seqs` Special (often invalid on purpose) sequences of pulses used to distinguish Synchronization Marks.  
 **Default**: `` (empty string) **Example**: `[[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]]` used by RLL_WD
 
 `custom_encoder_shift_index` Every sync_sequences entry has its own offset defining number of valid halfbit windows already shifted in (minus last entry because PLLstate.decoding adds self.halfbit_cells) at the moment of matched Sync Sequence. Define one common value or provide list of values for every sync_sequences entry.  
 **Default**: `` (empty string) **Example**: `11` or `11, 11` for RLL_OMTI
+
+All custom_encoder_ _mark options below support * wildcard, useful when debugging new format and unsure of proper values. For example setting custom_encoder_nop_mark=* will start decoding bytes as soon as custom_encoder_sync_seqs is matched. After that you can manipulate custom_encoder_shift_index to arrive at proper bit alignment. Greatly simplifies adding new encoding formats.
 
 `custom_encoder_IDData_mark` IDData_mark is usually 0xA1 for MFM FDD and HDD.   
 **Default**: `` (empty string) **Example**: `0xA1`
