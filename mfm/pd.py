@@ -521,6 +521,18 @@ class Decoder(srd.Decoder):
 		self.pll_sync_tolerance = int(self.options['pll_sync_tolerance'][:-1]) * 0.01
 		self.dsply_pfx = True if self.options['dsply_pfx'] == 'yes' else False
 
+		class helper_mock_all:
+			# Data mocking helper, pretends to contain all of the items for the 'in' operator.
+			def __contains__(self, item):
+				# handle 'if val in ...'
+				return True
+			def __str__(self):
+				# handle print(...)
+				return '*'
+			def __repr__(self):
+				# what to show in REPL/debugger
+				return "<helper_mock_all (matches all, prints as '*')>"
+
 		# sigrok-cli command line input doesnt support "" escaped strings nor commas.
 		# Have to resort to stupid parsing tricks:
 		#  '8-3-5_5-8-3-5_7-8-3-5' to [[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]]
@@ -528,14 +540,19 @@ class Decoder(srd.Decoder):
 		# Also accept various formats thru the GUI like:
 		#  '8,3,5' to [[8, 3, 5]]
 		#  [8, 3, 5], [5, 8, 3, 5] to [[8, 3, 5], [5, 8, 3, 5]]
-		def helper_parse(s):
+		def helper_list_of_lists(s):
 			s = s.strip().replace(' ', '')
 			if any(c in s for c in '[,]'):
 				s = s.replace('],[', '_').replace('][', '_').replace('[', '').replace(']', '').replace(',', '-')
 			return [[int(x, 0) for x in part.split('-') if x] for part in s.split('_') if part]
-		# custom _mark are single list, reuse above code for parsing then strip outer []
-		def helper_list(groups):
-			return groups[0] if len(groups) == 1 else []
+
+		# custom_encoder_ marks and index are single lists, reuse above code for parsing then strip outer []
+		# Supports data mocking, entering * wildcard will match all 'in' operations
+		def helper_list(s):
+			if '*' in s:
+				return helper_mock_all()
+			s = helper_list_of_lists(s)
+			return s[0] if len(s) == 1 else []
 
 		if self.encoding == encoding.custom:
 			self.encoding_current = {
@@ -548,13 +565,13 @@ class Decoder(srd.Decoder):
 										'WD':		encoding.WD,
 									}[self.options['custom_encoder_codemap']],
 				'sync_pattern':		self.options['custom_encoder_sync_pattern'],
-				'sync_seqs':		helper_parse(self.options['custom_encoder_sync_seqs']),
-				'shift_index':		helper_list(helper_parse(self.options['custom_encoder_shift_index'])),
-				'ID_prefix_mark':	helper_list(helper_parse(self.options['custom_encoder_ID_prefix_mark'])),
-				'ID_mark':			helper_list(helper_parse(self.options['custom_encoder_ID_mark'])),
-				'IDData_mark':		helper_list(helper_parse(self.options['custom_encoder_IDData_mark'])),
-				'Data_mark':		helper_list(helper_parse(self.options['custom_encoder_Data_mark'])),
-				'nop_mark':			helper_list(helper_parse(self.options['custom_encoder_nop_mark']))
+				'sync_seqs':		helper_list_of_lists(self.options['custom_encoder_sync_seqs']),
+				'shift_index':		helper_list(self.options['custom_encoder_shift_index']),
+				'ID_prefix_mark':	helper_list(self.options['custom_encoder_ID_prefix_mark']),
+				'ID_mark':			helper_list(self.options['custom_encoder_ID_mark']),
+				'IDData_mark':		helper_list(self.options['custom_encoder_IDData_mark']),
+				'Data_mark':		helper_list(self.options['custom_encoder_Data_mark']),
+				'nop_mark':			helper_list(self.options['custom_encoder_nop_mark'])
 			}
 		else:
 			self.encoding_current = self.encoding_table[self.encoding]
