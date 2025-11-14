@@ -1076,14 +1076,14 @@ mfm-1: Data Address Mark
 `decoder` Choice between PI Loop Filter based PLL, or 'legacy' with hardcoded immediate andustments.  
 **Default**: `PLL` **Values**: `PLL`, `legacy`
 
-`pll_kp` PLL PI Filter proportinal constant (Kp).  
+`pll_sync_tolerance` PLL: Initial tolerance when catching synchronization sequence.  
+**Default**: `25%` **Values**: `15%`, `20%`, `25%`, `33%`, `50%`
+
+`pll_kp` PLL: PI Filter proportinal constant (Kp).  
 **Default**: `0.5`
 
-`pll_ki` PLL PI Filter integral constant (Ki).  
+`pll_ki` PLL: PI Filter integral constant (Ki).  
 **Default**: `0.0005`
-
-`sync_tolerance` PLL: Initial tolerance when catching synchronization sequence.  
-**Default**: `20%` **Values**: `10%`, `15%`, `20%`, `25%`, `30%`
 
 `dsply_pfx` Legacy decoder: Display all MFM C2 and A1 prefix bytes (encoded with special glitched clock) to help with locating damaged records.  
 **Default**: `no` **Values**: `yes`, `no`
@@ -1235,6 +1235,17 @@ Full [Changelog](doc/changelog.md). Biggest changes from original:
 
 ## Todo
 - [x] Implement RLL decoding
+- [ ] Add more Test samples
+- [ ] Add more `auto` modes
+    - [ ] Add `auto` data_rate detection
+    - [ ] Add `auto` sect_len mode using Sector length value from the Header
+    - [ ] Add `auto` header_bytes detection
+    - [ ] Add `auto` CRC modes
+		- [ ] Add `auto` header_crc_bits detection
+		- [ ] Add `auto` header_crc_poly/header_crc_init detection
+		- [ ] Add `auto` data_crc_bits detection
+		- [ ] Add `auto` data_crc_poly/data_crc_init detection
+    - [ ] Add `auto` encoding detection - this is a BIG one
 - [ ] Figure out crazy RLL_DTC7287 format
 - [ ] ESDI?
 - [ ] SMD??? :-)
