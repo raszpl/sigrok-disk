@@ -1246,6 +1246,7 @@ Full [Changelog](doc/changelog.md). Biggest changes from original:
 		- [ ] Add `auto` data_crc_bits detection
 		- [ ] Add `auto` data_crc_poly/data_crc_init detection
     - [ ] Add `auto` encoding detection - this is a BIG one
+- [ ] Rename Errors annotation field to more general Status
 - [ ] Figure out crazy RLL_DTC7287 format
 - [ ] ESDI?
 - [ ] SMD??? :-)

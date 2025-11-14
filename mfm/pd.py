@@ -147,12 +147,12 @@ class Decoder(srd.Decoder):
 			'default': '9'},
 		{'id': 'decoder', 'desc': 'Decoder',
 			'default': 'PLL', 'values': ('PLL', 'legacy')},
-		{'id': 'pll_kp', 'desc': 'PLL PI Filter Kp (proportinal)',
+		{'id': 'pll_sync_tolerance', 'desc': 'PLL: Initial tolerance when catching synchronization sequence',
+			'default': '25%', 'values': ('15%', '20%', '25%', '33%', '50%')},
+		{'id': 'pll_kp', 'desc': 'PLL: PI Filter Kp (proportinal)',
 			'default': '0.5'},
-		{'id': 'pll_ki', 'desc': 'PLL PI Filter Ki (integral)',
+		{'id': 'pll_ki', 'desc': 'PLL: PI Filter Ki (integral)',
 			'default': '0.0005'},
-		{'id': 'sync_tolerance', 'desc': 'PLL: Initial tolerance when catching synchronization sequence',
-			'default': '20%', 'values': ('10%', '15%', '20%', '25%', '30%')},
 		{'id': 'dsply_pfx', 'desc': 'Legacy decoder: Display all MFM prefix bytes.',
 			'default': 'no', 'values': ('yes', 'no')},
 
@@ -518,7 +518,7 @@ class Decoder(srd.Decoder):
 		self.decoder_legacy = True if self.options['decoder'] == 'legacy' else False
 		self.pll_kp = float(self.options['pll_kp'])
 		self.pll_ki = float(self.options['pll_ki'])
-		self.sync_tolerance = int(self.options['sync_tolerance'][:-1]) * 0.01
+		self.pll_sync_tolerance = int(self.options['pll_sync_tolerance'][:-1]) * 0.01
 		self.dsply_pfx = True if self.options['dsply_pfx'] == 'yes' else False
 
 		# sigrok-cli command line input doesnt support "" escaped strings nor commas.
@@ -593,7 +593,7 @@ class Decoder(srd.Decoder):
 			scanning_sync_mark	= 1
 			decoding			= 2
 
-		def __init__(self, owner, halfbit_ticks, kp, ki, sync_tolerance, lock_threshold, encoding_current):
+		def __init__(self, owner, halfbit_ticks, kp, ki, pll_sync_tolerance, lock_threshold, encoding_current):
 			self.owner = owner
 			self.halfbit_nom = halfbit_ticks
 			self.halfbit_nom05 = 0.5 * halfbit_ticks
@@ -612,8 +612,8 @@ class Decoder(srd.Decoder):
 
 			self.sync_pattern = encoding_current['sync_pattern']
 			self.sync_lock_threshold = lock_threshold
-			# sync_tolerance: fractional percentage of tolerated deviations during initial PLL sync lock
-			self.sync_tolerance = halfbit_ticks * sync_tolerance
+			# pll_sync_tolerance: fractional percentage of tolerated deviations during initial PLL sync lock
+			self.pll_sync_tolerance = halfbit_ticks * pll_sync_tolerance
 			self.cells_allowed_min = min(encoding_current['limits'])
 			self.cells_allowed_max = max(encoding_current['limits'])
 
@@ -757,9 +757,9 @@ class Decoder(srd.Decoder):
 
 			# Sync pattern detection using pulse width
 			if self.state == PLLstate.locking:
-				#print_('PLLstate.locking', abs(pulse_ticks - self.halfbit * self.sync_pattern), abs(pulse_ticks - self.halfbit * self.sync_pattern) <= self.sync_tolerance, self.last_samplenum)
-				#print_('PLLstate.locking2', pulse_ticks * (1000000000 / self.owner.samplerate), self.halfbit * self.sync_pattern * (1000000000 / self.owner.samplerate), self.halfbit, '=', self.halfbit * (1000000000 / self.owner.samplerate), self.halfbit_cells)
-				if abs(pulse_ticks - self.halfbit * self.sync_pattern) <= self.sync_tolerance:
+				#print_('PLLstate.locking', abs(pulse_ticks - self.halfbit * self.sync_pattern), abs(pulse_ticks - self.halfbit * self.sync_pattern) <= self.pll_sync_tolerance, self.last_samplenum)
+				#print_('PLLstate.locking2', pulse_ticks * (1000000000 / self.owner.samplerate), self.halfbit * self.sync_pattern * (1000000000 / self.owner.samplerate), self.pll_sync_tolerance, self.pll_sync_tolerance * (1000000000 / self.owner.samplerate), self.halfbit, '=', self.halfbit * (1000000000 / self.owner.samplerate), self.halfbit_cells, self.last_samplenum)
+				if abs(pulse_ticks - self.halfbit * self.sync_pattern) <= self.pll_sync_tolerance:
 					self.sync_lock_count += 1
 					#print_('pll sync', pulse_ticks, self.halfbit, self.last_samplenum)
 					#print_('lock_count', self.sync_lock_count)
@@ -1444,7 +1444,7 @@ class Decoder(srd.Decoder):
 		interval = 0				# current interval (in samples, 1..n)
 		cells_allowed = self.encoding_current['limits']
 
-		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, kp=self.pll_kp, ki=self.pll_ki, sync_tolerance=self.sync_tolerance, lock_threshold=32, encoding_current=self.encoding_current)
+		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, kp=self.pll_kp, ki=self.pll_ki, pll_sync_tolerance=self.pll_sync_tolerance, lock_threshold=32, encoding_current=self.encoding_current)
 
 		# all this pain below to support dynamic Interval/window annotation
 		interval_multi = {
