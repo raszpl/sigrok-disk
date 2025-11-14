@@ -1416,15 +1416,6 @@ class Decoder(srd.Decoder):
 		self.reports_called = 0
 
 	# ------------------------------------------------------------------------
-	# PURPOSE: Handle processing when end-of-data reached.
-	# NOTES:
-	#  - PulseView doesn't call this optional method yet.
-	# ------------------------------------------------------------------------
-
-	def decode_end(self):
-		pass
-
-	# ------------------------------------------------------------------------
 	# PURPOSE: Main protocol decoding loop.
 	# NOTES:
 	#  - It automatically terminates when self.wait() requests termination
