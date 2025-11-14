@@ -593,7 +593,7 @@ class Decoder(srd.Decoder):
 			scanning_sync_mark	= 1
 			decoding			= 2
 
-		def __init__(self, owner, halfbit_ticks, kp, ki, pll_sync_tolerance, lock_threshold, encoding_current):
+		def __init__(self, owner, halfbit_ticks, kp, ki, pll_sync_tolerance, encoding_current):
 			self.owner = owner
 			self.halfbit_nom = halfbit_ticks
 			self.halfbit_nom05 = 0.5 * halfbit_ticks
@@ -611,7 +611,8 @@ class Decoder(srd.Decoder):
 			}[self.codemap_key]
 
 			self.sync_pattern = encoding_current['sync_pattern']
-			self.sync_lock_threshold = lock_threshold
+			# Standard in literature seems to be 16 bit transitions (32 halfbit windows) as enough to lock PLO
+			self.sync_lock_threshold = round(32 / self.sync_pattern)
 			# pll_sync_tolerance: fractional percentage of tolerated deviations during initial PLL sync lock
 			self.pll_sync_tolerance = halfbit_ticks * pll_sync_tolerance
 			self.cells_allowed_min = min(encoding_current['limits'])
@@ -1444,7 +1445,7 @@ class Decoder(srd.Decoder):
 		interval = 0				# current interval (in samples, 1..n)
 		cells_allowed = self.encoding_current['limits']
 
-		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, kp=self.pll_kp, ki=self.pll_ki, pll_sync_tolerance=self.pll_sync_tolerance, lock_threshold=32, encoding_current=self.encoding_current)
+		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, kp=self.pll_kp, ki=self.pll_ki, pll_sync_tolerance=self.pll_sync_tolerance, encoding_current=self.encoding_current)
 
 		# all this pain below to support dynamic Interval/window annotation
 		interval_multi = {
