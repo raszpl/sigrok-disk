@@ -27,8 +27,14 @@ import sigrokdecode as srd
 from collections import deque
 from array import *
 from struct import *
-from enum import Enum#, auto not supported in python34, nor are switch statements :|
-from types import SimpleNamespace # nicer class.key access
+from types import SimpleNamespace
+# ----------------------------------------------------------------------------
+# Warning: Python 3.4 Enums are EXTREMELY SLOW. It's been "fixed" in Python 3.5
+# such that enum attribute lookup is "only" 3-6x slower than normal, instead of 25-70x! Python 3.4:
+# Direct Access d['key']: 3.3710 seconds
+# Direct Enum Access d[enum.key]: 157.9954 seconds
+# SimpleNamespace class.key access is almost same speed at string lookup
+# ----------------------------------------------------------------------------
 
 # Debug print for switching on/off all in one place
 def print_(*args):
@@ -216,61 +222,56 @@ class Decoder(srd.Decoder):
 		prefixC2	= [ann.pfx, ['C2']],
 	)
 
-	# ----------------------------------------------------------------------------
-	# Enums
-	# Warning: Python 3.4 enums are EXTREMELY SLOW. It's been "fixed" in Python 3.5
-	# such that enum attribute lookup is "only" 3-6x slower than normal, instead of 25-70x! Python 3.4:
-	# Direct Access d['key']: 3.3710 seconds
-	# Direct Enum Access d[enum.key]: 157.9954 seconds
-	# ----------------------------------------------------------------------------
-
 	global state, field, coding
-	class state(Enum):
-		first_C2h_prefix	= 0		#auto()
-		second_C2h_prefix	= 1
-		third_C2h_prefix	= 2
-		Index_Mark			= 3
-		first_A1h_prefix	= 4
-		second_A1h_prefix	= 5
-		third_A1h_prefix	= 6
-		IDData_Address_Mark	= 7
-		ID_Address_Mark		= 8
-		Data_Address_Mark	= 9
-		ID_Record			= 10
-		ID_Record_CRC		= 11
-		Data_Record			= 12
-		Data_Record_CRC		= 13
-		first_Gap_Byte		= 14
-		sync_mark			= 15
+	state = SimpleNamespace(
+		first_C2h_prefix	= 0,
+		second_C2h_prefix	= 1,
+		third_C2h_prefix	= 2,
+		Index_Mark			= 3,
+		first_A1h_prefix	= 4,
+		second_A1h_prefix	= 5,
+		third_A1h_prefix	= 6,
+		IDData_Address_Mark	= 7,
+		ID_Address_Mark		= 8,
+		Data_Address_Mark	= 9,
+		ID_Record			= 10,
+		ID_Record_CRC		= 11,
+		Data_Record			= 12,
+		Data_Record_CRC		= 13,
+		first_Gap_Byte		= 14,
+		sync_mark			= 15,
+	)
 
-	class field(Enum):
-		Index_Mark			= 1		#auto()
-		ID_Address_Mark		= 2
-		Data_Address_Mark	= 3
-		Deleted_Data_Mark	= 4
-		ID_Record			= 5
-		Data_Record			= 6
-		CRC_Ok				= 7
-		CRC_Error			= 8
-		Unknown_Byte		= 9
-		Sync				= 10
-		Gap					= 11
+	field = SimpleNamespace(
+		Index_Mark			= 1,
+		ID_Address_Mark		= 2,
+		Data_Address_Mark	= 3,
+		Deleted_Data_Mark	= 4,
+		ID_Record			= 5,
+		Data_Record			= 6,
+		CRC_Ok				= 7,
+		CRC_Error			= 8,
+		Unknown_Byte		= 9,
+		Sync				= 10,
+		Gap					= 11,
+	)
 
-	class coding(Enum):
-		FM			= 0
-		MFM			= 1
-		RLL_Sea		= 3
-		RLL_Adaptec = 4
-		RLL_WD		= 5
-		RLL_DTC7287_unknown	= 6
-		RLL_OMTI	= 7
-		custom		= 8
-		RLL			= 10
-		FM_MFM		= 11
-		RLL_IBM		= 12
-		GCR			= 13
-		GCR_IBM		= 14
-		GCR_CBM		= 15
+	coding = SimpleNamespace(
+		FM			= 0,
+		MFM			= 1,
+		RLL_Sea		= 3,
+		RLL_Adaptec = 4,
+		RLL_WD		= 5,
+		RLL_DTC7287_unknown	= 6,
+		RLL_OMTI	= 7,
+		custom		= 8,
+		RLL			= 10,
+		FM_MFM		= 11,
+		RLL_IBM		= 12,
+		GCR			= 13,
+		GCR_IBM		= 14,
+		GCR_CBM		= 15,
+	)
 
 	encoding_limits = {
 		coding.FM:	(1, 2),				# (0,1) RLL
@@ -534,7 +535,7 @@ class Decoder(srd.Decoder):
 		# Initialize user options.
 		self.rising_edge = True if self.options['leading_edge'] == 'rising' else False
 		self.data_rate = float(self.options['data_rate'])
-		self.encoding = coding[self.options['encoding']]
+		self.encoding = getattr(coding, self.options['encoding'])
 		self.sector_size = int(self.options['sector_size'])
 		self.header_size = int(self.options['header_size'])
 		self.header_crc_bits = int(self.options['header_crc_bits'])
@@ -646,10 +647,11 @@ class Decoder(srd.Decoder):
 
 	class SimplePLL:
 		global PLLstate
-		class PLLstate(Enum):
-			locking				= 0
-			scanning_sync_mark	= 1
-			decoding			= 2
+		PLLstate = SimpleNamespace(
+			locking				= 0,
+			scanning_sync_mark	= 1,
+			decoding			= 2,
+		)
 
 		def __init__(self, owner, halfbit_ticks, kp, ki, pll_sync_tolerance, encoding_current):
 			self.owner = owner
