@@ -1055,6 +1055,15 @@ mfm-1: Sync pattern 12 bytes
 mfm-1: Data Address Mark
 </pre>
 </details>
+<details><summary><code>Dirty cut|tr hack to extrack strings:
+sigrok-cli.exe -D -i "D:\_code\disk mfm\sigrok-mfm\test\hdd_mfm_RQDX3_sector.sr"  -P mfm:data_crc_poly_custom=0xbad  -A mfm=bytes | cut -c 12 | tr -d '\n'</code></summary>
+<pre>
+N = @. BYTES SKIP/SPACE COUNT (SKIP/SPACE @p. TAPE MARKS/REC
+MESSAGE BUFFER NOT VALID MESSAGE BUFFER XSTAT1 XSTAT2 (DEAD TRACK CHANNEL
+. (DEAD TRACK PARITY CHANNEL XSTAT3 (MICRO DIAGNOSTIC ERROR CODE
+MASSBUS0DAIGNOSTIC MODEABA/B MF CS1 (@l (@ (@ (@ MF IS (@ (@ry
+</pre>
+</details>
 <code>sigrok-cli -D -I csv:logic_channels=3:column_formats=t,l,l,l -i YourHugeSlow.csv -P mfm:option1=value1:option2=value2 -A mfm=annotation1:annotation2</code>
 
 ### Options
