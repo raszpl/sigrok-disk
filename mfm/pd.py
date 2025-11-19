@@ -267,8 +267,9 @@ class Decoder(srd.Decoder):
 		custom		= 8
 		RLL			= 10
 		FM_MFM		= 11
-		WD			= 12
-		IBM			= 13
+		RLL_IBM		= 13
+		GCR_IBM		= 14
+		GCR_CBM		= 15
 
 	encoding_limits = {
 		encoding.FM:	(1, 2),				# (0,1) RLL
@@ -283,7 +284,7 @@ class Decoder(srd.Decoder):
 			'01': '1',
 			'00': '0',
 		},
-		encoding.IBM: {
+		encoding.RLL_IBM: {
 			'1000': '11',
 			'0100': '10',
 			'100100': '010',
@@ -292,7 +293,7 @@ class Decoder(srd.Decoder):
 			'00100100': '0010',
 			'00001000': '0011'
 		},
-		encoding.WD: {
+		encoding.RLL_WD: {
 			'1000': '11',
 			'0100': '10',
 			'100100': '000',
@@ -377,7 +378,7 @@ class Decoder(srd.Decoder):
 		# Seagate ST11M/21M
 		encoding.RLL_Sea: {
 			'limits_key': encoding.RLL,
-			'codemap_key': encoding.IBM,
+			'codemap_key': encoding.RLL_IBM,
 			'sync_pattern': 3,
 			'sync_seqs': [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4]],
 			'shift_index': [18],
@@ -388,7 +389,7 @@ class Decoder(srd.Decoder):
 		# Adaptec ACB-237x, ACB-4070
 		encoding.RLL_Adaptec: {
 			'limits_key': encoding.RLL,
-			'codemap_key': encoding.IBM,
+			'codemap_key': encoding.RLL_IBM,
 			'sync_pattern': 3,
 			'sync_seqs': [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4], [8, 3, 4]],
 			'shift_index': [18],
@@ -398,7 +399,7 @@ class Decoder(srd.Decoder):
 		},
 		encoding.RLL_WD: {
 			'limits_key': encoding.RLL,
-			'codemap_key': encoding.WD,
+			'codemap_key': encoding.RLL_WD,
 			'sync_pattern': 3,
 			'sync_seqs': [[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]],
 			'shift_index': [12],
@@ -407,7 +408,7 @@ class Decoder(srd.Decoder):
 		# OMTI-8247
 		encoding.RLL_OMTI: {
 			'limits_key': encoding.RLL,
-			'codemap_key': encoding.IBM,
+			'codemap_key': encoding.RLL_IBM,
 			'sync_pattern': 4,
 			'sync_seqs': [[6, 8, 3], [5, 3, 8, 3]],
 			'shift_index': [11],
@@ -417,7 +418,7 @@ class Decoder(srd.Decoder):
 		# Data Technology Corporation DTC7287
 		encoding.RLL_DTC7287: {
 			'limits_key': encoding.RLL,
-			'codemap_key': encoding.WD,
+			'codemap_key': encoding.RLL_WD,
 			'sync_pattern': 4,
 			'sync_seqs': [[5, 4, 4, 4, 4, 3, 8, 4]],
 			'shift_index': [17],
@@ -568,8 +569,8 @@ class Decoder(srd.Decoder):
 										'RLL':	encoding.RLL,
 									}[self.options['custom_encoder_limits']],
 				'codemap_key':		{	'FM/MFM':	encoding.FM_MFM,
-										'IBM':		encoding.IBM,
-										'WD':		encoding.WD,
+										'IBM':		encoding.RLL_IBM,
+										'WD':		encoding.RLL_WD,
 									}[self.options['custom_encoder_codemap']],
 				'sync_pattern':		self.options['custom_encoder_sync_pattern'],
 				'sync_seqs':		helper_list_of_lists(self.options['custom_encoder_sync_seqs']),
@@ -622,8 +623,8 @@ class Decoder(srd.Decoder):
 			self.codemap_key = encoding_current['codemap_key']
 			self.decode = {
 				encoding.FM_MFM: self.fm_mfm_decode,
-				encoding.IBM: self.rll_decode,
-				encoding.WD: self.rll_decode,
+				encoding.RLL_IBM: self.rll_decode,
+				encoding.RLL_WD: self.rll_decode,
 			}[self.codemap_key]
 
 			self.sync_pattern = encoding_current['sync_pattern']
