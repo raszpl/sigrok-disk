@@ -604,7 +604,7 @@ class Decoder(srd.Decoder):
 			return s[0] if len(s) == 1 else []
 
 		if self.encoding == coding.custom:
-			self.encoding_current = {
+			encoding_current = {
 				'limits_key':		{	'FM':	coding.FM,
 										'MFM':	coding.MFM,
 										'RLL':	coding.RLL,
@@ -623,11 +623,21 @@ class Decoder(srd.Decoder):
 				'nop_mark':			helper_list(self.options['custom_encoder_nop_mark'])
 			}
 		else:
-			self.encoding_current = self.encoding_table[self.encoding]
+			encoding_current = {
+				'ID_prefix_mark':	[],
+				'ID_mark':			[],
+				'IDData_mark':		[],
+				'Data_mark':		[],
+				'nop_mark':			[],
+			}
+			encoding_current.update(self.encoding_table[self.encoding])
 
-		self.encoding_current['limits'] = self.encoding_limits[self.encoding_current['limits_key']]
-		self.encoding_current['codemap'] = self.decoding_codemap[self.encoding_current['codemap_key']]
-		self.encoding_current['coding'] = self.encoding
+		encoding_current['limits'] = self.encoding_limits[encoding_current['limits_key']]
+		encoding_current['codemap'] = self.decoding_codemap[encoding_current['codemap_key']]
+		encoding_current['coding'] = self.encoding
+		print(encoding_current)
+		
+		self.encoding_current = SimpleNamespace(**encoding_current)
 
 		# Other initialization.
 		self.initial_pins = [1 if self.rising_edge == True else 0]
@@ -662,22 +672,23 @@ class Decoder(srd.Decoder):
 			self.ki = ki
 
 			self.encoding_current = encoding_current
-			self.encoding = encoding_current['coding']
-			self.codemap = encoding_current['codemap']
-			self.codemap_key = encoding_current['codemap_key']
+			self.encoding = encoding_current.coding
+			self.limits_key = encoding_current.limits_key
+			self.codemap = encoding_current.codemap
+			self.codemap_key = encoding_current.codemap_key
 			self.decode = {
 				coding.FM_MFM: self.fm_mfm_decode,
 				coding.RLL_IBM: self.rll_decode,
 				coding.RLL_WD: self.rll_decode,
 			}[self.codemap_key]
 
-			self.sync_pattern = encoding_current['sync_pattern']
+			self.sync_pattern = encoding_current.sync_pattern
 			# Standard in literature seems to be 16 bit transitions (32 halfbit windows) as enough to lock PLO
 			self.sync_lock_threshold = round(32 / self.sync_pattern)
 			# pll_sync_tolerance: fractional percentage of tolerated deviations during initial PLL sync lock
 			self.pll_sync_tolerance = halfbit_ticks * pll_sync_tolerance
-			self.cells_allowed_min = min(encoding_current['limits'])
-			self.cells_allowed_max = max(encoding_current['limits'])
+			self.cells_allowed_min = min(encoding_current.limits)
+			self.cells_allowed_max = max(encoding_current.limits)
 
 			# Ring buffer for storing info on individual halfbit windows, used by annotate_bits()
 			# We need 16 halfbit windows + whatever the max shift_index is so we can rewind to
@@ -800,7 +811,7 @@ class Decoder(srd.Decoder):
 			# edge_samplenum: sample index of rising edge (flux transition)
 			# State Machine with 3 stages:
 			# - PLLstate.locking looks for sync_lock_threshold number of sync_pattern pulses
-			# - PLLstate.scanning_sync_mark keeps scanning for either sync_pattern or self.encoding_current['sync_seqs'], anything else resets PLL.
+			# - PLLstate.scanning_sync_mark keeps scanning for either sync_pattern or self.encoding_current.sync_seqs, anything else resets PLL.
 			# - PLLstate.decoding
 
 			#print_('pll edge', edge_samplenum, pulse_ticks, '%.4f' % abs(pulse_ticks - 2.0 * self.halfbit), '%.4f' % self.halfbit)
@@ -912,8 +923,8 @@ class Decoder(srd.Decoder):
 				else:
 					#print_('scanning_sync_mark', self.sync_sequence_try, self.last_samplenum)
 					pulse_match = 0
-					sync_seqs = self.encoding_current['sync_seqs']
-					shift_index = self.encoding_current['shift_index']
+					sync_seqs = self.encoding_current.sync_seqs
+					shift_index = self.encoding_current.shift_index
 					# let user define just one common shift_index for all the marks
 					# we will automagically duplicate it here
 					if len(shift_index) == 1:
@@ -946,7 +957,7 @@ class Decoder(srd.Decoder):
 							print_('RLL_OMTI rewrite mark', bin(self.shift)[1:], bin(self.shift ^ (1 << 7))[1:])
 							self.shift = self.shift ^ (1 << 6)
 							self.shift = self.shift ^ (1 << 7)
-					elif self.encoding_current['limits_key'] == coding.RLL:
+					elif self.limits_key == coding.RLL:
 						# other RLL use common rule
 						if self.shift & 0xFFF == 0b100000001001:
 							print_('RLL rewrite mark', bin(self.shift)[1:], bin(self.shift ^ (1 << 7))[1:])
@@ -1308,7 +1319,7 @@ class Decoder(srd.Decoder):
 		if self.pb_state == state.sync_mark:
 			self.annotate_byte(val, special_clock = True)
 			self.display_field(field.Sync)
-			if val in self.encoding_current.get('IDData_mark', []):
+			if val in self.encoding_current.IDData_mark:
 				self.A1 = [0xA1]
 				self.pb_state = state.IDData_Address_Mark
 				if self.IDmark:
@@ -1317,21 +1328,21 @@ class Decoder(srd.Decoder):
 					self.IDcrc = 0
 					self.byte_cnt = self.header_size
 					self.pb_state = state.ID_Record
-			elif val in self.encoding_current.get('ID_mark', []):
+			elif val in self.encoding_current.ID_mark:
 				self.IDmark = [val]
 				self.display_field(field.ID_Address_Mark)
 				self.IDcrc = 0
 				self.byte_cnt = self.header_size
 				self.pb_state = state.ID_Record
-			elif val in self.encoding_current.get('Data_mark', []):
+			elif val in self.encoding_current.Data_mark:
 				self.DRmark = [val]
 				self.display_field(field.Data_Address_Mark)
 				self.DRcrc = 0
 				self.byte_cnt = self.sector_size
 				self.pb_state = state.Data_Record
-			elif val in self.encoding_current.get('ID_prefix_mark', []):
+			elif val in self.encoding_current.ID_prefix_mark:
 				self.IDmark = [val]
-			elif val in self.encoding_current.get('nop_mark', []):
+			elif val in self.encoding_current.nop_mark:
 				pass
 			# FM Index Mark
 			elif val == 0xFC:
@@ -1483,7 +1494,7 @@ class Decoder(srd.Decoder):
 		window_size = bc10N / 2.0	# current half-bit-cell window size (in fractional samples)
 
 		interval = 0				# current interval (in samples, 1..n)
-		cells_allowed = self.encoding_current['limits']
+		cells_allowed = self.encoding_current.limits
 
 		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, kp=self.pll_kp, ki=self.pll_ki, pll_sync_tolerance=self.pll_sync_tolerance, encoding_current=self.encoding_current)
 
