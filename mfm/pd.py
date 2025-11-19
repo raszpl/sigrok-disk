@@ -635,8 +635,6 @@ class Decoder(srd.Decoder):
 		encoding_current['limits'] = self.encoding_limits[encoding_current['limits_key']]
 		encoding_current['codemap'] = self.decoding_codemap[encoding_current['codemap_key']]
 		encoding_current['coding'] = self.encoding
-		print(encoding_current)
-		
 		self.encoding_current = SimpleNamespace(**encoding_current)
 
 		# Other initialization.
