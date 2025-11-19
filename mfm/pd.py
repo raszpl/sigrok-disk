@@ -267,7 +267,8 @@ class Decoder(srd.Decoder):
 		custom		= 8
 		RLL			= 10
 		FM_MFM		= 11
-		RLL_IBM		= 13
+		RLL_IBM		= 12
+		GCR			= 13
 		GCR_IBM		= 14
 		GCR_CBM		= 15
 
