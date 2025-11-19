@@ -60,9 +60,7 @@ This is a spare/unused sector created at the end of every track on MFM drive by 
  - [hdd_mfm_OMTI8240.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_mfm_OMTI8240.sr) 200MHz sample rate. Track 4919: Cylinder 819, Head 5. 5000000 bps, MFM encoding, Header format unknown, Header CRC 32bit, other Header CRC parameters unknownm, Data poly 0x0104c981, Data CRC init 0xd4d7ca20.<br>Seagate ST-251 on Scientific Micro Systems Inc. OMTI 8240 (Z8 micro, OMTI 20516 aka OMTI 5098, OMTI 20507 aka 5070)
  - [hdd_mfm_ST21M.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_mfm_ST21M.sr) 200MHz sample rate. Track 6, Cylinder 1, Head 0. 5000000 bps, MFM encoding, Header format semi unknown, Header CRC 32bit, Header poly 0x41044185, Header CRC init 0, Data poly 0x41044185, Data CRC init 0.<br>Seagate ST-251 on Seagate ST21M (custom Seagate VLSI)
  - [hdd_mfm_ST21M_2.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_mfm_ST21M_2.sr) 200MHz sample rate. Track 6, Cylinder 1, Head 0. 5000000 bps, MFM encoding, Header format semi unknown, Header CRC 32bit, Header poly 0x41044185, Header CRC init 0, Data poly 0x41044185, Data CRC init 0.<br>Seagate ST-278R on Seagate ST21M (custom Seagate VLSI)
- - [hdd_mfm_ST21M_service2.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_mfm_ST21M_service2.sr) 200MHz sample rate. Cylinder 0, Head 0. 5000000 bps, MFM encoding, Header format unknown, Header CRC 32bit, other CRC parameters unknown.<br>Seagate ST-278R on Seagate ST21M (custom Seagate/Cirrus Logic controller). Tracks 0-5 are occupied by this service area.
 
- - [hdd_mfm_ST21M_service.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_mfm_ST21M_service.sr) 200MHz sample rate. 2:1 interleave. Cylinder 0, Head 0. 7500000 bps, RLL_Adaptec encoding, Header format semi unknown, First track Header CRC init 0, Data ECC 48bit, other CRC parameters unknown.<br>Seagate ST-251 on Seagate ST21M (custom Seagate VLSI). Tracks 0-5 are occupied by this RLL_Adaptec encoded service area despite running in MFM mode.
  - [hdd_rll_ACB4070.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_rll_ACB4070.sr) 200MHz sample rate. 2:1 interleave. 7500000 bps, RLL_Adaptec encoding, Header format unknown, Header CRC 32bit, Header poly 0x41044185, Header CRC init 0, Data poly 0x41044185, Data CRC init 0. Requires more aggressive pll_kp=1 due to wobly timings.<br>Seagate ST251 on Adaptec ACB-4070 RLL to SCSI bridge (AIC-300F, AIC-010F) from [Mattis Linds ABC1600 containing DNIX 5.3 (UNIX SVR3)](https://forum.vcfed.org/index.php?threads/rll-drive-sampling-project.1209575/#post-1209655)
  - [hdd_rll_ACB2370A.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_rll_ACB2370A.sr) 200MHz sample rate. 7500000 bps, RLL_Adaptec encoding, Header format semi unknown, Header CRC init 0, Data ECC 56bit, other CRC parameters unknown.<br>Seagate ST251 on Adaptec ACB-2370A (AIC-610F, AIC-280L, AIC-270L, AIC-6225)
  - [hdd_rll_ACB2372.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_rll_ACB2372.sr) 200MHz sample rate. 7500000 bps, RLL_Adaptec encoding, Header format semi unknown, Header CRC init 0, Data ECC 56bit, other CRC parameters unknown.<br>Seagate ST-278R on Adaptec ACB-2372 (AIC-610F, AIC-280L, AIC-270L, AIC-6225)
@@ -1324,7 +1322,7 @@ Full [Changelog](doc/changelog.md). Biggest changes from original:
     - [ ] `auto` encoding detection - this is a BIG one
 - [ ] Rename Errors annotation field to more general Status
 - [ ] Figure out crazy RLL_DTC7287 format
-- [ ] use RevEng to  reverse all crc/ecc
+- [ ] use RevEng to reverse all crc/ecc
 - [ ] GCR
 - [ ] ESDI?
 - [ ] SMD??? :-)
