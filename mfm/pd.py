@@ -105,7 +105,7 @@ class Decoder(srd.Decoder):
 			'default': '5000000', 'values': ('125000', '150000',
 			'250000', '300000', '500000', '5000000', '7500000', '10000000')},
 		{'id': 'encoding', 'desc': 'Encoding',
-			'default': 'MFM_HDD', 'values': ('FM', 'MFM_FDD', 'MFM_HDD', 'RLL_SEA', 'RLL_Adaptec', 'RLL_WD', 'RLL_OMTI', 'custom')},
+			'default': 'MFM', 'values': ('FM', 'MFM', 'RLL_SEA', 'RLL_Adaptec', 'RLL_WD', 'RLL_OMTI', 'custom')},
 		{'id': 'sect_len', 'desc': 'Sector length',
 			'default': '512', 'values': ('128', '256', '512', '1024')},
 		{'id': 'header_bytes', 'desc': 'Header bytes',
@@ -258,15 +258,13 @@ class Decoder(srd.Decoder):
 
 	class encoding(Enum):
 		FM			= 0
-		MFM_FDD		= 1
-		MFM_HDD		= 2
+		MFM			= 1
 		RLL_SEA		= 3
 		RLL_Adaptec = 4
 		RLL_WD		= 5
 		RLL_DTC7287	= 6
 		RLL_OMTI	= 7
 		custom		= 8
-		MFM			= 9
 		RLL			= 10
 		FM_MFM		= 11
 		WD			= 12
@@ -368,16 +366,7 @@ class Decoder(srd.Decoder):
 			'ID_mark': [0xFE],
 			'Data_mark': [0xFB]
 		},
-		encoding.MFM_FDD: {
-			'limits_key': encoding.MFM,
-			'codemap_key': encoding.FM_MFM,
-			'sync_pattern': 2,
-			'sync_seqs': [[3, 4, 3, 4, 3], [3, 2, 3, 4, 3, 4]],
-			'shift_index': [13, 14],
-			'IDData_mark': [0xA1]
-		},
-		# Generic HDD MFM controller format, seems to work with most MFM drives.
-		encoding.MFM_HDD: {
+		encoding.MFM: {
 			'limits_key': encoding.MFM,
 			'codemap_key': encoding.FM_MFM,
 			'sync_pattern': 2,
@@ -1041,7 +1030,7 @@ class Decoder(srd.Decoder):
 
 			#print_(bit_start, win_end, win_val)
 			# Display annotation for bit using value from data window.
-			if (self.encoding in (encoding.MFM_FDD, encoding.MFM_HDD) and (shift3 & 0b111) in (0b000, 0b011, 0b110, 0b111)) \
+			if (self.encoding == encoding.MFM and (shift3 & 0b111) in (0b000, 0b011, 0b110, 0b111)) \
 				or (self.encoding == encoding.FM and not (shift3 & 0b10)):
 				if not special_clock:
 					self.put(bit_start, win_end, self.out_ann, message.errorClock)
@@ -1121,7 +1110,7 @@ class Decoder(srd.Decoder):
 	def annotate_byte(self, val, special_clock = False):
 		# Display annotations for bits and windows of this byte.
 		#print_('annotate_bits',hex(val), special_clock)
-		if self.encoding in (encoding.FM, encoding.MFM_FDD, encoding.MFM_HDD):
+		if self.encoding in (encoding.FM, encoding.MFM):
 			self.annotate_bits_FM_MFM(special_clock)
 		else:
 			self.annotate_bits_RLL(val, special_clock)
@@ -1162,7 +1151,7 @@ class Decoder(srd.Decoder):
 
 		elif typ == field.Data_Address_Mark:
 			# DDAMs only on ancient FM floppies
-			if self.encoding in (encoding.FM, encoding.MFM_FDD) and self.DRmark[0] in (0xF8, 0xF9, 0xFA):
+			if self.encoding == encoding.FM and self.DRmark[0] in (0xF8, 0xF9, 0xFA):
 				self.DDAMs += 1
 				self.put(self.field_start, self.byte_end, self.out_ann, message.ddam)
 				self.report_last = field.Deleted_Data_Mark
@@ -1294,9 +1283,6 @@ class Decoder(srd.Decoder):
 					self.IDcrc = 0
 					self.byte_cnt = self.header_bytes
 					self.pb_state = state.ID_Record
-				# MFM_FDD triple A1 Sync Mark
-				elif self.encoding == encoding.MFM_FDD:
-					self.pb_state = state.second_A1h_prefix
 			elif val in self.encoding_current.get('ID_mark', []):
 				self.IDmark = [val]
 				self.display_field(field.ID_Address_Mark)
@@ -1317,26 +1303,22 @@ class Decoder(srd.Decoder):
 			elif val == 0xFC:
 				self.display_field(field.Index_Mark)
 				self.pb_state = state.first_Gap_Byte
-			# MFM_FDD Index Mark
+			# MFM FDD Index Mark
 			elif val == 0xC2:
 				self.pb_state = state.second_C2h_prefix
 			else:
 				self.display_field(field.Unknown_Byte)
 				return False
 
-		elif self.pb_state in (state.second_A1h_prefix, state.third_A1h_prefix):
-			self.annotate_byte(val, special_clock = True)
-			if val == 0xA1:
-				self.A1.append(0xA1)
-				if self.pb_state == state.second_A1h_prefix:
-					self.pb_state = state.third_A1h_prefix
-				elif self.pb_state == state.third_A1h_prefix:
-					self.pb_state = state.IDData_Address_Mark
-			else:
-				self.display_field(field.Unknown_Byte)
-				return False
-
 		elif self.pb_state == state.IDData_Address_Mark:
+			# MFM FDD second or third A1
+			# Abusing state.IDData_Address_Mark for MFM floppy triple
+			# A1 Sync Mark detection. Ugly, but less ugly than keeping
+			# separate MFM_FDD and MFM_HDD options.
+			if val == 0xA1:
+				self.annotate_byte(val, special_clock = True)
+				self.A1.append(0xA1)
+				return True
 			self.annotate_byte(val)
 			self.display_field(field.Sync)
 			if (self.header_bytes == 4 and val == 0xFE) or \
@@ -1611,7 +1593,7 @@ class Decoder(srd.Decoder):
 			# bit for the previous byte has already been displayed previously.
 
 			if bitn < 8:
-				if (self.encoding in (encoding.MFM_FDD, encoding.MFM_HDD) and (shift3 == 0 or shift3 == 3 or shift3 == 6 or shift3 == 7)) \
+				if (self.encoding == encoding.MFM and (shift3 == 0 or shift3 == 3 or shift3 == 6 or shift3 == 7)) \
 				 or (self.encoding == encoding.FM and (shift3 == 0 or shift3 == 1 or shift3 == 4 or shift3 == 5)):
 					if not special_clock:
 						self.put(bit_end - 1, bit_end, self.out_ann, message.error)
@@ -2038,7 +2020,7 @@ class Decoder(srd.Decoder):
 
 				# Display all MFM mC2h and mA1h prefix bytes to help with locating damaged records.
 
-				if self.encoding in (encoding.MFM_FDD, encoding.MFM_HDD) and self.dsply_pfx:
+				if self.encoding == encoding.MFM and self.dsply_pfx:
 					if (shift31 & 0xFFFF) == 0x4489:
 						self.put(win_start, win_end, self.out_ann, message.prefixA1)
 					elif (shift31 & 0xFFFF) == 0x5224:
