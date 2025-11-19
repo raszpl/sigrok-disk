@@ -106,10 +106,10 @@ class Decoder(srd.Decoder):
 			'250000', '300000', '500000', '5000000', '7500000', '10000000')},
 		{'id': 'encoding', 'desc': 'Encoding',
 			'default': 'MFM', 'values': ('FM', 'MFM', 'RLL_Sea', 'RLL_Adaptec', 'RLL_WD', 'RLL_OMTI', 'custom')},
-		{'id': 'sect_len', 'desc': 'Sector length',
-			'default': '512', 'values': ('128', '256', '512', '1024')},
-		{'id': 'header_bytes', 'desc': 'Header bytes',
+		{'id': 'header_size', 'desc': 'Header payload length in bytes',
 			'default': '4', 'values': ('3', '4')},
+		{'id': 'sector_size', 'desc': 'Sector payload length in bytes',
+			'default': '512', 'values': ('128', '256', '512', '1024')},
 		{'id': 'header_crc_bits', 'desc': 'Header field CRC bits',
 			'default': '16', 'values': ('16', '32')},
 		{'id': 'header_crc_poly', 'desc': 'Header field CRC Polynomial',
@@ -494,8 +494,8 @@ class Decoder(srd.Decoder):
 		self.rising_edge = True if self.options['leading_edge'] == 'rising' else False
 		self.data_rate = float(self.options['data_rate'])
 		self.encoding = encoding[self.options['encoding']]
-		self.sector_len = int(self.options['sect_len'])
-		self.header_bytes = int(self.options['header_bytes'])
+		self.sector_size = int(self.options['sector_size'])
+		self.header_size = int(self.options['header_size'])
 		self.header_crc_bits = int(self.options['header_crc_bits'])
 		self.header_crc_bytes = self.header_crc_bits // 8
 		self.header_crc_mask = (1 << self.header_crc_bits) -1
@@ -1190,7 +1190,7 @@ class Decoder(srd.Decoder):
 	# ------------------------------------------------------------------------
 
 	def decode_id_rec(self, fld_code, val):
-		if self.header_bytes == 3:
+		if self.header_size == 3:
 			self.decode_id_rec_3byte(fld_code, val)
 		else:
 			self.decode_id_rec_4byte(fld_code, val)
@@ -1260,19 +1260,19 @@ class Decoder(srd.Decoder):
 					self.IDmark = []
 					self.display_field(field.ID_Address_Mark)
 					self.IDcrc = 0
-					self.byte_cnt = self.header_bytes
+					self.byte_cnt = self.header_size
 					self.pb_state = state.ID_Record
 			elif val in self.encoding_current.get('ID_mark', []):
 				self.IDmark = [val]
 				self.display_field(field.ID_Address_Mark)
 				self.IDcrc = 0
-				self.byte_cnt = self.header_bytes
+				self.byte_cnt = self.header_size
 				self.pb_state = state.ID_Record
 			elif val in self.encoding_current.get('Data_mark', []):
 				self.DRmark = [val]
 				self.display_field(field.Data_Address_Mark)
 				self.DRcrc = 0
-				self.byte_cnt = self.sector_len
+				self.byte_cnt = self.sector_size
 				self.pb_state = state.Data_Record
 			elif val in self.encoding_current.get('ID_prefix_mark', []):
 				self.IDmark = [val]
@@ -1300,20 +1300,20 @@ class Decoder(srd.Decoder):
 				return True
 			self.annotate_byte(val)
 			self.display_field(field.Sync)
-			if (self.header_bytes == 4 and val == 0xFE) or \
-				(self.header_bytes == 3 and (val & 0xF4) == 0xF4):
+			if (self.header_size == 4 and val == 0xFE) or \
+				(self.header_size == 3 and (val & 0xF4) == 0xF4):
 				# FEh FC-FFh ID Address Mark
 				self.IDmark = [val]
 				self.display_field(field.ID_Address_Mark)
 				self.IDcrc = 0
-				self.byte_cnt = self.header_bytes
+				self.byte_cnt = self.header_size
 				self.pb_state = state.ID_Record
 			elif val >= 0xF8 and val <= 0xFB:
 				# F8h..FBh Data Address Mark
 				self.DRmark = [val]
 				self.display_field(field.Data_Address_Mark)
 				self.DRcrc = 0
-				self.byte_cnt = self.sector_len
+				self.byte_cnt = self.sector_size
 				self.pb_state = state.Data_Record
 			else:
 				self.display_field(field.Unknown_Byte)
@@ -1321,7 +1321,7 @@ class Decoder(srd.Decoder):
 
 		elif self.pb_state == state.ID_Record:
 			self.annotate_byte(val)
-			self.IDrec[self.header_bytes - self.byte_cnt] = val
+			self.IDrec[self.header_size - self.byte_cnt] = val
 			self.decode_id_rec(self.byte_cnt, val)
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
@@ -1335,7 +1335,7 @@ class Decoder(srd.Decoder):
 			self.IDcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc_header(bytes(self.A1 + self.IDmark) + self.IDrec[:self.header_bytes])
+				self.calculate_crc_header(bytes(self.A1 + self.IDmark) + self.IDrec[:self.header_size])
 				if self.crc_accum == self.IDcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1344,7 +1344,7 @@ class Decoder(srd.Decoder):
 
 		elif self.pb_state == state.Data_Record:
 			self.annotate_byte(val)
-			self.DRrec[self.sector_len - self.byte_cnt] = val
+			self.DRrec[self.sector_size - self.byte_cnt] = val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
 				self.display_field(field.Data_Record)
@@ -1357,7 +1357,7 @@ class Decoder(srd.Decoder):
 			self.DRcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc_data(bytes(self.A1 + self.DRmark) + self.DRrec[:self.sector_len])
+				self.calculate_crc_data(bytes(self.A1 + self.DRmark) + self.DRrec[:self.sector_size])
 				if self.crc_accum == self.DRcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1636,12 +1636,12 @@ class Decoder(srd.Decoder):
 			self.field_start = self.byte_start
 			self.display_field(field.ID_Address_Mark)
 			self.IDcrc = 0
-			self.byte_cnt = self.header_bytes
+			self.byte_cnt = self.header_size
 			self.pb_state = state.ID_Record
 
 		elif self.pb_state == state.ID_Record:
 			self.annotate_byte_legacy(val)
-			self.IDrec[self.header_bytes - self.byte_cnt] = val
+			self.IDrec[self.header_size - self.byte_cnt] = val
 			self.decode_id_rec(self.byte_cnt, val)
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
@@ -1655,7 +1655,7 @@ class Decoder(srd.Decoder):
 			self.IDcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc_header(bytes(self.IDmark) + self.IDrec[:self.header_bytes])
+				self.calculate_crc_header(bytes(self.IDmark) + self.IDrec[:self.header_size])
 				if self.crc_accum == self.IDcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1669,12 +1669,12 @@ class Decoder(srd.Decoder):
 			self.field_start = self.byte_start
 			self.display_field(field.Data_Address_Mark)
 			self.DRcrc = 0
-			self.byte_cnt = self.sector_len
+			self.byte_cnt = self.sector_size
 			self.pb_state = state.Data_Record
 
 		elif self.pb_state == state.Data_Record:
 			self.annotate_byte_legacy(val)
-			self.DRrec[self.sector_len - self.byte_cnt] = val
+			self.DRrec[self.sector_size - self.byte_cnt] = val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
 				self.display_field(field.Data_Record)
@@ -1687,7 +1687,7 @@ class Decoder(srd.Decoder):
 			self.DRcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc_data(bytes(self.DRmark) + self.DRrec[:self.sector_len])
+				self.calculate_crc_data(bytes(self.DRmark) + self.DRrec[:self.sector_size])
 				if self.crc_accum == self.DRcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1736,20 +1736,20 @@ class Decoder(srd.Decoder):
 				return -1
 
 		elif self.pb_state == state.IDData_Address_Mark:
-			if (self.header_bytes == 4 and val == 0xFE) or \
-			   (self.header_bytes == 3 and (val & 0xFC) == 0xFC):	# FEh FC-FFh ID Address Mark
+			if (self.header_size == 4 and val == 0xFE) or \
+			   (self.header_size == 3 and (val & 0xFC) == 0xFC):	# FEh FC-FFh ID Address Mark
 				self.IDmark = [val]
 				self.annotate_byte_legacy(val)
 				self.display_field(field.ID_Address_Mark)
 				self.IDcrc = 0
-				self.byte_cnt = self.header_bytes
+				self.byte_cnt = self.header_size
 				self.pb_state = state.ID_Record
 			elif val >= 0xF8 and val <= 0xFB:						# F8h..FBh Data Address Mark
 				self.DRmark = [val]
 				self.annotate_byte_legacy(val)
 				self.display_field(field.Data_Address_Mark)
 				self.DRcrc = 0
-				self.byte_cnt = self.sector_len
+				self.byte_cnt = self.sector_size
 				self.pb_state = state.Data_Record
 			else:
 				self.display_field(field.Unknown_Byte)
@@ -1757,7 +1757,7 @@ class Decoder(srd.Decoder):
 
 		elif self.pb_state == state.ID_Record:
 			self.annotate_byte_legacy(val)
-			self.IDrec[self.header_bytes - self.byte_cnt] = val
+			self.IDrec[self.header_size - self.byte_cnt] = val
 			self.decode_id_rec(self.byte_cnt, val)
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
@@ -1771,7 +1771,7 @@ class Decoder(srd.Decoder):
 			self.IDcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc_header(bytes(self.A1 + self.IDmark) + self.IDrec[:self.header_bytes])
+				self.calculate_crc_header(bytes(self.A1 + self.IDmark) + self.IDrec[:self.header_size])
 				if self.crc_accum == self.IDcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1780,7 +1780,7 @@ class Decoder(srd.Decoder):
 
 		elif self.pb_state == state.Data_Record:
 			self.annotate_byte_legacy(val)
-			self.DRrec[self.sector_len - self.byte_cnt] = val
+			self.DRrec[self.sector_size - self.byte_cnt] = val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
 				self.display_field(field.Data_Record)
@@ -1793,7 +1793,7 @@ class Decoder(srd.Decoder):
 			self.DRcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc_data(bytes(self.A1 + self.DRmark) + self.DRrec[:self.sector_len])
+				self.calculate_crc_data(bytes(self.A1 + self.DRmark) + self.DRrec[:self.sector_size])
 				if self.crc_accum == self.DRcrc:
 					self.display_field(field.CRC_Ok)
 				else:
