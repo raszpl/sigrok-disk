@@ -783,7 +783,7 @@ mfm-1: Sync pattern 13 bytes
 mfm-1: Data Address Mark
 </pre>
 </details>
-<details><summary><code>sigrok-cli -D -i fdd_fm.sr -P mfm:data_rate=125000:encoding=FM:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields</code></summary>
+<details><summary><code>sigrok-cli -D -i fdd_fm.sr -P mfm:data_rate=125000:encoding=FM:data_crc_bits=16:data_crc_poly=0x1021:sector_size=256 -A mfm=fields</code></summary>
 <pre>
 mfm-1: Sync pattern 6 bytes
 mfm-1: ID Address Mark
@@ -883,7 +883,7 @@ mfm-1: Sync pattern 6 bytes
 mfm-1: Data Address Mark
 </pre>
 </details>
-<details><summary><code>sigrok-cli -D -i fdd_mfm.sr -P mfm:data_rate=250000:encoding=MFM_FD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields</code></summary>
+<details><summary><code>sigrok-cli -D -i fdd_mfm.sr -P mfm:data_rate=250000:encoding=MFM:data_crc_bits=16:data_crc_poly=0x1021:sector_size=256 -A mfm=fields</code></summary>
 <pre>
 mfm-1: Sync pattern 8 bytes
 mfm-1: ID Address Mark
@@ -1075,13 +1075,13 @@ MASSBUS0DAIGNOSTIC MODEABA/B MF CS1 (@l (@ (@ (@ MF IS (@ (@ry
 **Default**: `5000000` **Values**: `125000`, `150000`, `250000`, `300000`, `500000`, `5000000`, `7500000`, `10000000`
 
 `encoding` Encoding schemes available. 'custom' lets you build own decoder interactively in the GUI fully controlling its behavior.  
-**Default**: `MFM_HDD` **Values**: `FM`, `MFM_FDD`, `MFM_HDD`, `RLL_Sea`, `RLL_Adaptec`, `RLL_WD`, `RLL_OMTI`, `custom`
+**Default**: `MFM` **Values**: `FM`, `MFM`, `RLL_Sea`, `RLL_Adaptec`, `RLL_WD`, `RLL_OMTI`, `custom`
 
-`sect_len` Sector length in bytes.  
-**Default**: `512` **Values**: `128`, `256`, `512`, `1024`
-
-`header_bytes` Header length in bytes.  
+`header_size` Header payload length in bytes.  
 **Default**: `4` **Values**: `3`, `4`
+
+`sector_size` Sector payload length in bytes.  
+**Default**: `512` **Values**: `128`, `256`, `512`, `1024`
 
 `header_crc_bits` Header field CRC size in bits.  
 **Default**: `16` **Values**: `16`, `32`
