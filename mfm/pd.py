@@ -6,18 +6,6 @@
 ## Copyright (c) 2025 MajenkoProjects
 ## Copyright (C) 2025 Rasz_pl <https://github.com/raszpl>
 ## Initial version created 2017-Mar-14.
-## Last modified 2025-Oct-21
-## ---------------------------------------------------------------------------
-## Example sigrok-cli command line usage:
-## sigrok-cli -D -i MFM_HDDdataOneSector.sr -P mfm -A mfm=bytes:fields
-## sigrok-cli -D -i MFM_HDDdataDig.sr -P mfm:report="DAM (Data Address Mark)":report_qty=19 -A mfm=fields:reports
-## sigrok-cli -D -i SampleFMdataDig.sr -P mfm:data_rate=125000:encoding=FM:type=FDD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields
-## sigrok-cli -D -i SampleMFMdataDig.sr -P mfm:data_rate=250000:encoding=MFM:type=FDD:data_crc_bits=16:data_crc_poly=0x1021:sect_len=256 -A mfm=fields
-##
-## Explanation
-## sigrok-cli -D -I csv:logic_channels=3:column_formats=t,l,l,l -i YourHugeSlow.csv -P mfm:option1=value1:option2=value2 -A mfm=annotation1:annotation2
-## Available option1=value1:option2=value2 are in options Tuple List in the Decoder class.
-## Available annotation1:annotation2 are in annotation_rows List of Lists in the Decoder class.
 ## ---------------------------------------------------------------------------
 ## This file is part of the libsigrokdecode project.
 ##
@@ -125,7 +113,7 @@ class Decoder(srd.Decoder):
 		{'id': 'header_crc_bits', 'desc': 'Header field CRC bits',
 			'default': '16', 'values': ('16', '32')},
 		{'id': 'header_crc_poly', 'desc': 'Header field CRC Polynomial',
-			'default': '0x1021'},		# x16 + x12 + x5 + 1 standard CRC-CCITT
+			'default': '0x1021'},
 		{'id': 'header_crc_init', 'desc': 'Header field CRC init',
 			'default': '0xffffffff'},
 		{'id': 'data_crc_bits', 'desc': 'Data field CRC bits',
@@ -230,7 +218,10 @@ class Decoder(srd.Decoder):
 
 	# ----------------------------------------------------------------------------
 	# Enums
-	# Sadly those need to be up here, otherwise one has to use self. prefix
+	# Warning: Python 3.4 enums are EXTREMELY SLOW. It's been "fixed" in Python 3.5
+	# such that enum attribute lookup is "only" 3-6x slower than normal, instead of 25-70x! Python 3.4:
+	# Direct Access d['key']: 3.3710 seconds
+	# Direct Enum Access d[enum.key]: 157.9954 seconds
 	# ----------------------------------------------------------------------------
 
 	global state, field, encoding
@@ -313,23 +304,43 @@ class Decoder(srd.Decoder):
 			'00001000': '0011'
 		}
 	}
-	#RLL_IBM = { # Seagate, SSI
-	#	'11':	'1000',
-	#	'10':	'0100',
-	#	'011':	'001000',
-	#	'000':	'000100',
-	#	'010':	'100100',
-	#	'0011':	'00001000',
-	#	'0010':	'00100100'
-	#}
-	#RLL_WD = { # WD50C12/WD42C22C/WD5011 etc
-	#	'11':	'1000',
-	#	'10':	'0100',
-	#	'011':	'001000',
-	#	'010':	'000100',
-	#	'000':	'100100',
-	#	'0011':	'00001000',
-	#	'0010':	'00100100'
+
+	#encoding_codemap = {
+	#	encoding.GCR_IBM: {
+	#		'0000':	'11001',
+	#		'0001':	'11011',
+	#		'0010':	'10010',
+	#		'0011':	'10011',
+	#		'0100':	'11101',
+	#		'0101':	'10101',
+	#		'0110':	'10110',
+	#		'0111':	'10111',
+	#		'1000':	'11010',
+	#		'1001':	'01001',
+	#		'1010':	'01010',
+	#		'1011':	'01011',
+	#		'1100':	'11110',
+	#		'1101':	'01101',
+	#		'1110':	'01110',
+	#		'1111':	'01111',
+	#	},
+	#	encoding.RLL_IBM = {
+	#		'11':	'1000',
+	#		'10':	'0100',
+	#		'011':	'001000',
+	#		'000':	'000100',
+	#		'010':	'100100',
+	#		'0011':	'00001000',
+	#		'0010':	'00100100'
+	#	}
+	#	encoding.RLL_WD = {
+	#		'11':	'1000',
+	#		'10':	'0100',
+	#		'011':	'001000',
+	#		'010':	'000100',
+	#		'000':	'100100',
+	#		'0011':	'00001000',
+	#		'0010':	'00100100'
 	#}
 
 	# encoding_table holds data for configuring process_byte() and SimplePLL State Machines
@@ -404,6 +415,15 @@ class Decoder(srd.Decoder):
 			'shift_index': [12],
 			'IDData_mark': [0xF0],
 		},
+		# OMTI-8247
+		encoding.RLL_OMTI: {
+			'limits_key': encoding.RLL,
+			'codemap_key': encoding.IBM,
+			'sync_pattern': 4,
+			'sync_seqs': [[6, 8, 3], [5, 3, 8, 3]],
+			'shift_index': [11],
+			'IDData_mark': [0x7a],
+		},
 		# PLACEHOLDER! Weird format, almost as if it uses custom encoding_codemap? are those sync marks ESDI like?
 		# Data Technology Corporation DTC7287
 		encoding.RLL_DTC7287: {
@@ -414,15 +434,6 @@ class Decoder(srd.Decoder):
 			'shift_index': [17],
 			'IDData_mark': [0xF0],
 		},
-		# OMTI-8247
-		encoding.RLL_OMTI: {
-			'limits_key': encoding.RLL,
-			'codemap_key': encoding.IBM,
-			'sync_pattern': 4,
-			'sync_seqs': [[6, 8, 3], [5, 3, 8, 3]],
-			'shift_index': [11],
-			'IDData_mark': [0x7a],
-		}
 	}
 
 	# ------------------------------------------------------------------------
@@ -479,6 +490,8 @@ class Decoder(srd.Decoder):
 
 	def start(self):
 		self.out_ann = self.register(srd.OUTPUT_ANN)
+		#self.out_binary = self.register(srd.OUTPUT_BINARY)
+		#self.out_meta = self.register(srd.OUTPUT_META, meta=(int, 'meta', 'meta meta?'))
 
 		# Validate user provided command-line options.
 		for key, value in self.options.items():
@@ -502,6 +515,7 @@ class Decoder(srd.Decoder):
 		self.data_crc_init = int(self.options['data_crc_init'], 0) & ((1 << int(self.options['data_crc_bits'])) -1)
 		if self.options['data_crc_poly_custom']:
 			self.data_crc_poly = int(self.options['data_crc_poly_custom'], 0) & ((1 << int(self.options['data_crc_bits'])) -1)
+
 		self.time_unit = self.options['time_unit']
 		self.show_sample_num = True if self.options['dsply_sn'] == 'yes' else False
 
@@ -890,7 +904,9 @@ class Decoder(srd.Decoder):
 						self.reset_pll()
 						return False
 
-					# RLL rewrite mark, this illegal sequence should only ever show up in RLL marks
+					# sync_seqs is matched at this point
+
+					# rewrite RLL mark, this illegal sequence should only ever show up in RLL marks
 					# We rewrite it so rll_decode() doesnt choke on it.
 					if self.shift & 0xFFF == 0b100000001001:
 						#print_('RLL rewrite mark', bin(self.shift)[1:], bin(self.shift ^ (1 << 7))[1:])
@@ -1145,7 +1161,7 @@ class Decoder(srd.Decoder):
 				self.display_report()
 
 		elif typ == field.Data_Address_Mark:
-			# DDAMs only on floppies
+			# DDAMs only on ancient FM floppies
 			if self.encoding in (encoding.FM, encoding.MFM_FDD) and self.DRmark[0] in (0xF8, 0xF9, 0xFA):
 				self.DDAMs += 1
 				self.put(self.field_start, self.byte_end, self.out_ann, message.ddam)
