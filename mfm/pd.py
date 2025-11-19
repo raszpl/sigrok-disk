@@ -448,9 +448,9 @@ class Decoder(srd.Decoder):
 			'limits_key': encoding.RLL,
 			'codemap_key': encoding.RLL_IBM,
 			'sync_pattern': 4,
-			'sync_seqs': [[6, 8, 3], [5, 3, 8, 3]],
-			'shift_index': [11],
-			'IDData_mark': [0x7a],
+			'sync_seqs': [[6, 8, 3, 3], [5, 3, 8, 3, 3]],
+			'shift_index': [14],
+			'IDData_mark': [0x62],
 		},
 		# PLACEHOLDER! Weird format, almost as if it uses custom encoding_codemap? are those sync marks ESDI like?
 		# Data Technology Corporation DTC7287
@@ -624,6 +624,7 @@ class Decoder(srd.Decoder):
 
 		self.encoding_current['limits'] = self.encoding_limits[self.encoding_current['limits_key']]
 		self.encoding_current['codemap'] = self.encoding_codemap[self.encoding_current['codemap_key']]
+		self.encoding_current['encoding'] = self.encoding
 
 		# Other initialization.
 		self.initial_pins = [1 if self.rising_edge == True else 0]
@@ -657,6 +658,7 @@ class Decoder(srd.Decoder):
 			self.ki = ki
 
 			self.encoding_current = encoding_current
+			self.encoding = encoding_current['encoding']
 			self.codemap = encoding_current['codemap']
 			self.codemap_key = encoding_current['codemap_key']
 			self.decode = {
@@ -932,9 +934,18 @@ class Decoder(srd.Decoder):
 
 					# rewrite RLL mark, this illegal sequence should only ever show up in RLL marks
 					# We rewrite it so rll_decode() doesnt choke on it.
-					if self.shift & 0xFFF == 0b100000001001:
-						#print_('RLL rewrite mark', bin(self.shift)[1:], bin(self.shift ^ (1 << 7))[1:])
-						self.shift = self.shift ^ (1 << 7)
+					if self.encoding == encoding.RLL_OMTI:
+						# OMTI special rule "At SAM time a 2 of 7 pattern is searched for
+						# consisting of a nrz 62 with a pulse one clock delayed."
+						if self.shift & 0x7FFF == 0b100000001001001:
+							print_('RLL_OMTI rewrite mark', bin(self.shift)[1:], bin(self.shift ^ (1 << 7))[1:])
+							self.shift = self.shift ^ (1 << 6)
+							self.shift = self.shift ^ (1 << 7)
+					elif self.encoding_current['limits_key'] == encoding.RLL:
+						# other RLL use common rule
+						if self.shift & 0xFFF == 0b100000001001:
+							print_('RLL rewrite mark', bin(self.shift)[1:], bin(self.shift ^ (1 << 7))[1:])
+							self.shift = self.shift ^ (1 << 7)
 
 			if self.state == PLLstate.decoding:
 				# accumulate at least 16 bits, only return 16 bits at a time.
