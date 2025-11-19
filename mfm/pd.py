@@ -105,7 +105,7 @@ class Decoder(srd.Decoder):
 			'default': '5000000', 'values': ('125000', '150000',
 			'250000', '300000', '500000', '5000000', '7500000', '10000000')},
 		{'id': 'encoding', 'desc': 'Encoding',
-			'default': 'MFM', 'values': ('FM', 'MFM', 'RLL_Sea', 'RLL_Adaptec', 'RLL_WD', 'RLL_OMTI', 'custom')},
+			'default': 'MFM', 'values': ('FM', 'MFM', 'RLL_Sea', 'RLL_Adaptec', 'RLL_WD', 'RLL_OMTI', 'custom', 'RLL_DTC7287_unknown')},
 		{'id': 'header_size', 'desc': 'Header payload length in bytes',
 			'default': '4', 'values': ('3', '4')},
 		{'id': 'sector_size', 'desc': 'Sector payload length in bytes',
@@ -262,7 +262,7 @@ class Decoder(srd.Decoder):
 		RLL_Sea		= 3
 		RLL_Adaptec = 4
 		RLL_WD		= 5
-		RLL_DTC7287	= 6
+		RLL_DTC7287_unknown	= 6
 		RLL_OMTI	= 7
 		custom		= 8
 		RLL			= 10
@@ -454,13 +454,14 @@ class Decoder(srd.Decoder):
 		},
 		# PLACEHOLDER! Weird format, almost as if it uses custom encoding_codemap? are those sync marks ESDI like?
 		# Data Technology Corporation DTC7287
-		encoding.RLL_DTC7287: {
+		encoding.RLL_DTC7287_unknown: {
 			'limits_key': encoding.RLL,
 			'codemap_key': encoding.RLL_WD,
 			'sync_pattern': 4,
-			'sync_seqs': [[5, 4, 4, 4, 4, 3, 8, 4]],
-			'shift_index': [17],
-			'IDData_mark': [0xF0],
+			'shift_index': [33],
+			'ID_mark': [0x49, 0x4a, 0x46, 0x4b],
+			'Data_mark': [0x0d,7,0x81],
+			'nop_mark': '*',
 		},
 	}
 
