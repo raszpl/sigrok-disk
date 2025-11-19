@@ -224,7 +224,7 @@ class Decoder(srd.Decoder):
 	# Direct Enum Access d[enum.key]: 157.9954 seconds
 	# ----------------------------------------------------------------------------
 
-	global state, field, encoding
+	global state, field, coding
 	class state(Enum):
 		first_C2h_prefix	= 0		#auto()
 		second_C2h_prefix	= 1
@@ -256,7 +256,7 @@ class Decoder(srd.Decoder):
 		Sync				= 10
 		Gap					= 11
 
-	class encoding(Enum):
+	class coding(Enum):
 		FM			= 0
 		MFM			= 1
 		RLL_Sea		= 3
@@ -273,20 +273,20 @@ class Decoder(srd.Decoder):
 		GCR_CBM		= 15
 
 	encoding_limits = {
-		encoding.FM:	(1, 2),				# (0,1) RLL
-		encoding.GCR:	(1, 3),				# (0,2) RLL
-		encoding.MFM:	(2, 3, 4),			# (1,3) RLL
-		encoding.RLL:	(3, 4, 5, 6, 7, 8),	# (2,7) RLL
+		coding.FM:	(1, 2),				# (0,1) RLL
+		coding.GCR:	(1, 3),				# (0,2) RLL
+		coding.MFM:	(2, 3, 4),			# (1,3) RLL
+		coding.RLL:	(3, 4, 5, 6, 7, 8),	# (2,7) RLL
 	}
 
 	decoding_codemap = {
-		encoding.FM_MFM: {
+		coding.FM_MFM: {
 			'11': '1',
 			'10': '0',
 			'01': '1',
 			'00': '0',
 		},
-		encoding.GCR_IBM: {
+		coding.GCR_IBM: {
 			'11001': '0000',
 			'11011': '0001',
 			'10010': '0010',
@@ -304,7 +304,7 @@ class Decoder(srd.Decoder):
 			'01110': '1110',
 			'01111': '1111',
 		},
-		encoding.GCR_CBM: {
+		coding.GCR_CBM: {
 			'01010': '0000',
 			'01011': '0001',
 			'10010': '0010',
@@ -322,7 +322,7 @@ class Decoder(srd.Decoder):
 			'11110': '1110',
 			'10101': '1111',
 		},
-		encoding.RLL_IBM: {
+		coding.RLL_IBM: {
 			'1000': '11',
 			'0100': '10',
 			'100100': '010',
@@ -331,7 +331,7 @@ class Decoder(srd.Decoder):
 			'00100100': '0010',
 			'00001000': '0011'
 		},
-		encoding.RLL_WD: {
+		coding.RLL_WD: {
 			'1000': '11',
 			'0100': '10',
 			'100100': '000',
@@ -343,7 +343,7 @@ class Decoder(srd.Decoder):
 	}
 
 	#encoding_codemap = {
-	#	encoding.GCR_IBM: {
+	#	coding.GCR_IBM: {
 	#		'0000':	'11001',
 	#		'0001':	'11011',
 	#		'0010':	'10010',
@@ -361,7 +361,7 @@ class Decoder(srd.Decoder):
 	#		'1110':	'01110',
 	#		'1111':	'01111',
 	#	},
-	#	encoding.RLL_IBM = {
+	#	coding.RLL_IBM = {
 	#		'11':	'1000',
 	#		'10':	'0100',
 	#		'011':	'001000',
@@ -370,7 +370,7 @@ class Decoder(srd.Decoder):
 	#		'0011':	'00001000',
 	#		'0010':	'00100100'
 	#	}
-	#	encoding.RLL_WD = {
+	#	coding.RLL_WD = {
 	#		'11':	'1000',
 	#		'10':	'0100',
 	#		'011':	'001000',
@@ -396,27 +396,27 @@ class Decoder(srd.Decoder):
 	# ID_prefix_mark: Header Mark to be followed by IDData_mark
 	# nop_mark: inert mark
 	encoding_table = {
-		encoding.FM: {
-			'limits_key': encoding.FM,
-			'codemap_key': encoding.FM_MFM,
+		coding.FM: {
+			'limits_key': coding.FM,
+			'codemap_key': coding.FM_MFM,
 			'sync_pattern': 2,
 			'sync_seqs': [[1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 2], [1, 1, 1, 2, 2, 2, 1, 2, 1, 1, 1], [1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 2]],
 			'shift_index': [15],
 			'ID_mark': [0xFE],
 			'Data_mark': [0xFB]
 		},
-		encoding.MFM: {
-			'limits_key': encoding.MFM,
-			'codemap_key': encoding.FM_MFM,
+		coding.MFM: {
+			'limits_key': coding.MFM,
+			'codemap_key': coding.FM_MFM,
 			'sync_pattern': 2,
 			'sync_seqs': [[3, 4, 3, 4, 3], [3, 2, 3, 4, 3, 4]],
 			'shift_index': [13, 14],
 			'IDData_mark': [0xA1]
 		},
 		# Seagate ST11M/21M
-		encoding.RLL_Sea: {
-			'limits_key': encoding.RLL,
-			'codemap_key': encoding.RLL_IBM,
+		coding.RLL_Sea: {
+			'limits_key': coding.RLL,
+			'codemap_key': coding.RLL_IBM,
 			'sync_pattern': 3,
 			'sync_seqs': [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4]],
 			'shift_index': [18],
@@ -425,9 +425,9 @@ class Decoder(srd.Decoder):
 			'nop_mark': [0xDE]
 		},
 		# Adaptec ACB-237x, ACB-4070
-		encoding.RLL_Adaptec: {
-			'limits_key': encoding.RLL,
-			'codemap_key': encoding.RLL_IBM,
+		coding.RLL_Adaptec: {
+			'limits_key': coding.RLL,
+			'codemap_key': coding.RLL_IBM,
 			'sync_pattern': 3,
 			'sync_seqs': [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4], [8, 3, 4]],
 			'shift_index': [18],
@@ -435,18 +435,18 @@ class Decoder(srd.Decoder):
 			'Data_mark': [0xA0],
 			'nop_mark': [0x1E, 0x5E, 0xDE]
 		},
-		encoding.RLL_WD: {
-			'limits_key': encoding.RLL,
-			'codemap_key': encoding.RLL_WD,
+		coding.RLL_WD: {
+			'limits_key': coding.RLL,
+			'codemap_key': coding.RLL_WD,
 			'sync_pattern': 3,
 			'sync_seqs': [[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]],
 			'shift_index': [12],
 			'IDData_mark': [0xF0],
 		},
 		# OMTI-8247
-		encoding.RLL_OMTI: {
-			'limits_key': encoding.RLL,
-			'codemap_key': encoding.RLL_IBM,
+		coding.RLL_OMTI: {
+			'limits_key': coding.RLL,
+			'codemap_key': coding.RLL_IBM,
 			'sync_pattern': 4,
 			'sync_seqs': [[6, 8, 3, 3], [5, 3, 8, 3, 3]],
 			'shift_index': [14],
@@ -454,9 +454,9 @@ class Decoder(srd.Decoder):
 		},
 		# PLACEHOLDER! Weird format, almost as if it uses custom decoding_codemap? are those sync marks ESDI like?
 		# Data Technology Corporation DTC7287
-		encoding.RLL_DTC7287_unknown: {
-			'limits_key': encoding.RLL,
-			'codemap_key': encoding.RLL_WD,
+		coding.RLL_DTC7287_unknown: {
+			'limits_key': coding.RLL,
+			'codemap_key': coding.RLL_WD,
 			'sync_pattern': 4,
 			'sync_seqs': [[5, 4, 4, 4, 4, 3, 8]],
 			'shift_index': [33],
@@ -534,7 +534,7 @@ class Decoder(srd.Decoder):
 		# Initialize user options.
 		self.rising_edge = True if self.options['leading_edge'] == 'rising' else False
 		self.data_rate = float(self.options['data_rate'])
-		self.encoding = encoding[self.options['encoding']]
+		self.encoding = coding[self.options['encoding']]
 		self.sector_size = int(self.options['sector_size'])
 		self.header_size = int(self.options['header_size'])
 		self.header_crc_bits = int(self.options['header_crc_bits'])
@@ -602,15 +602,15 @@ class Decoder(srd.Decoder):
 			s = helper_list_of_lists(s)
 			return s[0] if len(s) == 1 else []
 
-		if self.encoding == encoding.custom:
+		if self.encoding == coding.custom:
 			self.encoding_current = {
-				'limits_key':		{	'FM':	encoding.FM,
-										'MFM':	encoding.MFM,
-										'RLL':	encoding.RLL,
+				'limits_key':		{	'FM':	coding.FM,
+										'MFM':	coding.MFM,
+										'RLL':	coding.RLL,
 									}[self.options['custom_encoder_limits']],
-				'codemap_key':		{	'FM/MFM':	encoding.FM_MFM,
-										'IBM':		encoding.RLL_IBM,
-										'WD':		encoding.RLL_WD,
+				'codemap_key':		{	'FM/MFM':	coding.FM_MFM,
+										'IBM':		coding.RLL_IBM,
+										'WD':		coding.RLL_WD,
 									}[self.options['custom_encoder_codemap']],
 				'sync_pattern':		self.options['custom_encoder_sync_pattern'],
 				'sync_seqs':		helper_list_of_lists(self.options['custom_encoder_sync_seqs']),
@@ -626,7 +626,7 @@ class Decoder(srd.Decoder):
 
 		self.encoding_current['limits'] = self.encoding_limits[self.encoding_current['limits_key']]
 		self.encoding_current['codemap'] = self.decoding_codemap[self.encoding_current['codemap_key']]
-		self.encoding_current['encoding'] = self.encoding
+		self.encoding_current['coding'] = self.encoding
 
 		# Other initialization.
 		self.initial_pins = [1 if self.rising_edge == True else 0]
@@ -660,13 +660,13 @@ class Decoder(srd.Decoder):
 			self.ki = ki
 
 			self.encoding_current = encoding_current
-			self.encoding = encoding_current['encoding']
+			self.encoding = encoding_current['coding']
 			self.codemap = encoding_current['codemap']
 			self.codemap_key = encoding_current['codemap_key']
 			self.decode = {
-				encoding.FM_MFM: self.fm_mfm_decode,
-				encoding.RLL_IBM: self.rll_decode,
-				encoding.RLL_WD: self.rll_decode,
+				coding.FM_MFM: self.fm_mfm_decode,
+				coding.RLL_IBM: self.rll_decode,
+				coding.RLL_WD: self.rll_decode,
 			}[self.codemap_key]
 
 			self.sync_pattern = encoding_current['sync_pattern']
@@ -936,14 +936,14 @@ class Decoder(srd.Decoder):
 
 					# rewrite RLL mark, this illegal sequence should only ever show up in RLL marks
 					# We rewrite it so rll_decode() doesnt choke on it.
-					if self.encoding == encoding.RLL_OMTI:
+					if self.encoding == coding.RLL_OMTI:
 						# OMTI special rule "At SAM time a 2 of 7 pattern is searched for
 						# consisting of a nrz 62 with a pulse one clock delayed."
 						if self.shift & 0x7FFF == 0b100000001001001:
 							print_('RLL_OMTI rewrite mark', bin(self.shift)[1:], bin(self.shift ^ (1 << 7))[1:])
 							self.shift = self.shift ^ (1 << 6)
 							self.shift = self.shift ^ (1 << 7)
-					elif self.encoding_current['limits_key'] == encoding.RLL:
+					elif self.encoding_current['limits_key'] == coding.RLL:
 						# other RLL use common rule
 						if self.shift & 0xFFF == 0b100000001001:
 							print_('RLL rewrite mark', bin(self.shift)[1:], bin(self.shift ^ (1 << 7))[1:])
@@ -1061,8 +1061,8 @@ class Decoder(srd.Decoder):
 
 			#print_(bit_start, win_end, win_val)
 			# Display annotation for bit using value from data window.
-			if (self.encoding == encoding.MFM and (shift3 & 0b111) in (0b000, 0b011, 0b110, 0b111)) \
-				or (self.encoding == encoding.FM and not (shift3 & 0b10)):
+			if (self.encoding == coding.MFM and (shift3 & 0b111) in (0b000, 0b011, 0b110, 0b111)) \
+				or (self.encoding == coding.FM and not (shift3 & 0b10)):
 				if not special_clock:
 					self.put(bit_start, win_end, self.out_ann, message.errorClock)
 					self.CkEr += 1
@@ -1141,7 +1141,7 @@ class Decoder(srd.Decoder):
 	def annotate_byte(self, val, special_clock = False):
 		# Display annotations for bits and windows of this byte.
 		#print_('annotate_bits',hex(val), special_clock)
-		if self.encoding in (encoding.FM, encoding.MFM):
+		if self.encoding in (coding.FM, coding.MFM):
 			self.annotate_bits_FM_MFM(special_clock)
 		else:
 			self.annotate_bits_RLL(val, special_clock)
@@ -1182,7 +1182,7 @@ class Decoder(srd.Decoder):
 
 		elif typ == field.Data_Address_Mark:
 			# DDAMs only on ancient FM floppies
-			if self.encoding == encoding.FM and self.DRmark[0] in (0xF8, 0xF9, 0xFA):
+			if self.encoding == coding.FM and self.DRmark[0] in (0xF8, 0xF9, 0xFA):
 				self.DDAMs += 1
 				self.put(self.field_start, self.byte_end, self.out_ann, message.ddam)
 				self.report_last = field.Deleted_Data_Mark
@@ -1624,8 +1624,8 @@ class Decoder(srd.Decoder):
 			# bit for the previous byte has already been displayed previously.
 
 			if bitn < 8:
-				if (self.encoding == encoding.MFM and (shift3 == 0 or shift3 == 3 or shift3 == 6 or shift3 == 7)) \
-				 or (self.encoding == encoding.FM and (shift3 == 0 or shift3 == 1 or shift3 == 4 or shift3 == 5)):
+				if (self.encoding == coding.MFM and (shift3 == 0 or shift3 == 3 or shift3 == 6 or shift3 == 7)) \
+				 or (self.encoding == coding.FM and (shift3 == 0 or shift3 == 1 or shift3 == 4 or shift3 == 5)):
 					if not special_clock:
 						self.put(bit_end - 1, bit_end, self.out_ann, message.error)
 						self.CkEr += 1
@@ -1969,7 +1969,7 @@ class Decoder(srd.Decoder):
 			# Also display leading-edge to leading-edge annotation, showing starting
 			# sample number, and interval in nsec.
 
-			if self.encoding == encoding.FM:
+			if self.encoding == coding.FM:
 				if interval >= bc05L and interval <= bc05U:
 					hbcpi = 1.0
 				elif interval >= bc10L and interval <= bc10U:
@@ -2051,7 +2051,7 @@ class Decoder(srd.Decoder):
 
 				# Display all MFM mC2h and mA1h prefix bytes to help with locating damaged records.
 
-				if self.encoding == encoding.MFM and self.dsply_pfx:
+				if self.encoding == coding.MFM and self.dsply_pfx:
 					if (shift31 & 0xFFFF) == 0x4489:
 						self.put(win_start, win_end, self.out_ann, message.prefixA1)
 					elif (shift31 & 0xFFFF) == 0x5224:
@@ -2070,7 +2070,7 @@ class Decoder(srd.Decoder):
 				if (not byte_sync) and (self.fifo_cnt == 33):
 
 					# Process FM patterns.
-					if self.encoding == encoding.FM:
+					if self.encoding == coding.FM:
 
 						# FM ID Address Mark pattern found.
 						if shift31 == 0x2AAAF57E:	# 00h,mFEh bytes
@@ -2123,7 +2123,7 @@ class Decoder(srd.Decoder):
 					# Process and display (initial) mark pattern.
 					if byte_sync:
 
-						if self.encoding == encoding.FM:
+						if self.encoding == coding.FM:
 							self.process_byteFM_legacy(data_byte)
 						else:
 							self.process_byteMFM_legacy(data_byte)
@@ -2142,7 +2142,7 @@ class Decoder(srd.Decoder):
 					if bit_cnt == 8 and self.fifo_cnt == 17:
 
 						# Process FM byte.
-						if self.encoding == encoding.FM:
+						if self.encoding == coding.FM:
 
 							if self.process_byteFM_legacy(data_byte) == 0:
 								bit_cnt = 0
