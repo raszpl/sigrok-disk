@@ -1073,7 +1073,7 @@ MASSBUS0DAIGNOSTIC MODEABA/B MF CS1 (@l (@ (@ (@ MF IS (@ (@ry
 **Default**: `5000000` **Values**: `125000`, `150000`, `250000`, `300000`, `500000`, `5000000`, `7500000`, `10000000`
 
 `encoding` Encoding schemes available. 'custom' lets you build own decoder interactively in the GUI fully controlling its behavior.  
-**Default**: `MFM` **Values**: `FM`, `MFM`, `RLL_Sea`, `RLL_Adaptec`, `RLL_WD`, `RLL_OMTI`, `custom`
+**Default**: `MFM` **Values**: `FM`, `MFM`, `RLL_Sea`, `RLL_Adaptec`, `RLL_WD`, `RLL_OMTI`, `custom`, `RLL_DTC7287_unknown`
 
 `header_size` Header payload length in bytes.  
 **Default**: `4` **Values**: `3`, `4`
