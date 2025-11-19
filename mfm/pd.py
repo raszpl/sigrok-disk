@@ -279,7 +279,7 @@ class Decoder(srd.Decoder):
 		encoding.RLL:	(3, 4, 5, 6, 7, 8),	# (2,7) RLL
 	}
 
-	encoding_codemap = {
+	decoding_codemap = {
 		encoding.FM_MFM: {
 			'11': '1',
 			'10': '0',
@@ -452,7 +452,7 @@ class Decoder(srd.Decoder):
 			'shift_index': [14],
 			'IDData_mark': [0x62],
 		},
-		# PLACEHOLDER! Weird format, almost as if it uses custom encoding_codemap? are those sync marks ESDI like?
+		# PLACEHOLDER! Weird format, almost as if it uses custom decoding_codemap? are those sync marks ESDI like?
 		# Data Technology Corporation DTC7287
 		encoding.RLL_DTC7287_unknown: {
 			'limits_key': encoding.RLL,
@@ -625,7 +625,7 @@ class Decoder(srd.Decoder):
 			self.encoding_current = self.encoding_table[self.encoding]
 
 		self.encoding_current['limits'] = self.encoding_limits[self.encoding_current['limits_key']]
-		self.encoding_current['codemap'] = self.encoding_codemap[self.encoding_current['codemap_key']]
+		self.encoding_current['codemap'] = self.decoding_codemap[self.encoding_current['codemap_key']]
 		self.encoding_current['encoding'] = self.encoding
 
 		# Other initialization.
