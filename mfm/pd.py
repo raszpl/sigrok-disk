@@ -105,7 +105,7 @@ class Decoder(srd.Decoder):
 			'default': '5000000', 'values': ('125000', '150000',
 			'250000', '300000', '500000', '5000000', '7500000', '10000000')},
 		{'id': 'encoding', 'desc': 'Encoding',
-			'default': 'MFM', 'values': ('FM', 'MFM', 'RLL_SEA', 'RLL_Adaptec', 'RLL_WD', 'RLL_OMTI', 'custom')},
+			'default': 'MFM', 'values': ('FM', 'MFM', 'RLL_Sea', 'RLL_Adaptec', 'RLL_WD', 'RLL_OMTI', 'custom')},
 		{'id': 'sect_len', 'desc': 'Sector length',
 			'default': '512', 'values': ('128', '256', '512', '1024')},
 		{'id': 'header_bytes', 'desc': 'Header bytes',
@@ -259,7 +259,7 @@ class Decoder(srd.Decoder):
 	class encoding(Enum):
 		FM			= 0
 		MFM			= 1
-		RLL_SEA		= 3
+		RLL_Sea		= 3
 		RLL_Adaptec = 4
 		RLL_WD		= 5
 		RLL_DTC7287	= 6
@@ -375,7 +375,7 @@ class Decoder(srd.Decoder):
 			'IDData_mark': [0xA1]
 		},
 		# Seagate ST11M/21M
-		encoding.RLL_SEA: {
+		encoding.RLL_Sea: {
 			'limits_key': encoding.RLL,
 			'codemap_key': encoding.IBM,
 			'sync_pattern': 3,
@@ -1027,7 +1027,7 @@ class Decoder(srd.Decoder):
 	# NOTES:
 	#	Synchronisation marks implemented by emitting illegal 0b100000001001 sequence.
 	#	PLLstate.scanning_sync_mark overrides those into 0b100010001001 creating:
-	#	RLL_SEA:
+	#	RLL_Sea:
 	#		1Eh ID_prefix_mark
 	#		DEh nop_mark
 	#	RLL_WD:

@@ -1066,7 +1066,7 @@ mfm-1: Data Address Mark
 **Default**: `5000000` **Values**: `125000`, `150000`, `250000`, `300000`, `500000`, `5000000`, `7500000`, `10000000`
 
 `encoding` Encoding schemes available. 'custom' lets you build own decoder interactively in the GUI fully controlling its behavior.  
-**Default**: `MFM_HDD` **Values**: `FM`, `MFM_FDD`, `MFM_HDD`, `RLL_SEA`, `RLL_Adaptec`, `RLL_WD`, `RLL_OMTI`, `custom`
+**Default**: `MFM_HDD` **Values**: `FM`, `MFM_FDD`, `MFM_HDD`, `RLL_Sea`, `RLL_Adaptec`, `RLL_WD`, `RLL_OMTI`, `custom`
 
 `sect_len` Sector length in bytes.  
 **Default**: `512` **Values**: `128`, `256`, `512`, `1024`
@@ -1166,7 +1166,7 @@ All custom_encoder_ _mark options below support * wildcard, useful when debuggin
 **Default**: `` (empty string) **Example**: `0xFB` used by original FM floppies
 
 `custom_encoder_ID_prefix_mark` ID_prefix_mark is a Header Mark to be followed by IDData_mark.  
-**Default**: `` (empty string) **Example**: `0x1E` weird arrangement used by RLL_SEA
+**Default**: `` (empty string) **Example**: `0x1E` weird arrangement used by RLL_Sea
 
 `custom_encoder_nop_mark` nop_mark is an inert Mark.  
 **Default**: `` (empty string) **Example**: `0x1E, 0x5E, 0xDE` for RLL_Adaptec
