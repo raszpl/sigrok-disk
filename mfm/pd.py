@@ -530,7 +530,7 @@ class Decoder(srd.Decoder):
 				if value not in self.options_valid[key]:
 					print("Error: '" + value + "' is not an allowed value for '" + key + "'.")
 					print('Allowed values are: {' + ', '.join(self.options_valid[key]) + '}.')
-					raise raise_exception("Error: '" + value + "' is not an allowed value for '" + key + "'.")
+					raise raise_exception("Error: '" + value + "' is not an allowed value for '" + key + "'. Allowed values are: {" + ', '.join(self.options_valid[key]) + '}.')
 
 		# Initialize user options.
 		self.rising_edge = True if self.options['leading_edge'] == 'rising' else False
