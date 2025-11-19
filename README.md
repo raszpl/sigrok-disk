@@ -1324,6 +1324,7 @@ Full [Changelog](doc/changelog.md). Biggest changes from original:
     - [ ] `auto` encoding detection - this is a BIG one
 - [ ] Rename Errors annotation field to more general Status
 - [ ] Figure out crazy RLL_DTC7287 format
+- [ ] use RevEng to  reverse all crc/ecc
 - [ ] GCR
 - [ ] ESDI?
 - [ ] SMD??? :-)
