@@ -128,7 +128,7 @@ class Decoder(srd.Decoder):
 			'default': '0xA00805', 'values': ('0x1021', '0xA00805', '0x140a0445',
 			'0x0104c981', '0x41044185', '0x140a0445000101')},
 		{'id': 'data_crc_init', 'desc': 'Data field CRC init',
-			'default': '0xffffffffffffffff'},
+			'default': '0xffffffffffffff'},
 		{'id': 'data_crc_poly_custom', 'desc': 'Custom Data Polynomial (overrides above)',
 			'default': ''},
 		{'id': 'time_unit', 'desc': 'Pulse time units/windows',
