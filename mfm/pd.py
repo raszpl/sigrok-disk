@@ -458,6 +458,7 @@ class Decoder(srd.Decoder):
 			'limits_key': encoding.RLL,
 			'codemap_key': encoding.RLL_WD,
 			'sync_pattern': 4,
+			'sync_seqs': [[5, 4, 4, 4, 4, 3, 8]],
 			'shift_index': [33],
 			'ID_mark': [0x49, 0x4a, 0x46, 0x4b],
 			'Data_mark': [0x0d,7,0x81],
