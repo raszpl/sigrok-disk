@@ -122,8 +122,8 @@ class Decoder(srd.Decoder):
 			'default': '0xA00805', 'values': ('0x1021', '0xA00805', '0x140a0445',
 			'0x0104c981', '0x41044185', '0x140a0445000101')},
 		{'id': 'data_crc_init', 'desc': 'Data field CRC init',
-			'default': '0xffffffffffffff'},
-		{'id': 'data_crc_poly_custom', 'desc': 'Custom Data Poly (overrides above)',
+			'default': '0xffffffffffffffff'},
+		{'id': 'data_crc_poly_custom', 'desc': 'Custom Data Polynomial (overrides above)',
 			'default': ''},
 		{'id': 'time_unit', 'desc': 'Pulse time units/windows',
 			'default': 'ns', 'values': ('ns', 'us', 'auto', 'window')},
@@ -497,13 +497,17 @@ class Decoder(srd.Decoder):
 		self.sector_len = int(self.options['sect_len'])
 		self.header_bytes = int(self.options['header_bytes'])
 		self.header_crc_bits = int(self.options['header_crc_bits'])
-		self.header_crc_poly = int(self.options['header_crc_poly'], 0) & ((1 << int(self.options['header_crc_bits'])) -1)
-		self.header_crc_init = int(self.options['header_crc_init'], 0) & ((1 << int(self.options['header_crc_bits'])) -1)
+		self.header_crc_bytes = self.header_crc_bits // 8
+		self.header_crc_mask = (1 << self.header_crc_bits) -1
+		self.header_crc_poly = int(self.options['header_crc_poly'], 0) & self.header_crc_mask
+		self.header_crc_init = int(self.options['header_crc_init'], 0) & self.header_crc_mask
 		self.data_crc_bits = int(self.options['data_crc_bits'])
+		self.data_crc_bytes = self.data_crc_bits // 8
+		self.data_crc_mask = (1 << self.data_crc_bits) -1
 		self.data_crc_poly = int(self.options['data_crc_poly'], 0)
-		self.data_crc_init = int(self.options['data_crc_init'], 0) & ((1 << int(self.options['data_crc_bits'])) -1)
+		self.data_crc_init = int(self.options['data_crc_init'], 0) & self.data_crc_mask
 		if self.options['data_crc_poly_custom']:
-			self.data_crc_poly = int(self.options['data_crc_poly_custom'], 0) & ((1 << int(self.options['data_crc_bits'])) -1)
+			self.data_crc_poly = int(self.options['data_crc_poly_custom'], 0) & self.data_crc_mask
 
 		self.time_unit = self.options['time_unit']
 		self.show_sample_num = True if self.options['dsply_sn'] == 'yes' else False
@@ -581,14 +585,6 @@ class Decoder(srd.Decoder):
 
 		self.encoding_current['limits'] = self.encoding_limits[self.encoding_current['limits_key']]
 		self.encoding_current['codemap'] = self.encoding_codemap[self.encoding_current['codemap_key']]
-
-		# precompute crc constants
-		self.header_crc_bytes = self.header_crc_bits // 8
-		self.header_crc_offset = self.header_crc_bits - 8
-		self.header_crc_mask = (1 << self.header_crc_bits) -1
-		self.data_crc_bytes = self.data_crc_bits // 8
-		self.data_crc_offset = self.data_crc_bits - 8
-		self.data_crc_mask = (1 << self.data_crc_bits) -1
 
 		# Other initialization.
 		self.initial_pins = [1 if self.rising_edge == True else 0]
@@ -911,43 +907,26 @@ class Decoder(srd.Decoder):
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Calculate CRC of a bytearray.
-	# NOTES:
-	#  - Special CRC-16-CCITT case processes 4 bits at a time using lookup
-	#	 table. Faster in theory, havent measured actual speed or if it even
-	#	 matters :)
 	# IN: bytearray
 	# OUT: self.crc_accum updated
 	# ------------------------------------------------------------------------
 
 	def calculate_crc_header(self, bytearray):
-		self.calculate_crc(bytearray, self.header_crc_init, self.header_crc_bits, self.header_crc_offset, self.header_crc_mask, self.header_crc_poly)
+		self.calculate_crc(bytearray, self.header_crc_init, self.header_crc_bits, self.header_crc_mask, self.header_crc_poly)
 
 	def calculate_crc_data(self, bytearray):
-		self.calculate_crc(bytearray, self.data_crc_init, self.data_crc_bits, self.data_crc_offset, self.data_crc_mask, self.data_crc_poly)
+		self.calculate_crc(bytearray, self.data_crc_init, self.data_crc_bits, self.data_crc_mask, self.data_crc_poly)
 
-	def calculate_crc(self, bytearray, crc_accum, crc_bits, crc_offset, crc_mask, crc_poly):
-		if crc_poly == 0x1021 and crc_bits == 16:
-			# fast lookup table for CRC-16-CCITT
-			CRC16CCITT_tab = array('I', [0x0000, 0x1021, 0x2042, 0x3063,
-										0x4084, 0x50A5, 0x60C6, 0x70E7,
-										0x8108, 0x9129, 0xA14A, 0xB16B,
-										0xC18C, 0xD1AD, 0xE1CE, 0xF1EF])
-			for byte in bytearray:
-				crc_accum = (CRC16CCITT_tab[((crc_accum >> 12) ^ (byte >>	4)) & 0x0F]
-								^ (crc_accum << 4)) & 0xFFFF
-				crc_accum = (CRC16CCITT_tab[((crc_accum >> 12) ^ (byte & 0x0F)) & 0x0F]
-								^ (crc_accum << 4)) & 0xFFFF
-		else:
-			for byte in bytearray:
-				crc_accum ^= (byte << crc_offset)
-				crc_accum &= crc_mask
-				for i in range(8):
-					check = crc_accum & (1 << (crc_bits -1))
-					crc_accum <<= 1
-					crc_accum &= crc_mask
-					if check:
-						crc_accum ^= crc_poly
-						crc_accum &= crc_mask
+	def calculate_crc(self, bytearray, crc_accum, crc_bits, crc_mask, crc_poly):
+		crc_offset = crc_bits - 8
+		crc_shift = 1 << (crc_bits -1)
+		for byte in bytearray:
+			crc_accum = (crc_accum ^ (byte << crc_offset)) & crc_mask
+			for i in range(8):
+				check = crc_accum & crc_shift
+				crc_accum = (crc_accum << 1) & crc_mask
+				if check:
+					crc_accum = crc_accum ^ crc_poly
 
 		self.crc_accum = crc_accum
 
