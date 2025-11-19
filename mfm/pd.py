@@ -783,6 +783,7 @@ class Decoder(srd.Decoder):
 						# For now just raise exception? or not
 						#print_("rll_decode catastrophic fail, Max codeword length reached without match, resetting!", self.shift_decoded_1, binary_str_len, i, decoded, self.codemap_key, binary_str, pattern)
 						#raise raise_exception("rll_decode catastrophic fail! Max codeword length reached without match. Exception raised.")
+						print_("RLL not matched and binary_str_len - i > 7", binary_str[i:], decoded, i)
 						self.reset_pll()
 						return False
 					#print_("RLL not matched", binary_str[i:], decoded, i)
