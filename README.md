@@ -71,7 +71,6 @@ This is a spare/unused sector created at the end of every track on MFM drive by 
  - [hdd_rll_WD1003V-SR1int.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_rll_WD1003V-SR1int.sr) 200MHz sample rate. 2:1 interleave. 7500000 bps, RLL_WD encoding, Header size 3, Data ECC 56bit, Data poly 0x140a0445000101.<br>Seagate ST-251 WD1003V-SR1 (WD42C22A, WD10C22B)
  - [hdd_rll_WD1006V-SR2.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_rll_WD1006V-SR2.sr) 200MHz sample rate. 7500000 bps, RLL_WD encoding, Header size 3, Data ECC 56bit, Data poly 0x140a0445000101.<br>Seagate ST-251 WD1006V-SR2 (WD42C22A, WD10C22B)
  - [hdd_rll_OMTI8247.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_rll_OMTI8247.sr) 200MHz sample rate. 7500000 bps, RLL_OMTI encoding, Header format unknown, Header poly unknown, Data ECC 56bit, Data poly unknown.<br>Seagate ST-251 on Scientific Micro Systems Inc. OMTI 8247 (Z8 micro, OMTI 20516 aka OMTI 5098, OMTI 20527 aka 5027)
- 
  - [hdd_rll_DTC7287.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_rll_DTC7287.sr)
  - [hdd_rll_DTC7287_track0](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_rll_DTC7287_track0.sr)
  - [hdd_rll_DTC7287_track1](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_rll_DTC7287_track1.sr)
