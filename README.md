@@ -1056,7 +1056,7 @@ mfm-1: Data Address Mark
 </pre>
 </details>
 <details><summary><code>Dirty cut|tr hack to extrack strings:
-sigrok-cli.exe -D -i "D:\_code\disk mfm\sigrok-mfm\test\hdd_mfm_RQDX3_sector.sr"  -P mfm:data_crc_poly_custom=0xbad  -A mfm=bytes | cut -c 12 | tr -d '\n'</code></summary>
+sigrok-cli.exe -D -i hdd_mfm_RQDX3_sector.sr  -P mfm:data_crc_poly_custom=0xbad  -A mfm=bytes | cut -c 12 | tr -d '\n'</code></summary>
 <pre>
 N = @. BYTES SKIP/SPACE COUNT (SKIP/SPACE @p. TAPE MARKS/REC
 MESSAGE BUFFER NOT VALID MESSAGE BUFFER XSTAT1 XSTAT2 (DEAD TRACK CHANNEL
