@@ -633,6 +633,14 @@ class Decoder(srd.Decoder):
 		encoding_current['limits'] = self.encoding_limits[encoding_current['limits_key']]
 		encoding_current['codemap'] = self.decoding_codemap[encoding_current['codemap_key']]
 		encoding_current['coding'] = self.encoding
+		
+		# Let user define just one common shift_index for all sync_marks.
+		# Detect this case and automagically populate matching number of slots.
+		if len(encoding_current['shift_index']) == 1:
+			encoding_current['shift_index'] = encoding_current['shift_index'] * len(encoding_current['sync_marks'])
+		elif len(encoding_current['sync_marks']) != len(encoding_current['shift_index']):
+			raise raise_exception('Mistmatched number of shift_index defined. Requires either one common or equal number to sync_marks variants.')
+		
 		self.encoding_current = SimpleNamespace(**encoding_current)
 
 		# Other initialization.
@@ -933,12 +941,6 @@ class Decoder(srd.Decoder):
 					#print_('scanning_sync_mark', self.sync_sequence_try, self.last_samplenum)
 					partial_sync_marks_match = False
 					self.shift_index = self.encoding_current.shift_index
-					# let user define just one common shift_index for all the marks
-					# we will automagically duplicate it here
-					if len(self.shift_index) == 1:
-						self.shift_index = self.shift_index * self.sync_marks_len
-					elif self.sync_marks_len != len(self.shift_index):
-						raise raise_exception('scanning_sync_mark: Mistmatched number of shift_index defined. Requires either one common or equal number to sync_marks variants.')
 					for sequence_number in range (0, self.sync_marks_len):
 						#print_('scanning_sync_mark_', sequence_number, self.sync_sequence_try)
 						if self.sync_sequence_try + [self.halfbit_cells] == self.sync_marks[sequence_number][:len(self.sync_sequence_try) + 1]:
@@ -946,6 +948,7 @@ class Decoder(srd.Decoder):
 							partial_sync_marks_match = True
 							self.sync_sequence_try += [self.halfbit_cells]
 							if self.sync_sequence_try == self.sync_marks[sequence_number]:
+								# full sync_marks match
 								self.state = PLLstate.decoding
 								self.shift_index = self.shift_index[sequence_number]
 								print_('pll byte_synced', self.last_samplenum)
