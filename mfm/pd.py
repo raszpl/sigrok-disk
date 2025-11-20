@@ -686,6 +686,9 @@ class Decoder(srd.Decoder):
 			self.cells_allowed_min = min(encoding_current.limits)
 			self.cells_allowed_max = max(encoding_current.limits)
 
+			self.sync_marks = self.encoding_current.sync_marks
+			self.sync_marks_len = len(self.sync_marks)
+
 			# Ring buffer for storing info on individual halfbit windows, used by annotate_bits()
 			# We need 16 halfbit windows + whatever the max shift_index is so we can rewind to
 			# annotate already shifted data at the moment of Sync Mark match. Hardcoded for now
@@ -929,20 +932,20 @@ class Decoder(srd.Decoder):
 				else:
 					#print_('scanning_sync_mark', self.sync_sequence_try, self.last_samplenum)
 					pulse_match = 0
-					sync_marks = self.encoding_current.sync_marks
 					shift_index = self.encoding_current.shift_index
 					# let user define just one common shift_index for all the marks
 					# we will automagically duplicate it here
 					if len(shift_index) == 1:
-						shift_index = shift_index * len(sync_marks)
-					elif len(sync_marks) != len(shift_index):
+						shift_index = shift_index * self.sync_marks_len
+					elif self.sync_marks_len != len(shift_index):
 						raise raise_exception('scanning_sync_mark: Mistmatched number of shift_index defined. Requires either one common or equal number to sync_marks variants.')
-					for sequence_number in range (0, len(sync_marks)):
+					for sequence_number in range (0, self.sync_marks_len):
 						#print_('scanning_sync_mark_', sequence_number, self.sync_sequence_try)
-						if self.sync_sequence_try + [self.halfbit_cells] == sync_marks[sequence_number][:len(self.sync_sequence_try)+1]:
-							pulse_match = sequence_number+1
+						if self.sync_sequence_try + [self.halfbit_cells] == self.sync_marks[sequence_number][:len(self.sync_sequence_try) + 1]:
+							# partial sync_marks match
+							pulse_match = sequence_number + 1
 							self.sync_sequence_try += [self.halfbit_cells]
-							if self.sync_sequence_try == sync_marks[sequence_number]:
+							if self.sync_sequence_try == self.sync_marks[sequence_number]:
 								self.state = PLLstate.decoding
 								self.shift_index = shift_index[sequence_number]
 								print_('pll byte_synced', self.last_samplenum)
