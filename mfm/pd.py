@@ -24,7 +24,6 @@
 ##
 
 import sigrokdecode as srd
-from collections import deque
 from array import *
 from types import SimpleNamespace
 # ----------------------------------------------------------------------------
