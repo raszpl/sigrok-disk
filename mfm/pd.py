@@ -643,9 +643,6 @@ class Decoder(srd.Decoder):
 		
 		self.encoding_current = SimpleNamespace(**encoding_current)
 
-		# Other initialization.
-		self.initial_pins = [1 if self.rising_edge == True else 0]
-
 	# ------------------------------------------------------------------------
 	# PURPOSE: Get the data sample rate entered by the user.
 	# ------------------------------------------------------------------------
