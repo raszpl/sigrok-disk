@@ -154,7 +154,7 @@ class Decoder(srd.Decoder):
 			'default': 'IBM', 'values': ('FM/MFM', 'IBM', 'WD')},
 		{'id': 'custom_encoder_sync_pulse', 'desc': 'Custom encoder: sync_pulse',
 			'default': 4, 'values': (2, 3, 4)},
-		{'id': 'custom_encoder_sync_seqs', 'desc': 'Custom encoder: sync_seqs. Example: [6, 8, 3], [5, 3, 8, 3]',
+		{'id': 'custom_encoder_sync_marks', 'desc': 'Custom encoder: sync_marks. Example: [6, 8, 3], [5, 3, 8, 3]',
 			'default': ''},
 		{'id': 'custom_encoder_shift_index', 'desc': 'Custom encoder: shift_index. Example: 11 or 11, 11',
 			'default': ''},
@@ -384,11 +384,11 @@ class Decoder(srd.Decoder):
 	# limits: pulse widths outside reset PLL
 	# codemap: code translation map
 	# sync_pulse: anything other halts PLLstate.locking phase and triggers reset_pll()
-	# sync_seqs: used by PLLstate.scanning_sync_mark
+	# sync_marks: used by PLLstate.scanning_sync_mark
 	# shift_index: every sync_mark entry has its own offset defining number of valid halfbit windows
 	#  already shifted in (minus last entry because PLLstate.decoding adds self.halfbit_cells) at the
-	#  moment of PLLstate.scanning_sync_mark mathing whole sync_seqs. Define one common value or
-	#  provide list of values for every sync_seqs entry.
+	#  moment of PLLstate.scanning_sync_mark mathing whole sync_marks. Define one common value or
+	#  provide list of values for every sync_marks entry.
 	# IDData_mark: replaces A1
 	# ID_mark: skip straight to decoding Header
 	# Data_mark: skip straight to decoding Data
@@ -399,7 +399,7 @@ class Decoder(srd.Decoder):
 			'limits_key': coding.FM,
 			'codemap_key': coding.FM_MFM,
 			'sync_pulse': 2,
-			'sync_seqs': [[1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 2], [1, 1, 1, 2, 2, 2, 1, 2, 1, 1, 1], [1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 2]],
+			'sync_marks': [[1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 2], [1, 1, 1, 2, 2, 2, 1, 2, 1, 1, 1], [1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 2]],
 			'shift_index': [15],
 			'ID_mark': [0xFE],
 			'Data_mark': [0xFB]
@@ -408,7 +408,7 @@ class Decoder(srd.Decoder):
 			'limits_key': coding.MFM,
 			'codemap_key': coding.FM_MFM,
 			'sync_pulse': 2,
-			'sync_seqs': [[3, 4, 3, 4, 3], [3, 2, 3, 4, 3, 4]],
+			'sync_marks': [[3, 4, 3, 4, 3], [3, 2, 3, 4, 3, 4]],
 			'shift_index': [13, 14],
 			'IDData_mark': [0xA1]
 		},
@@ -417,7 +417,7 @@ class Decoder(srd.Decoder):
 			'limits_key': coding.RLL,
 			'codemap_key': coding.RLL_IBM,
 			'sync_pulse': 3,
-			'sync_seqs': [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4]],
+			'sync_marks': [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4]],
 			'shift_index': [18],
 			'IDData_mark': [0xA1],
 			'ID_prefix_mark': [0x1E],
@@ -428,7 +428,7 @@ class Decoder(srd.Decoder):
 			'limits_key': coding.RLL,
 			'codemap_key': coding.RLL_IBM,
 			'sync_pulse': 3,
-			'sync_seqs': [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4], [8, 3, 4]],
+			'sync_marks': [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4], [8, 3, 4]],
 			'shift_index': [18],
 			'ID_mark': [0xA1],
 			'Data_mark': [0xA0],
@@ -438,7 +438,7 @@ class Decoder(srd.Decoder):
 			'limits_key': coding.RLL,
 			'codemap_key': coding.RLL_WD,
 			'sync_pulse': 3,
-			'sync_seqs': [[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]],
+			'sync_marks': [[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]],
 			'shift_index': [12],
 			'IDData_mark': [0xF0],
 		},
@@ -447,7 +447,7 @@ class Decoder(srd.Decoder):
 			'limits_key': coding.RLL,
 			'codemap_key': coding.RLL_IBM,
 			'sync_pulse': 4,
-			'sync_seqs': [[6, 8, 3, 3], [5, 3, 8, 3, 3]],
+			'sync_marks': [[6, 8, 3, 3], [5, 3, 8, 3, 3]],
 			'shift_index': [14],
 			'IDData_mark': [0x62],
 		},
@@ -457,7 +457,7 @@ class Decoder(srd.Decoder):
 			'limits_key': coding.RLL,
 			'codemap_key': coding.RLL_WD,
 			'sync_pulse': 4,
-			'sync_seqs': [[5, 4, 4, 4, 4, 3, 8]],
+			'sync_marks': [[5, 4, 4, 4, 4, 3, 8]],
 			'shift_index': [33],
 			'ID_mark': [0x49, 0x4a, 0x46, 0x4b],
 			'Data_mark': [0x0d,7,0x81],
@@ -612,7 +612,7 @@ class Decoder(srd.Decoder):
 										'WD':		coding.RLL_WD,
 									}[self.options['custom_encoder_codemap']],
 				'sync_pulse':		self.options['custom_encoder_sync_pulse'],
-				'sync_seqs':		helper_list_of_lists(self.options['custom_encoder_sync_seqs']),
+				'sync_marks':		helper_list_of_lists(self.options['custom_encoder_sync_marks']),
 				'shift_index':		helper_list(self.options['custom_encoder_shift_index']),
 				'IDData_mark':		helper_list(self.options['custom_encoder_IDData_mark']),
 				'ID_mark':			helper_list(self.options['custom_encoder_ID_mark']),
@@ -817,7 +817,7 @@ class Decoder(srd.Decoder):
 			# edge_samplenum: sample index of rising edge (flux transition)
 			# State Machine with 3 stages:
 			# - PLLstate.locking looks for sync_lock_threshold number of sync_pulse pulses
-			# - PLLstate.scanning_sync_mark keeps scanning for either sync_pulse or self.encoding_current.sync_seqs, anything else resets PLL.
+			# - PLLstate.scanning_sync_mark keeps scanning for either sync_pulse or self.encoding_current.sync_marks, anything else resets PLL.
 			# - PLLstate.decoding
 
 			#print_('pll edge', edge_samplenum, pulse_ticks, '%.4f' % abs(pulse_ticks - 2.0 * self.halfbit), '%.4f' % self.halfbit)
@@ -929,20 +929,20 @@ class Decoder(srd.Decoder):
 				else:
 					#print_('scanning_sync_mark', self.sync_sequence_try, self.last_samplenum)
 					pulse_match = 0
-					sync_seqs = self.encoding_current.sync_seqs
+					sync_marks = self.encoding_current.sync_marks
 					shift_index = self.encoding_current.shift_index
 					# let user define just one common shift_index for all the marks
 					# we will automagically duplicate it here
 					if len(shift_index) == 1:
-						shift_index = shift_index * len(sync_seqs)
-					elif len(sync_seqs) != len(shift_index):
-						raise raise_exception('scanning_sync_mark: Mistmatched number of shift_index defined. Requires either one common or equal number to sync_seqs variants.')
-					for sequence_number in range (0, len(sync_seqs)):
+						shift_index = shift_index * len(sync_marks)
+					elif len(sync_marks) != len(shift_index):
+						raise raise_exception('scanning_sync_mark: Mistmatched number of shift_index defined. Requires either one common or equal number to sync_marks variants.')
+					for sequence_number in range (0, len(sync_marks)):
 						#print_('scanning_sync_mark_', sequence_number, self.sync_sequence_try)
-						if self.sync_sequence_try + [self.halfbit_cells] == sync_seqs[sequence_number][:len(self.sync_sequence_try)+1]:
+						if self.sync_sequence_try + [self.halfbit_cells] == sync_marks[sequence_number][:len(self.sync_sequence_try)+1]:
 							pulse_match = sequence_number+1
 							self.sync_sequence_try += [self.halfbit_cells]
-							if self.sync_sequence_try == sync_seqs[sequence_number]:
+							if self.sync_sequence_try == sync_marks[sequence_number]:
 								self.state = PLLstate.decoding
 								self.shift_index = shift_index[sequence_number]
 								print_('pll byte_synced', self.last_samplenum)
@@ -952,7 +952,7 @@ class Decoder(srd.Decoder):
 						self.reset_pll()
 						return False
 
-					# sync_seqs is matched at this point
+					# sync_marks is matched at this point
 
 					# rewrite RLL mark, this illegal sequence should only ever show up in RLL marks
 					# We rewrite it so rll_decode() doesnt choke on it.

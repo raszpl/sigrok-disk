@@ -171,13 +171,13 @@ PulseView/DSView GUI is much more flexible and allows omitting outer brackets, a
 &nbsp;&nbsp;&nbsp;&nbsp;`[[8, 3, 5], [5, 8, 3, 5]]`  
 &nbsp;&nbsp;&nbsp;&nbsp;`8-3-5_5-8-3-5_7-8-3-5`  
 
-`custom_encoder_sync_seqs` Special (often invalid on purpose) sequences of pulses used to distinguish Synchronization Marks.  
+`custom_encoder_sync_marks` Special (often invalid on purpose) sequences of pulses used to distinguish Synchronization Marks.  
 **Default**: `` (empty string) **Example**: `[[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]]` used by RLL_WD
 
 `custom_encoder_shift_index` Every sync_sequences entry has its own offset defining number of valid halfbit windows already shifted in (minus last entry because PLLstate.decoding adds self.halfbit_cells) at the moment of matched Sync Sequence. Define one common value or provide list of values for every sync_sequences entry.  
 **Default**: `` (empty string) **Example**: `11` or `11, 11` for RLL_OMTI
 
-All custom_encoder_ _mark options below support * wildcard, useful when debugging new format and unsure of proper values. For example setting custom_encoder_nop_mark=* will start decoding bytes as soon as custom_encoder_sync_seqs is matched. After that you can manipulate custom_encoder_shift_index to arrive at proper bit alignment. Greatly simplifies adding new encoding formats.
+All custom_encoder_ _mark options below support * wildcard, useful when debugging new format and unsure of proper values. For example setting custom_encoder_nop_mark=* will start decoding bytes as soon as custom_encoder_sync_marks is matched. After that you can manipulate custom_encoder_shift_index to arrive at proper bit alignment. Greatly simplifies adding new encoding formats.
 
 `custom_encoder_IDData_mark` IDData_mark is usually 0xA1 for MFM FDD and HDD.   
 **Default**: `` (empty string) **Example**: `0xA1`
