@@ -26,7 +26,6 @@
 import sigrokdecode as srd
 from collections import deque
 from array import *
-from struct import *
 from types import SimpleNamespace
 # ----------------------------------------------------------------------------
 # Warning: Python 3.4 Enums are EXTREMELY SLOW. It's been "fixed" in Python 3.5
