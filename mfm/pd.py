@@ -688,6 +688,7 @@ class Decoder(srd.Decoder):
 
 			self.sync_marks = self.encoding_current.sync_marks
 			self.sync_marks_len = len(self.sync_marks)
+			self.encoding_current.shift_index
 
 			# Ring buffer for storing info on individual halfbit windows, used by annotate_bits()
 			# We need 16 halfbit windows + whatever the max shift_index is so we can rewind to
@@ -931,7 +932,7 @@ class Decoder(srd.Decoder):
 				# scan for start of sync mark
 				else:
 					#print_('scanning_sync_mark', self.sync_sequence_try, self.last_samplenum)
-					pulse_match = 0
+					pulse_match = False
 					shift_index = self.encoding_current.shift_index
 					# let user define just one common shift_index for all the marks
 					# we will automagically duplicate it here
@@ -943,7 +944,7 @@ class Decoder(srd.Decoder):
 						#print_('scanning_sync_mark_', sequence_number, self.sync_sequence_try)
 						if self.sync_sequence_try + [self.halfbit_cells] == self.sync_marks[sequence_number][:len(self.sync_sequence_try) + 1]:
 							# partial sync_marks match
-							pulse_match = sequence_number + 1
+							pulse_match = True
 							self.sync_sequence_try += [self.halfbit_cells]
 							if self.sync_sequence_try == self.sync_marks[sequence_number]:
 								self.state = PLLstate.decoding
