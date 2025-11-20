@@ -614,18 +614,18 @@ class Decoder(srd.Decoder):
 				'sync_pattern':		self.options['custom_encoder_sync_pattern'],
 				'sync_seqs':		helper_list_of_lists(self.options['custom_encoder_sync_seqs']),
 				'shift_index':		helper_list(self.options['custom_encoder_shift_index']),
-				'ID_prefix_mark':	helper_list(self.options['custom_encoder_ID_prefix_mark']),
-				'ID_mark':			helper_list(self.options['custom_encoder_ID_mark']),
 				'IDData_mark':		helper_list(self.options['custom_encoder_IDData_mark']),
+				'ID_mark':			helper_list(self.options['custom_encoder_ID_mark']),
 				'Data_mark':		helper_list(self.options['custom_encoder_Data_mark']),
+				'ID_prefix_mark':	helper_list(self.options['custom_encoder_ID_prefix_mark']),
 				'nop_mark':			helper_list(self.options['custom_encoder_nop_mark'])
 			}
 		else:
 			encoding_current = {
-				'ID_prefix_mark':	[],
-				'ID_mark':			[],
 				'IDData_mark':		[],
+				'ID_mark':			[],
 				'Data_mark':		[],
+				'ID_prefix_mark':	[],
 				'nop_mark':			[],
 			}
 			encoding_current.update(self.encoding_table[self.encoding])
@@ -748,17 +748,29 @@ class Decoder(srd.Decoder):
 			return self.last_samplenum, self.pulse_ticks
 
 		def fm_mfm_decode(self):
+			# Pseudo SWAR, same speed as LUT in python 3.4
 			self.shift_index -= 16
-			shift_win = (self.shift >> self.shift_index) & 0xffff
-			self.shift_byte = ((shift_win & 0b100000000000000) >> 7) \
-							+ ((shift_win & 0b1000000000000) >> 6) \
-							+ ((shift_win & 0b10000000000) >> 5) \
-							+ ((shift_win & 0b100000000) >> 4) \
-							+ ((shift_win & 0b1000000) >> 3) \
-							+ ((shift_win & 0b10000) >> 2) \
-							+ ((shift_win & 0b100) >> 1) \
-							+ (shift_win & 1)
+			self.shift_byte = (self.shift >> self.shift_index) & 0x5555
+			self.shift_byte = (self.shift_byte + (self.shift_byte >> 1)) & 0x3333 # compress pairs
+			self.shift_byte = (self.shift_byte + (self.shift_byte >> 2)) & 0x0F0F # compress nibbles
+			self.shift_byte = (self.shift_byte + (self.shift_byte >> 4)) & 0x00FF # final packed byte
 			return True
+			#Python 3.4.0
+			#Bitwise (original) : 311724.45 MiB/s
+			#SWAR version       : 400735.35 MiB/s
+			#Python 3.14.0
+			#Bitwise (original) : 811854.90 MiB/s
+			#SWAR version       : 967892.72 MiB/s
+			#self.shift_index -= 16
+			#self.shift_byte = (self.shift >> self.shift_index) & 0xffff
+			#self.shift_byte = ((self.shift_byte & 0b100000000000000) >> 7) \
+			#				+ ((self.shift_byte & 0b1000000000000) >> 6) \
+			#				+ ((self.shift_byte & 0b10000000000) >> 5) \
+			#				+ ((self.shift_byte & 0b100000000) >> 4) \
+			#				+ ((self.shift_byte & 0b1000000) >> 3) \
+			#				+ ((self.shift_byte & 0b10000) >> 2) \
+			#				+ ((self.shift_byte & 0b100) >> 1) \
+			#				+ (self.shift_byte & 1)
 
 		def rll_decode(self):
 			RLL_TABLE = self.codemap
