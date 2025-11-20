@@ -152,7 +152,7 @@ class Decoder(srd.Decoder):
 			'default': 'RLL', 'values': ('FM', 'MFM', 'RLL')},
 		{'id': 'custom_encoder_codemap', 'desc': 'Custom encoder: codemap',
 			'default': 'IBM', 'values': ('FM/MFM', 'IBM', 'WD')},
-		{'id': 'custom_encoder_sync_pattern', 'desc': 'Custom encoder: sync_pattern',
+		{'id': 'custom_encoder_sync_pulse', 'desc': 'Custom encoder: sync_pulse',
 			'default': 4, 'values': (2, 3, 4)},
 		{'id': 'custom_encoder_sync_seqs', 'desc': 'Custom encoder: sync_seqs. Example: [6, 8, 3], [5, 3, 8, 3]',
 			'default': ''},
@@ -383,7 +383,7 @@ class Decoder(srd.Decoder):
 	#
 	# limits: pulse widths outside reset PLL
 	# codemap: code translation map
-	# sync_pattern: anything other halts PLLstate.locking phase and triggers reset_pll()
+	# sync_pulse: anything other halts PLLstate.locking phase and triggers reset_pll()
 	# sync_seqs: used by PLLstate.scanning_sync_mark
 	# shift_index: every sync_mark entry has its own offset defining number of valid halfbit windows
 	#  already shifted in (minus last entry because PLLstate.decoding adds self.halfbit_cells) at the
@@ -398,7 +398,7 @@ class Decoder(srd.Decoder):
 		coding.FM: {
 			'limits_key': coding.FM,
 			'codemap_key': coding.FM_MFM,
-			'sync_pattern': 2,
+			'sync_pulse': 2,
 			'sync_seqs': [[1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 2], [1, 1, 1, 2, 2, 2, 1, 2, 1, 1, 1], [1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 2]],
 			'shift_index': [15],
 			'ID_mark': [0xFE],
@@ -407,7 +407,7 @@ class Decoder(srd.Decoder):
 		coding.MFM: {
 			'limits_key': coding.MFM,
 			'codemap_key': coding.FM_MFM,
-			'sync_pattern': 2,
+			'sync_pulse': 2,
 			'sync_seqs': [[3, 4, 3, 4, 3], [3, 2, 3, 4, 3, 4]],
 			'shift_index': [13, 14],
 			'IDData_mark': [0xA1]
@@ -416,7 +416,7 @@ class Decoder(srd.Decoder):
 		coding.RLL_Sea: {
 			'limits_key': coding.RLL,
 			'codemap_key': coding.RLL_IBM,
-			'sync_pattern': 3,
+			'sync_pulse': 3,
 			'sync_seqs': [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4]],
 			'shift_index': [18],
 			'IDData_mark': [0xA1],
@@ -427,7 +427,7 @@ class Decoder(srd.Decoder):
 		coding.RLL_Adaptec: {
 			'limits_key': coding.RLL,
 			'codemap_key': coding.RLL_IBM,
-			'sync_pattern': 3,
+			'sync_pulse': 3,
 			'sync_seqs': [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4], [8, 3, 4]],
 			'shift_index': [18],
 			'ID_mark': [0xA1],
@@ -437,7 +437,7 @@ class Decoder(srd.Decoder):
 		coding.RLL_WD: {
 			'limits_key': coding.RLL,
 			'codemap_key': coding.RLL_WD,
-			'sync_pattern': 3,
+			'sync_pulse': 3,
 			'sync_seqs': [[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]],
 			'shift_index': [12],
 			'IDData_mark': [0xF0],
@@ -446,7 +446,7 @@ class Decoder(srd.Decoder):
 		coding.RLL_OMTI: {
 			'limits_key': coding.RLL,
 			'codemap_key': coding.RLL_IBM,
-			'sync_pattern': 4,
+			'sync_pulse': 4,
 			'sync_seqs': [[6, 8, 3, 3], [5, 3, 8, 3, 3]],
 			'shift_index': [14],
 			'IDData_mark': [0x62],
@@ -456,7 +456,7 @@ class Decoder(srd.Decoder):
 		coding.RLL_DTC7287_unknown: {
 			'limits_key': coding.RLL,
 			'codemap_key': coding.RLL_WD,
-			'sync_pattern': 4,
+			'sync_pulse': 4,
 			'sync_seqs': [[5, 4, 4, 4, 4, 3, 8]],
 			'shift_index': [33],
 			'ID_mark': [0x49, 0x4a, 0x46, 0x4b],
@@ -611,7 +611,7 @@ class Decoder(srd.Decoder):
 										'IBM':		coding.RLL_IBM,
 										'WD':		coding.RLL_WD,
 									}[self.options['custom_encoder_codemap']],
-				'sync_pattern':		self.options['custom_encoder_sync_pattern'],
+				'sync_pulse':		self.options['custom_encoder_sync_pulse'],
 				'sync_seqs':		helper_list_of_lists(self.options['custom_encoder_sync_seqs']),
 				'shift_index':		helper_list(self.options['custom_encoder_shift_index']),
 				'IDData_mark':		helper_list(self.options['custom_encoder_IDData_mark']),
@@ -678,9 +678,9 @@ class Decoder(srd.Decoder):
 				coding.RLL_WD: self.rll_decode,
 			}[self.codemap_key]
 
-			self.sync_pattern = encoding_current.sync_pattern
+			self.sync_pulse = encoding_current.sync_pulse
 			# Standard in literature seems to be 16 bit transitions (32 halfbit windows) as enough to lock PLO
-			self.sync_lock_threshold = round(32 / self.sync_pattern)
+			self.sync_lock_threshold = round(32 / self.sync_pulse)
 			# pll_sync_tolerance: fractional percentage of tolerated deviations during initial PLL sync lock
 			self.pll_sync_tolerance = halfbit_ticks * pll_sync_tolerance
 			self.cells_allowed_min = min(encoding_current.limits)
@@ -816,8 +816,8 @@ class Decoder(srd.Decoder):
 		def edge(self, edge_samplenum):
 			# edge_samplenum: sample index of rising edge (flux transition)
 			# State Machine with 3 stages:
-			# - PLLstate.locking looks for sync_lock_threshold number of sync_pattern pulses
-			# - PLLstate.scanning_sync_mark keeps scanning for either sync_pattern or self.encoding_current.sync_seqs, anything else resets PLL.
+			# - PLLstate.locking looks for sync_lock_threshold number of sync_pulse pulses
+			# - PLLstate.scanning_sync_mark keeps scanning for either sync_pulse or self.encoding_current.sync_seqs, anything else resets PLL.
 			# - PLLstate.decoding
 
 			#print_('pll edge', edge_samplenum, pulse_ticks, '%.4f' % abs(pulse_ticks - 2.0 * self.halfbit), '%.4f' % self.halfbit)
@@ -837,9 +837,9 @@ class Decoder(srd.Decoder):
 
 			# Sync pattern detection using pulse width
 			if self.state == PLLstate.locking:
-				#print_('PLLstate.locking', abs(pulse_ticks - self.halfbit * self.sync_pattern), abs(pulse_ticks - self.halfbit * self.sync_pattern) <= self.pll_sync_tolerance, self.last_samplenum)
-				#print_('PLLstate.locking2', pulse_ticks * (1000000000 / self.owner.samplerate), self.halfbit * self.sync_pattern * (1000000000 / self.owner.samplerate), self.pll_sync_tolerance, self.pll_sync_tolerance * (1000000000 / self.owner.samplerate), self.halfbit, '=', self.halfbit * (1000000000 / self.owner.samplerate), self.halfbit_cells, self.last_samplenum)
-				if abs(pulse_ticks - self.halfbit * self.sync_pattern) <= self.pll_sync_tolerance:
+				#print_('PLLstate.locking', abs(pulse_ticks - self.halfbit * self.sync_pulse), abs(pulse_ticks - self.halfbit * self.sync_pulse) <= self.pll_sync_tolerance, self.last_samplenum)
+				#print_('PLLstate.locking2', pulse_ticks * (1000000000 / self.owner.samplerate), self.halfbit * self.sync_pulse * (1000000000 / self.owner.samplerate), self.pll_sync_tolerance, self.pll_sync_tolerance * (1000000000 / self.owner.samplerate), self.halfbit, '=', self.halfbit * (1000000000 / self.owner.samplerate), self.halfbit_cells, self.last_samplenum)
+				if abs(pulse_ticks - self.halfbit * self.sync_pulse) <= self.pll_sync_tolerance:
 					self.sync_lock_count += 1
 					#print_('pll sync', pulse_ticks, self.halfbit, self.last_samplenum)
 					#print_('lock_count', self.sync_lock_count)
@@ -922,7 +922,7 @@ class Decoder(srd.Decoder):
 
 			if self.state == PLLstate.scanning_sync_mark:
 				# just another sync pulse
-				if not self.sync_sequence_try and self.halfbit_cells == self.sync_pattern:
+				if not self.sync_sequence_try and self.halfbit_cells == self.sync_pulse:
 					self.sync_lock_count += 1
 
 				# scan for start of sync mark

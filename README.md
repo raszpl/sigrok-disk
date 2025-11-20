@@ -153,7 +153,7 @@ Options with custom_encoder_ prefix activated by selecting `encoding=custom`:
 `custom_encoder_codemap` Code translation map.  
 **Default**: `IBM` **Values**: `FM/MFM`, `IBM`, `WD`
 
-`custom_encoder_sync_pattern` Width of pulses used in a repeating sequence (called PLO sync field or preamble) to train PLL and aquire initial lock.  
+`custom_encoder_sync_pulse` Width of pulses used in a repeating sequence (called PLO sync field or preamble) to train PLL and aquire initial lock.  
 **Default**: `4` **Values**: `2`, `3`, `4`
 
 *Warning!* All custom_encoder_ options below must obey stupid rules when used from command line. sigrok-cli command line input doesnt support "" escaped strings nor commas. We have to resort to custom escaping with `,` becoming `-` and `_` used to separate lists:  
