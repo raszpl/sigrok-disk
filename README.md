@@ -3,8 +3,8 @@ This [plugin](https://github.com/sigrokproject/libsigrokdecode) lets you explore
 
 Start by loading one of available [test sample files](#available-test-sample-files) or capture you own data using Logic Analyzer hardware. Aim for 20x oversampling for best results.
 
-- Floppy drive requires at least ~12MHz sampling rate meaning something like ~$60 Hantek 6022 or $5 CY7C68013A https://sigrok.org/wiki/Lcsoft_Mini_Board dev board (aliexpress/ebay/amazon) as thats pretty much whats inside the Hantek/original Saleae.  
-- Hard drives operate at 5-15Mbit flux rate and demand sampling rate of at least 200MHz. Commercial LAs start around $200, saner options are 200Ms/s Pico based [MFM-Hard-Disk-Dumper](https://github.com/Tronix286/MFM-Hard-Disk-Dumper) by Tronix286 or not so greatly named but outstandingly capable Pico/Pico2 based 400Ms/s [LogicAnalyzer](https://github.com/gusmanb/logicanalyzer). Both of those Open Source hardware LA solutions are vastly cheaper while delivering great results.
+- Floppies require at least ~12MHz sampling rate within reach of ~$60 Hantek 6022 or $5 CY7C68013A https://sigrok.org/wiki/Lcsoft_Mini_Board dev board (aliexpress/ebay/amazon) as thats pretty much whats inside the Hantek/original Saleae.  
+- Hard drives operate at 5-15Mbit flux rate and demand at least 100MHz sampling clock for the 5Mbit MFM models. Commercial LAs start around $200, saner options are 200Ms/s Pico based [MFM-Hard-Disk-Dumper](https://github.com/Tronix286/MFM-Hard-Disk-Dumper) by Tronix286 or not so greatly named but outstandingly capable Pico/Pico2 based 400Ms/s [LogicAnalyzer](https://github.com/gusmanb/logicanalyzer). Both of those Open Source hardware solutions are vastly cheaper while delivering great results.
 
 <hr>
 
@@ -13,9 +13,10 @@ Start by loading one of available [test sample files](#available-test-sample-fil
 
 - [Screenshots](#screenshots)
 - [Test samples](#available-test-sample-files)
-- [Command line usage](#example-sigrok-cli-command-line-usage)
+- [Command line usage](#sigrok-cli-command-line-usage)
   - [Options](#options)
   - [Annotations](#annotations)
+  - [Example invocation](#example-invocation)
 - [Installation](#installation)
 - [Resources](#resources)
   - [Polynomials](#polynomials)
@@ -40,7 +41,7 @@ Typical track on MFM encoded hard drive.
 
 #### Sector Header close-up
 ![Sector Close-Up](doc/pulseview_idrecord.png)  
-This is a spare/unused sector created at the end of every track on MFM drive by Seagate ST21 controller. Notice the weird Sector number 254 and absence of GAP3 between end of Header and start of Sync pattern. Without GAP3 writing to this sector would causes corruption giving us a hint that this special Sector is not meant to ever be used. Every MFM/RLL drive I looked at so far wasted precious space either leaving enought unused disk surface for one more sector per track of having one dummy sector at the end like this one. That translates to never using 6% of MFM and 4% of RLL disk you paid for, about 2.5MB on typical 40MB MFM drive. I know of only DEC RQDX1/2 controllers using all 18 sectors, but DECs next [RQDX3](https://gunkies.org/wiki/RQDX3_MFM_Disk_%26_Floppy_QBUS_Controller#Version_details) controller went back to 17. For comparison 15 years later transition to 4K Sectors (88->97% efficiency gain) was the result of HDD manufacturers fighting for every scrap of capacity.
+This is a spare/unused sector created at the end of every track on MFM drive by Seagate ST21 controller. Notice the weird Sector number 254 and absence of GAP3 between end of Header and start of Sync pattern. Without GAP3 writing to this sector would causes corruption giving us a hint that this special Sector is not meant to ever be used. Every MFM/RLL drive I looked at so far wasted precious space either leaving enought unused disk surface for one more sector per track of having one dummy sector at the end like above. I know of only DEC RQDX1/2 using all 18 sectors, but DECs next [RQDX3](https://gunkies.org/wiki/RQDX3_MFM_Disk_%26_Floppy_QBUS_Controller#Version_details) controller went back to 17. This translates to never using 6% of MFM and 4% of RLL disk surface you paid for, about 2.5MB on typical 40MB MFM drive. For comparison 15 years later transition to 4K Sectors (88->97% efficiency gain) was the result of HDD manufacturers fighting for every scrap of capacity.
 
 <hr>
 
@@ -75,10 +76,146 @@ This is a spare/unused sector created at the end of every track on MFM drive by 
  - [hdd_rll_DTC7287_track4919](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_rll_DTC7287_track4919.sr)<br>DTC7287 captures 200MHz sample rate. 7500000 bps, Broken unknown RLL_DTC7287_unknown encoding, Header size 3?<br>ST-251 on [Data Technology Corporation DTC-7287](https://www.vogonswiki.com/index.php/DTC_7287) Format looks very ESDI like. Help deciphering appreciated.
 
 Huge thanks to Al Kossow for providing majority of the [samples hosted by bitsavers](http://bitsavers.org/projects/hd_samples).
+
 <hr>
 
-## Example sigrok-cli command line usage
-<details><summary><code>sigrok-cli -D -i hdd_mfm_RQDX3_sector.sr -P mfm -A mfm=bytes:fields</code></summary>
+## sigrok-cli command line usage
+### Options
+
+`leading_edge` Leading Edge specifies edge type for signal detection.  
+**Default**: `rising` **Values**: `rising`, `falling`  
+
+`data_rate` Data Rate in bits per second (bps).  
+**Default**: `5000000` **Values**: `125000`, `150000`, `250000`, `300000`, `500000`, `5000000`, `7500000`, `10000000`
+
+`encoding` Encoding schemes available. 'custom' lets you build own decoder interactively in the GUI fully controlling its behavior.  
+**Default**: `MFM` **Values**: `FM`, `MFM`, `RLL_Sea`, `RLL_Adaptec`, `RLL_WD`, `RLL_OMTI`, `custom`, `RLL_DTC7287_unknown`
+
+`header_size` Header payload length in bytes.  
+**Default**: `4` **Values**: `3`, `4`
+
+`sector_size` Sector payload length in bytes.  
+**Default**: `512` **Values**: `128`, `256`, `512`, `1024`
+
+`header_crc_bits` Header field CRC size in bits.  
+**Default**: `16` **Values**: `16`, `32`
+
+`header_crc_poly` Polynomial used in Header field CRC calculation. Default is the standard CRC-CCITT polynomial (x16 + x12 + x5 + 1).  
+**Default**: `0x1021` (CRC-CCITT)
+
+`header_crc_init` Initial value for Header field CRC calculation.  
+**Default**: `0xffffffff`
+
+`data_crc_bits` Data field CRC size in bits.  
+**Default**: `32` **Values**: `16`, `32`, `48`, `56`
+
+`data_crc_poly` Polynomial used in Data field CRC calculation.  
+**Default**: `0xA00805` **Values**: `0x1021` (CRC-CCITT), `0xA00805` (CRC32-CCSDS), `0x140a0445`, `0x0104c981`, `0x41044185`, `0x140a0445000101`
+
+`data_crc_init` Initial value for Data field CRC calculation.  
+**Default**: `0xffffffffffffff`
+
+`data_crc_poly_custom` Custom Data field Polynomial, overrides `data_crc_poly` setting.  
+**Default**: `` (empty string)
+
+`time_unit` Select Pulse time units or number of half-bit windows.  
+**Default**: `ns` **Values**: `ns`, `us`, `auto`, `window`
+
+`dsply_sn` Display additonal sample numbers for Pulses (pul, erp) and Windows (bit/clock).  
+**Default**: `no` **Values**: `yes`, `no`
+
+`report` Display report after encountering specified field type.  
+**Default**: `no` **Values**: `no`, `IAM` (Index Mark), `IDAM` (ID Address Mark), `DAM` (Data Address Mark), `DDAM` (Deleted Data Address Mark)
+
+`report_qty` Number of Marks (specified above) between reports. This is a workaround for lack of sigrok/pulseview capability to signal end_of_capture.  
+**Default**: `9` **Example**: `9` for floppies, `17` for MFM hdd, `26` for RLL drives
+
+`decoder` Choice between PI Loop Filter based PLL, or 'legacy' with hardcoded immediate andustments.  
+**Default**: `PLL` **Values**: `PLL`, `legacy`
+
+`pll_sync_tolerance` PLL: Initial tolerance when catching synchronization sequence.  
+**Default**: `25%` **Values**: `15%`, `20%`, `25%`, `33%`, `50%`
+
+`pll_kp` PLL: PI Filter proportinal constant (Kp).  
+**Default**: `0.5`
+
+`pll_ki` PLL: PI Filter integral constant (Ki).  
+**Default**: `0.0005`
+
+`dsply_pfx` Legacy decoder: Display all MFM C2 and A1 prefix bytes (encoded with special glitched clock) to help with locating damaged records.  
+**Default**: `no` **Values**: `yes`, `no`
+
+Options with custom_encoder_ prefix activated by selecting `encoding=custom`:
+
+`custom_encoder_limits` Coding.  
+**Default**: `RLL` **Values**: `FM`, `MFM`, `RLL`
+
+`custom_encoder_codemap` Code translation map.  
+**Default**: `IBM` **Values**: `FM/MFM`, `IBM`, `WD`
+
+`custom_encoder_sync_pattern` Width of pulses used in a repeating sequence (called PLO sync field or preamble) to train PLL and aquire initial lock.  
+**Default**: `4` **Values**: `2`, `3`, `4`
+
+*Warning!* All custom_encoder_ options below must obey stupid rules when used from command line. sigrok-cli command line input doesnt support "" escaped strings nor commas. We have to resort to custom escaping with `,` becoming `-` and `_` used to separate lists:  
+&nbsp;&nbsp;&nbsp;&nbsp;for `[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]` pass `8-3-5_5-8-3-5_7-8-3-5`  
+&nbsp;&nbsp;&nbsp;&nbsp;for `[8, 3, 5]` pass `8-3-5`  
+&nbsp;&nbsp;&nbsp;&nbsp;for `11, 12` pass `11-12`  
+&nbsp;&nbsp;&nbsp;&nbsp;for `0x1E, 0x5E, 0xDE` pass `0x1E-0x5E-0xDE` or `30-95-222`  
+
+PulseView/DSView GUI is much more flexible and allows omitting outer brackets, all of those are allowed:  
+&nbsp;&nbsp;&nbsp;&nbsp;`8-3-5`  
+&nbsp;&nbsp;&nbsp;&nbsp;`8,3,5`  
+&nbsp;&nbsp;&nbsp;&nbsp;`[8, 3, 5]`  
+&nbsp;&nbsp;&nbsp;&nbsp;`[[8, 3, 5]]`  
+&nbsp;&nbsp;&nbsp;&nbsp;`[8, 3, 5], [5, 8, 3, 5]`  
+&nbsp;&nbsp;&nbsp;&nbsp;`[[8, 3, 5], [5, 8, 3, 5]]`  
+&nbsp;&nbsp;&nbsp;&nbsp;`8-3-5_5-8-3-5_7-8-3-5`  
+
+`custom_encoder_sync_seqs` Special (often invalid on purpose) sequences of pulses used to distinguish Synchronization Marks.  
+**Default**: `` (empty string) **Example**: `[[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]]` used by RLL_WD
+
+`custom_encoder_shift_index` Every sync_sequences entry has its own offset defining number of valid halfbit windows already shifted in (minus last entry because PLLstate.decoding adds self.halfbit_cells) at the moment of matched Sync Sequence. Define one common value or provide list of values for every sync_sequences entry.  
+**Default**: `` (empty string) **Example**: `11` or `11, 11` for RLL_OMTI
+
+All custom_encoder_ _mark options below support * wildcard, useful when debugging new format and unsure of proper values. For example setting custom_encoder_nop_mark=* will start decoding bytes as soon as custom_encoder_sync_seqs is matched. After that you can manipulate custom_encoder_shift_index to arrive at proper bit alignment. Greatly simplifies adding new encoding formats.
+
+`custom_encoder_IDData_mark` IDData_mark is usually 0xA1 for MFM FDD and HDD.   
+**Default**: `` (empty string) **Example**: `0xA1`
+
+`custom_encoder_ID_mark` ID_mark makes decoder skip straight to decoding Header.  
+**Default**: `` (empty string) **Example**: `0xFE` used by original FM floppies
+
+`custom_encoder_Data_mark` Data_mark makes decoder skip straight to decoding Data.  
+**Default**: `` (empty string) **Example**: `0xFB` used by original FM floppies
+
+`custom_encoder_ID_prefix_mark` ID_prefix_mark is a Header Mark to be followed by IDData_mark.  
+**Default**: `` (empty string) **Example**: `0x1E` weird arrangement used by RLL_Sea
+
+`custom_encoder_nop_mark` nop_mark is an inert Mark.  
+**Default**: `` (empty string) **Example**: `0x1E, 0x5E, 0xDE` for RLL_Adaptec
+
+### Annotations
+
+| Group | Message |
+| --- | --- |
+| `pulses` | `pul` (pulse), `erp` (bad pulse = out-of-tolerance leading edge)|
+| `windows` | `clk` (clock), `dat` (data), `erw` (extra pulse in win), `unk`|
+| `prefixes` | `pfx` (A1, C1 MFM synchronization prefixes)|
+| `bits` | `erb` (bad bit = encoded using glitched clock with some omitted pulses, usually in synchronization Marks), `bit`|
+| `bytes` | `byt` (byte)|
+| `fields` | `syn` (sync), `mrk` (mark), `rec` (record), `crc` (crc ok), `cre` (crc bad)|
+| `errors` | `err` (error)|
+| `reports` | `rpt` (report)|
+
+Use '-A mfm=' with whole groups like `fields`, individual messages `crc:cre` or combination `fields:err`.  
+&nbsp;&nbsp;&nbsp;&nbsp;'-A mfm=fields'  
+&nbsp;&nbsp;&nbsp;&nbsp;'-A mfm=crc:cre'  
+&nbsp;&nbsp;&nbsp;&nbsp;'-A mfm=fields:err'  
+
+<hr>
+
+### Example invocation
+<details><summary>Show fields and raw bytestream:<br><code>sigrok-cli -D -i hdd_mfm_RQDX3_sector.sr -P mfm -A mfm=bytes:fields</code></summary>
 <pre>
 mfm-1: A1
 mfm-1: Sync pattern 13 bytes
@@ -617,171 +754,24 @@ mfm-1: 79 'y'
 mfm-1: CRC OK C1847279
 mfm-1: 00
 </pre>
-</details>
-<details><summary><code>sigrok-cli -D -i hdd_mfm_RQDX3.sr -P mfm:report=DAM:report_qty=17 -A mfm=fields:reports</code></summary>
+</details>  
+
+Dirty cut|tr trick to extrack strings from above output:  
+<code>sigrok-cli.exe -D -i hdd_mfm_RQDX3_sector.sr -P mfm -A mfm=bytes | cut -c 12 | tr -d '\n'</code>
 <pre>
-mfm-1: Sync pattern 13 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=0, sid=0, sec=6, len=512
-mfm-1: CRC OK D082
-mfm-1: Sync pattern 13 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK A4882EBA
-mfm-1: Sync pattern 13 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=0, sid=0, sec=7, len=512
-mfm-1: CRC OK E3B3
-mfm-1: Sync pattern 13 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK FBAA689E
-mfm-1: Sync pattern 13 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=0, sid=0, sec=8, len=512
-mfm-1: CRC OK F38D
-mfm-1: Sync pattern 13 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK C1847279
-mfm-1: Sync pattern 13 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=0, sid=0, sec=9, len=512
-mfm-1: CRC OK C0BC
-mfm-1: Sync pattern 13 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 58BA64F1
-mfm-1: Sync pattern 13 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=0, sid=0, sec=10, len=512
-mfm-1: CRC OK 95EF
-mfm-1: Sync pattern 13 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK A42689FD
-mfm-1: Sync pattern 13 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=0, sid=0, sec=11, len=512
-mfm-1: CRC OK A6DE
-mfm-1: Sync pattern 13 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK D600DA6F
-mfm-1: Sync pattern 13 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=0, sid=0, sec=12, len=512
-mfm-1: CRC OK 3F49
-mfm-1: Sync pattern 13 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 1FDAFC47
-mfm-1: Sync pattern 13 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=0, sid=0, sec=13, len=512
-mfm-1: CRC OK C78
-mfm-1: Sync pattern 13 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 99BCAE39
-mfm-1: Sync pattern 13 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=0, sid=0, sec=14, len=512
-mfm-1: CRC OK 592B
-mfm-1: Sync pattern 13 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK D1042AD6
-mfm-1: Sync pattern 13 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=0, sid=0, sec=15, len=512
-mfm-1: CRC OK 6A1A
-mfm-1: Sync pattern 13 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 3A01EE5D
-mfm-1: Sync pattern 13 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=0, sid=0, sec=16, len=512
-mfm-1: CRC OK 7957
-mfm-1: Sync pattern 13 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 3D977406
-mfm-1: Sync pattern 13 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=0, sid=0, sec=0, len=512
-mfm-1: CRC OK 7A24
-mfm-1: Sync pattern 13 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 7A06E528
-mfm-1: Sync pattern 13 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=0, sid=0, sec=1, len=512
-mfm-1: CRC OK 4915
-mfm-1: Sync pattern 13 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 7A06E528
-mfm-1: Sync pattern 13 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=0, sid=0, sec=2, len=512
-mfm-1: CRC OK 1C46
-mfm-1: Sync pattern 13 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 7A06E528
-mfm-1: Sync pattern 13 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=0, sid=0, sec=3, len=512
-mfm-1: CRC OK 2F77
-mfm-1: Sync pattern 13 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 925DAC29
-mfm-1: Sync pattern 13 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=0, sid=0, sec=4, len=512
-mfm-1: CRC OK B6E0
-mfm-1: Sync pattern 13 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK B82BC0C7
-mfm-1: Sync pattern 13 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=0, sid=0, sec=5, len=512
-mfm-1: CRC OK 85D1
-mfm-1: Sync pattern 13 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 6CD9E3F1
-mfm-1: Summary: IAM=0, IDAM=17, DAM=17, DDAM=0, CRC_OK=34, CRC_err=0, EiPW=0, CkEr=0, OoTI=12/74987
-mfm-1: Sync pattern 13 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=0, sid=0, sec=6, len=512
-mfm-1: CRC OK D082
-mfm-1: Sync pattern 13 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK A4882EBA
-mfm-1: Sync pattern 13 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=0, sid=0, sec=7, len=512
-mfm-1: CRC OK E3B3
-mfm-1: Sync pattern 13 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK FBAA689E
-mfm-1: Sync pattern 13 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=0, sid=0, sec=8, len=512
-mfm-1: CRC OK F38D
-mfm-1: Sync pattern 13 bytes
-mfm-1: Data Address Mark
-</pre>
-</details>
-<details><summary><code>sigrok-cli -D -i fdd_fm.sr -P mfm:data_rate=125000:encoding=FM:data_crc_bits=16:data_crc_poly=0x1021:sector_size=256 -A mfm=fields</code></summary>
+N = @. BYTES SKIP/SPACE COUNT (SKIP/SPACE @p. TAPE MARKS/REC
+MESSAGE BUFFER NOT VALID MESSAGE BUFFER XSTAT1 XSTAT2 (DEAD TRACK CHANNEL
+. (DEAD TRACK PARITY CHANNEL XSTAT3 (MICRO DIAGNOSTIC ERROR CODE
+MASSBUS0DAIGNOSTIC MODEABA/B MF CS1 (@l (@ (@ (@ MF IS (@ (@ry
+</pre>  
+
+Report of the first 17 sectors:  
+<code>sigrok-cli -D -i hdd_mfm_RQDX3.sr -P mfm:report=DAM:report_qty=17 -A mfm=reports</code>
+<pre>
+mfm-1: Summary: IAM=0, IDAM=17, DAM=17, DDAM=0, CRC_OK=34, CRC_err=0, EiPW=0, CkEr=0, OoTI=13/74987
+</pre>  
+
+<details><summary>Show all fields:<br><code>sigrok-cli -D -i fdd_fm.sr -P mfm:data_rate=125000:encoding=FM:data_crc_bits=16:data_crc_poly=0x1021:sector_size=256 -A mfm=fields</code></summary>  
 <pre>
 mfm-1: Sync pattern 6 bytes
 mfm-1: ID Address Mark
@@ -881,321 +871,16 @@ mfm-1: Sync pattern 6 bytes
 mfm-1: Data Address Mark
 </pre>
 </details>
-<details><summary><code>sigrok-cli -D -i fdd_mfm.sr -P mfm:data_rate=250000:encoding=MFM:data_crc_bits=16:data_crc_poly=0x1021:sector_size=256 -A mfm=fields</code></summary>
+
+Display just CRC fields, both good and bad, and nothing more:  
+<code>sigrok-cli -D -i test\hdd_mfm_RQDX3_sector.sr -P mfm:data_crc_poly_custom=0xbad -A mfm=crc:cre</code>
 <pre>
-mfm-1: Sync pattern 8 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=1, sid=0, sec=8, len=256
-mfm-1: CRC OK 3620
-mfm-1: Sync pattern 12 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK C4E
-mfm-1: Sync pattern 8 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=1, sid=0, sec=10, len=256
-mfm-1: CRC OK 5042
-mfm-1: Sync pattern 12 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 15DF
-mfm-1: Sync pattern 8 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=1, sid=0, sec=12, len=256
-mfm-1: CRC OK FAE4
-mfm-1: Sync pattern 12 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 6F4B
-mfm-1: Sync pattern 8 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=1, sid=0, sec=14, len=256
-mfm-1: CRC OK 9C86
-mfm-1: Sync pattern 12 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 2A4F
-mfm-1: Sync pattern 8 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=1, sid=0, sec=16, len=256
-mfm-1: CRC OK BCFA
-mfm-1: Sync pattern 12 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK D688
-mfm-1: Sync pattern 8 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=1, sid=0, sec=18, len=256
-mfm-1: CRC OK DA98
-mfm-1: Sync pattern 11 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 8E61
-mfm-1: Sync pattern 12 bytes
-mfm-1: Index Mark
-mfm-1: Sync pattern 8 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=1, sid=0, sec=1, len=256
-mfm-1: CRC OK 8CB8
-mfm-1: Sync pattern 12 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 9D
-mfm-1: Sync pattern 8 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=1, sid=0, sec=3, len=256
-mfm-1: CRC OK EADA
-mfm-1: Sync pattern 12 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 7B83
-mfm-1: Sync pattern 8 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=1, sid=0, sec=5, len=256
-mfm-1: CRC OK 407C
-mfm-1: Sync pattern 12 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK DE8E
-mfm-1: Sync pattern 8 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=1, sid=0, sec=7, len=256
-mfm-1: CRC OK 261E
-mfm-1: Sync pattern 12 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 2EDE
-mfm-1: Sync pattern 8 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=1, sid=0, sec=9, len=256
-mfm-1: CRC OK 511
-mfm-1: Sync pattern 12 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK C38D
-mfm-1: Sync pattern 8 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=1, sid=0, sec=11, len=256
-mfm-1: CRC OK 6373
-mfm-1: Sync pattern 12 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 8E87
-mfm-1: Sync pattern 8 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=1, sid=0, sec=13, len=256
-mfm-1: CRC OK C9D5
-mfm-1: Sync pattern 12 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 51A2
-mfm-1: Sync pattern 8 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=1, sid=0, sec=15, len=256
-mfm-1: CRC OK AFB7
-mfm-1: Sync pattern 12 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 7A32
-mfm-1: Sync pattern 8 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=1, sid=0, sec=17, len=256
-mfm-1: CRC OK 8FCB
-mfm-1: Sync pattern 12 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 51F
-mfm-1: Sync pattern 8 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=1, sid=0, sec=2, len=256
-mfm-1: CRC OK D9EB
-mfm-1: Sync pattern 12 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 816E
-mfm-1: Sync pattern 8 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=1, sid=0, sec=4, len=256
-mfm-1: CRC OK 734D
-mfm-1: Sync pattern 13 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 6EFD
-mfm-1: Sync pattern 8 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=1, sid=0, sec=6, len=256
-mfm-1: CRC OK 152F
-mfm-1: Sync pattern 13 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 94BF
-mfm-1: Sync pattern 8 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=1, sid=0, sec=8, len=256
-mfm-1: CRC OK 3620
-mfm-1: Sync pattern 12 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK C4E
-mfm-1: Sync pattern 8 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=1, sid=0, sec=10, len=256
-mfm-1: CRC OK 5042
-mfm-1: Sync pattern 12 bytes
-mfm-1: Data Address Mark
-mfm-1: Data Record
-mfm-1: CRC OK 15DF
-mfm-1: Sync pattern 8 bytes
-mfm-1: ID Address Mark
-mfm-1: ID Record: cyl=1, sid=0, sec=12, len=256
-mfm-1: CRC OK FAE4
-mfm-1: Sync pattern 12 bytes
-mfm-1: Data Address Mark
-</pre>
-</details>
-<details><summary><code>Dirty cut|tr hack to extrack strings:
-sigrok-cli.exe -D -i hdd_mfm_RQDX3_sector.sr -P mfm -A mfm=bytes | cut -c 12 | tr -d '\n'</code></summary>
-<pre>
-N = @. BYTES SKIP/SPACE COUNT (SKIP/SPACE @p. TAPE MARKS/REC
-MESSAGE BUFFER NOT VALID MESSAGE BUFFER XSTAT1 XSTAT2 (DEAD TRACK CHANNEL
-. (DEAD TRACK PARITY CHANNEL XSTAT3 (MICRO DIAGNOSTIC ERROR CODE
-MASSBUS0DAIGNOSTIC MODEABA/B MF CS1 (@l (@ (@ (@ MF IS (@ (@ry
-</pre>
-</details>
-<code>sigrok-cli -D -I csv:logic_channels=3:column_formats=t,l,l,l -i YourHugeSlow.csv -P mfm:option1=value1:option2=value2 -A mfm=annotation1:annotation2</code>
-
-### Options
-
-`leading_edge` Leading Edge specifies edge type for signal detection.  
-**Default**: `rising` **Values**: `rising`, `falling`  
-
-`data_rate` Data Rate in bits per second (bps).  
-**Default**: `5000000` **Values**: `125000`, `150000`, `250000`, `300000`, `500000`, `5000000`, `7500000`, `10000000`
-
-`encoding` Encoding schemes available. 'custom' lets you build own decoder interactively in the GUI fully controlling its behavior.  
-**Default**: `MFM` **Values**: `FM`, `MFM`, `RLL_Sea`, `RLL_Adaptec`, `RLL_WD`, `RLL_OMTI`, `custom`, `RLL_DTC7287_unknown`
-
-`header_size` Header payload length in bytes.  
-**Default**: `4` **Values**: `3`, `4`
-
-`sector_size` Sector payload length in bytes.  
-**Default**: `512` **Values**: `128`, `256`, `512`, `1024`
-
-`header_crc_bits` Header field CRC size in bits.  
-**Default**: `16` **Values**: `16`, `32`
-
-`header_crc_poly` Polynomial used in Header field CRC calculation. Default is the standard CRC-CCITT polynomial (x16 + x12 + x5 + 1).  
-**Default**: `0x1021` (CRC-CCITT)
-
-`header_crc_init` Initial value for Header field CRC calculation.  
-**Default**: `0xffffffff`
-
-`data_crc_bits` Data field CRC size in bits.  
-**Default**: `32` **Values**: `16`, `32`, `48`, `56`
-
-`data_crc_poly` Polynomial used in Data field CRC calculation.  
-**Default**: `0xA00805` **Values**: `0x1021` (CRC-CCITT), `0xA00805` (CRC32-CCSDS), `0x140a0445`, `0x0104c981`, `0x41044185`, `0x140a0445000101`
-
-`data_crc_init` Initial value for Data field CRC calculation.  
-**Default**: `0xffffffffffffff`
-
-`data_crc_poly_custom` Custom Data field Polynomial, overrides `data_crc_poly` setting.  
-**Default**: `` (empty string)
-
-`time_unit` Select Pulse time units or number of half-bit windows.
-**Default**: `ns` **Values**: `ns`, `us`, `auto`, `window`
-
-`dsply_sn` Display additonal sample numbers for Pulses (pul, erp) and Windows (bit/clock).  
-**Default**: `no` **Values**: `yes`, `no`
-
-`report` Display report after encountering specified field type.  
-**Default**: `no` **Values**: `no`, `IAM` (Index Mark), `IDAM` (ID Address Mark), `DAM` (Data Address Mark), `DDAM` (Deleted Data Address Mark)
-
-`report_qty` Number of Marks (specified above) between reports. This is a workaround for lack of sigrok/pulseview capability to signal end_of_capture.  
-**Default**: `9` **Example**: `9` for floppies, `17` for MFM hdd, `26` for RLL drives
-
-`decoder` Choice between PI Loop Filter based PLL, or 'legacy' with hardcoded immediate andustments.  
-**Default**: `PLL` **Values**: `PLL`, `legacy`
-
-`pll_sync_tolerance` PLL: Initial tolerance when catching synchronization sequence.  
-**Default**: `25%` **Values**: `15%`, `20%`, `25%`, `33%`, `50%`
-
-`pll_kp` PLL: PI Filter proportinal constant (Kp).  
-**Default**: `0.5`
-
-`pll_ki` PLL: PI Filter integral constant (Ki).  
-**Default**: `0.0005`
-
-`dsply_pfx` Legacy decoder: Display all MFM C2 and A1 prefix bytes (encoded with special glitched clock) to help with locating damaged records.  
-**Default**: `no` **Values**: `yes`, `no`
-
-`encoding=custom` activates custom_encoder_ options.
-
-`custom_encoder_limits` Coding.  
-**Default**: `RLL` **Values**: `FM`, `MFM`, `RLL`
-
-`custom_encoder_codemap` Code translation map.  
-**Default**: `IBM` **Values**: `FM/MFM`, `IBM`, `WD`
-
-`custom_encoder_sync_pattern` Width of pulses used in a repeating sequence (called PLO sync field or preamble) to train PLL and aquire initial lock.  
-**Default**: `4` **Values**: `2`, `3`, `4`
-
-*Warning!* All custom_encoder_ options below must obey stupid rules when used from command line. sigrok-cli command line input doesnt support "" escaped strings nor commas. We have to resort to custom escaping with `,` becoming `-` and `_` used to separate lists:  
-&nbsp;&nbsp;&nbsp;&nbsp;for `[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]` pass `8-3-5_5-8-3-5_7-8-3-5`  
-&nbsp;&nbsp;&nbsp;&nbsp;for `[8, 3, 5]` pass `8-3-5`  
-&nbsp;&nbsp;&nbsp;&nbsp;for `11, 12` pass `11-12`  
-&nbsp;&nbsp;&nbsp;&nbsp;for `0x1E, 0x5E, 0xDE` pass `0x1E-0x5E-0xDE` or `30-95-222`  
-
-PulseView/DSView GUI is much more flexible and allows omitting outer brackets, all of those are allowed:  
-&nbsp;&nbsp;&nbsp;&nbsp;`8-3-5`  
-&nbsp;&nbsp;&nbsp;&nbsp;`8,3,5`  
-&nbsp;&nbsp;&nbsp;&nbsp;`[8, 3, 5]`  
-&nbsp;&nbsp;&nbsp;&nbsp;`[[8, 3, 5]]`  
-&nbsp;&nbsp;&nbsp;&nbsp;`[8, 3, 5], [5, 8, 3, 5]`  
-&nbsp;&nbsp;&nbsp;&nbsp;`[[8, 3, 5], [5, 8, 3, 5]]`  
-&nbsp;&nbsp;&nbsp;&nbsp;`8-3-5_5-8-3-5_7-8-3-5`  
-
-`custom_encoder_sync_seqs` Special (often invalid on purpose) sequences of pulses used to distinguish Synchronization Marks.  
-**Default**: `` (empty string) **Example**: `[[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]]` used by RLL_WD
-
-`custom_encoder_shift_index` Every sync_sequences entry has its own offset defining number of valid halfbit windows already shifted in (minus last entry because PLLstate.decoding adds self.halfbit_cells) at the moment of matched Sync Sequence. Define one common value or provide list of values for every sync_sequences entry.  
-**Default**: `` (empty string) **Example**: `11` or `11, 11` for RLL_OMTI
-
-All custom_encoder_ _mark options below support * wildcard, useful when debugging new format and unsure of proper values. For example setting custom_encoder_nop_mark=* will start decoding bytes as soon as custom_encoder_sync_seqs is matched. After that you can manipulate custom_encoder_shift_index to arrive at proper bit alignment. Greatly simplifies adding new encoding formats.
-
-`custom_encoder_IDData_mark` IDData_mark is usually 0xA1 for MFM FDD and HDD.   
-**Default**: `` (empty string) **Example**: `0xA1`
-
-`custom_encoder_ID_mark` ID_mark makes decoder skip straight to decoding Header.  
-**Default**: `` (empty string) **Example**: `0xFE` used by original FM floppies
-
-`custom_encoder_Data_mark` Data_mark makes decoder skip straight to decoding Data.  
-**Default**: `` (empty string) **Example**: `0xFB` used by original FM floppies
-
-`custom_encoder_ID_prefix_mark` ID_prefix_mark is a Header Mark to be followed by IDData_mark.  
-**Default**: `` (empty string) **Example**: `0x1E` weird arrangement used by RLL_Sea
-
-`custom_encoder_nop_mark` nop_mark is an inert Mark.  
-**Default**: `` (empty string) **Example**: `0x1E, 0x5E, 0xDE` for RLL_Adaptec
-
-### Annotations
-Can use groupings like 'fields' or individual ones for example just 'crc'.  
-`pulses` includes `pul` (pulse), `erp` (bad pulse = out-of-tolerance leading edge)  
-`windows` includes `clk` (clock), `dat` (data), `erw` (extra pulse in win), `unk`  
-`prefixes` includes `pfx` (A1, C1 MFM synchronization prefixes)  
-`bits` includes `erb` (bad bit = encoded using glitched clock with some omitted pulses, usually in synchronization Marks), `bit`  
-`bytes` includes `byt` (byte)  
-`fields` includes `syn` (sync), `mrk` (mark), `rec` (record), `crc` (crc ok), `cre` (crc bad)  
-`errors` includes `err` (error)  
-`reports` includes `rpt` (report)  
-
-Lets say you want to just display CRC fields, both good and bad, and nothing more:
-
-```
-sigrok-cli -D -i test\hdd_mfm_RQDX3_sector.sr -P mfm:data_crc_poly_custom=0xbad -A mfm=crc:cre
 mfm-1: CRC OK F38D
 mfm-1: CRC error 115E0390
-```
+</pre>
+
+General structure of arguments:  
+<code>sigrok-cli -D -I csv:logic_channels=3:column_formats=t,l,l,l -i YourHugeSlow.csv -P mfm:option1=value1:option2=value2 -A mfm=annotation1:annotation2</code>
 
 <hr>
 
@@ -1247,8 +932,7 @@ Now try CRC32-CCSDS x32 + x23 + x21 + x11 + x2 + 1
 - Wouter Vermaelen [Low-level disk storage](https://map.grauw.nl/articles/low-level-disk/)
 - Michael Haardt, Alain Knaff, David C. Niemi [The floppy user guide](https://www.grimware.org/lib/exe/fetch.php/documentations/hardware/manuals/floppy.user.guide.pdf)
 - [Hard Disk Geometry and Low-Level Data Structures](https://www.viser.edu.rs/uploads/2018/03/Predavanje%2002c%20-%20Hard%20disk%20geometrija.pdf) by School of Electrical and Computer Engineering of Applied Studies in Belgrade (VISER)
-- Artem Rubtsov (creator of HDDScan) [HDD from Inside: Hard Drive Main Parts](https://hddscan.com/doc/HDD_from_inside.html)
-- Artem Rubtsov (creator of HDDScan) [HDD inside: Tracks and Zones](https://hddscan.com/doc/HDD_Tracks_and_Zones.html)
+- Artem Rubtsov (creator of HDDScan) [HDD from Inside: Hard Drive Main Parts](https://hddscan.com/doc/HDD_from_inside.html)   [HDD inside: Tracks and Zones](https://hddscan.com/doc/HDD_Tracks_and_Zones.html)
 - [Bit Banging a 3.5" Floppy Drive](https://floppy.cafe/)
 ### Patents
 - [US3794987 Mfm readout with assymetrical data window](https://patents.google.com/patent/US3794987)
@@ -1260,11 +944,11 @@ Now try CRC32-CCSDS x32 + x23 + x21 + x11 + x2 + 1
 - [WD42C22A Winchester Disk Subsystem Controller (MFM/RLL/NRZ)](https://www.ardent-tool.com/datasheets/WD_WD42C22A.pdf)
 - [WD50C12 Winchester Disk Controller (MFM/RLL/NRZ)](https://bitsavers.org/components/westernDigital/_dataSheets/WD50C12_Winchester_Disk_Controller_198803.pdf)
 - [Adaptec AIC-270 2,7 RLL Endec](http://www.bitsavers.org/pdf/adaptec/asic/AIC-270_RLL_Encoder_Decoder.pdf)
-- AIC-6225 33-Mbit/second (1,7 RLL) Data Separator. Datasheet missing.
+- Adaptec AIC-6225 33-Mbit/second (1,7 RLL) Data Separator. Datasheet missing.
 - [Adaptec AIC-6060 Storage Controller](http://www.bitsavers.org/pdf/adaptec/asic/AIC-6060_brochure.pdf) pin and function compatible with Cirrus Logic CL-SH260
 - [Cirrus Logic CL-SH260](https://bitsavers.org/components/cirrusLogic/_dataSheets/CL-SH260_Enhanced_PC_XT-AT_Disk_Controller_Jan1991.pdf)
+- [SSI 32D534 Data Synchronizer/MFM Endec in 1989_Silicon_Systems_Microperipheral_Products](https://bitsavers.trailing-edge.com/components/siliconSystems/_dataBooks/1989_Silicon_Systems_Microperipheral_Products.pdf) (page 271)
 - [SSI 32D5321/5322, 32D535/5351, 32D5362 2,7 RLL Endec](https://bitsavers.org/pdf/maxtor/ata/1990_7080AT/data_synchronizer_appnote.pdf)
-- [SSI 32D534 Data Synchronizer/MFM ENDEC in 1989_Silicon_Systems_Microperipheral_Products](https://bitsavers.trailing-edge.com/components/siliconSystems/_dataBooks/1989_Silicon_Systems_Microperipheral_Products.pdf) (page 271)
 - [National Semiconductor DP8463B 2,7 RLL Endec](https://ftpmirror.your.org/pub/misc/bitsavers/components/national/_dataBooks/1989_National_Mass_Storage_Handbook/1989_Mass_Storage_Handbook_02.pdf) (2-85)
 - [OMTI 5070 MFM Data Seperator](http://www.bitsavers.org/pdf/sms/asic/OMTI_5070_Encode_Decode_May84.pdf)
 - [OMTI 5027C 2,7 RLL Endec](https://theretroweb.com/chip/documentation/omti-5027c-rll-vco-encode-decode-dec86-68d1200a21030170193849.pdf)
@@ -1276,6 +960,7 @@ Now try CRC32-CCSDS x32 + x23 + x21 + x11 + x2 + 1
 WD1003V versions have 2KB buffer, WD1006V 8KB. Afaik MM1/2 and SM1/2 is same base hardware with minor component configuration differences (crystals). SR1/2 adds Option ROM with shadowing SRAM and most likely different microcontroller firmware for RLL support. The only reason those MM/SM models didnt support RLL was WD playing market segmentation games.
 ### Miscellaneous
 - Herb Johnson ["Classic" hard drives: controllers, cabinets, disks, docs & hints](https://www.retrotechnology.com/herbs_stuff/s_hard.html)
+- [Arnold0 - Arnlol Youtube channel](https://www.youtube.com/@arnlol/videos) Retro hard drives collector. Tons of videos showing tests, internals and impressive hardware fixes like swapping heads and platters!
 - [Help with HDD data encoding puzzle: RLL or ... what? (Iomega Alpha-10 / 10H / 20  proprietary RLL(1,8) 2/3 RLLC)](https://forum.vcfed.org/index.php?threads/help-with-hdd-data-encoding-puzzle-rll-or-what.1250316/)
 ### Emulation
 - David Gesswein [BeagleBone based MFM Hard Disk Reader/Emulator](https://www.pdp8online.com/mfm/)/[github](https://github.com/dgesswein/mfm)
@@ -1296,10 +981,8 @@ Full [Changelog](doc/changelog.md). Biggest changes from original:
 * Modern PulseView and sigrok-cli fixes
 * DSView support
 * Hard drives, 32 bit CRC, 48/56 bit ECC, custom polynomials
-* Extra and suppress channels optional
-* Reworked report generation
 * New PI Loop Filter based PLL Decoder
-* Flexible custom encoder mode with live GUI control
+* Flexible `custom` mode with live GUI controls allowing decoding new formats without touching the code.
 * RLL support
 
 <hr>
