@@ -114,13 +114,13 @@ class Decoder(srd.Decoder):
 			'default': '4', 'values': ('3', '4')},
 		{'id': 'sector_size', 'desc': 'Sector payload length in bytes',
 			'default': '512', 'values': ('128', '256', '512', '1024')},
-		{'id': 'header_crc_bits', 'desc': 'Header field CRC bits',
+		{'id': 'header_crc_size', 'desc': 'Header field CRC bits',
 			'default': '16', 'values': ('16', '32')},
 		{'id': 'header_crc_poly', 'desc': 'Header field CRC Polynomial',
 			'default': '0x1021'},
 		{'id': 'header_crc_init', 'desc': 'Header field CRC init',
 			'default': '0xffffffff'},
-		{'id': 'data_crc_bits', 'desc': 'Data field CRC bits',
+		{'id': 'data_crc_size', 'desc': 'Data field CRC bits',
 			'default': '32', 'values': ('16', '32', '48', '56')},
 		{'id': 'data_crc_poly', 'desc': 'Data field CRC Polynomial',
 			'default': '0xA00805', 'values': ('0x1021', '0xA00805', '0x140a0445',
@@ -536,14 +536,14 @@ class Decoder(srd.Decoder):
 		self.encoding = getattr(coding, self.options['encoding'])
 		self.sector_size = int(self.options['sector_size'])
 		self.header_size = int(self.options['header_size'])
-		self.header_crc_bits = int(self.options['header_crc_bits'])
-		self.header_crc_bytes = self.header_crc_bits // 8
-		self.header_crc_mask = (1 << self.header_crc_bits) -1
+		self.header_crc_size = int(self.options['header_crc_size'])
+		self.header_crc_bytes = self.header_crc_size // 8
+		self.header_crc_mask = (1 << self.header_crc_size) -1
 		self.header_crc_poly = int(self.options['header_crc_poly'], 0) & self.header_crc_mask
 		self.header_crc_init = int(self.options['header_crc_init'], 0) & self.header_crc_mask
-		self.data_crc_bits = int(self.options['data_crc_bits'])
-		self.data_crc_bytes = self.data_crc_bits // 8
-		self.data_crc_mask = (1 << self.data_crc_bits) -1
+		self.data_crc_size = int(self.options['data_crc_size'])
+		self.data_crc_bytes = self.data_crc_size // 8
+		self.data_crc_mask = (1 << self.data_crc_size) -1
 		self.data_crc_poly = int(self.options['data_crc_poly'], 0)
 		self.data_crc_init = int(self.options['data_crc_init'], 0) & self.data_crc_mask
 		if self.options['data_crc_poly_custom']:
@@ -754,15 +754,12 @@ class Decoder(srd.Decoder):
 			self.shift_byte = (self.shift_byte + (self.shift_byte >> 1)) & 0x3333 # compress pairs
 			self.shift_byte = (self.shift_byte + (self.shift_byte >> 2)) & 0x0F0F # compress nibbles
 			self.shift_byte = (self.shift_byte + (self.shift_byte >> 4)) & 0x00FF # final packed byte
-			return True
-			#Python 3.4.0
-			#Bitwise (original) : 311724.45 MiB/s
-			#SWAR version       : 400735.35 MiB/s
-			#Python 3.14.0
-			#Bitwise (original) : 811854.90 MiB/s
-			#SWAR version       : 967892.72 MiB/s
-			#self.shift_index -= 16
-			#self.shift_byte = (self.shift >> self.shift_index) & 0xffff
+			# Python 3.4.0
+			#	Bitwise (original) : 311724.45 MiB/s
+			#	SWAR version       : 400735.35 MiB/s
+			# Python 3.14.0
+			#	Bitwise (original) : 811854.90 MiB/s
+			#	SWAR version       : 967892.72 MiB/s
 			#self.shift_byte = ((self.shift_byte & 0b100000000000000) >> 7) \
 			#				+ ((self.shift_byte & 0b1000000000000) >> 6) \
 			#				+ ((self.shift_byte & 0b10000000000) >> 5) \
@@ -771,6 +768,7 @@ class Decoder(srd.Decoder):
 			#				+ ((self.shift_byte & 0b10000) >> 2) \
 			#				+ ((self.shift_byte & 0b100) >> 1) \
 			#				+ (self.shift_byte & 1)
+			return True
 
 		def rll_decode(self):
 			RLL_TABLE = self.codemap
@@ -986,10 +984,10 @@ class Decoder(srd.Decoder):
 	# ------------------------------------------------------------------------
 
 	def calculate_crc_header(self, bytearray):
-		self.calculate_crc(bytearray, self.header_crc_init, self.header_crc_bits, self.header_crc_mask, self.header_crc_poly)
+		self.calculate_crc(bytearray, self.header_crc_init, self.header_crc_size, self.header_crc_mask, self.header_crc_poly)
 
 	def calculate_crc_data(self, bytearray):
-		self.calculate_crc(bytearray, self.data_crc_init, self.data_crc_bits, self.data_crc_mask, self.data_crc_poly)
+		self.calculate_crc(bytearray, self.data_crc_init, self.data_crc_size, self.data_crc_mask, self.data_crc_poly)
 
 	def calculate_crc(self, bytearray, crc_accum, crc_bits, crc_mask, crc_poly):
 		crc_offset = crc_bits - 8

@@ -97,7 +97,7 @@ Huge thanks to Al Kossow for providing majority of the [samples hosted by bitsav
 `sector_size` Sector payload length in bytes.  
 **Default**: `512` **Values**: `128`, `256`, `512`, `1024`
 
-`header_crc_bits` Header field CRC size in bits.  
+`header_crc_size` Header field CRC size in bits.  
 **Default**: `16` **Values**: `16`, `32`
 
 `header_crc_poly` Polynomial used in Header field CRC calculation. Default is the standard CRC-CCITT polynomial (x16 + x12 + x5 + 1).  
@@ -106,7 +106,7 @@ Huge thanks to Al Kossow for providing majority of the [samples hosted by bitsav
 `header_crc_init` Initial value for Header field CRC calculation.  
 **Default**: `0xffffffff`
 
-`data_crc_bits` Data field CRC size in bits.  
+`data_crc_size` Data field CRC size in bits.  
 **Default**: `32` **Values**: `16`, `32`, `48`, `56`
 
 `data_crc_poly` Polynomial used in Data field CRC calculation.  
@@ -771,7 +771,7 @@ Report of the first 17 sectors:
 mfm-1: Summary: IAM=0, IDAM=17, DAM=17, DDAM=0, CRC_OK=34, CRC_err=0, EiPW=0, CkEr=0, OoTI=13/74987
 </pre>  
 
-<details><summary>Show all fields:<br><code>sigrok-cli -D -i fdd_fm.sr -P mfm:data_rate=125000:encoding=FM:data_crc_bits=16:data_crc_poly=0x1021:sector_size=256 -A mfm=fields</code></summary>  
+<details><summary>Show all fields:<br><code>sigrok-cli -D -i fdd_fm.sr -P mfm:data_rate=125000:encoding=FM:data_crc_size=16:data_crc_poly=0x1021:sector_size=256 -A mfm=fields</code></summary>  
 <pre>
 mfm-1: Sync pattern 6 bytes
 mfm-1: ID Address Mark
@@ -998,9 +998,9 @@ Full [Changelog](doc/changelog.md). Biggest changes from original:
     - [ ] `auto` sect_len mode using Sector length value from the Header
     - [ ] `auto` header_bytes detection
     - [ ] `auto` CRC modes
-		- [ ] `auto` header_crc_bits detection
+		- [ ] `auto` header_crc_size detection
 		- [ ] `auto` header_crc_poly/header_crc_init detection
-		- [ ] `auto` data_crc_bits detection
+		- [ ] `auto` data_crc_size detection
 		- [ ] `auto` data_crc_poly/data_crc_init detection
     - [ ] `auto` encoding detection - this is a BIG one
 - [ ] Rename Errors annotation field to more general Status
