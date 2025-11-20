@@ -931,7 +931,7 @@ class Decoder(srd.Decoder):
 				# scan for start of sync mark
 				else:
 					#print_('scanning_sync_mark', self.sync_sequence_try, self.last_samplenum)
-					pulse_match = False
+					partial_sync_marks_match = False
 					self.shift_index = self.encoding_current.shift_index
 					# let user define just one common shift_index for all the marks
 					# we will automagically duplicate it here
@@ -943,7 +943,7 @@ class Decoder(srd.Decoder):
 						#print_('scanning_sync_mark_', sequence_number, self.sync_sequence_try)
 						if self.sync_sequence_try + [self.halfbit_cells] == self.sync_marks[sequence_number][:len(self.sync_sequence_try) + 1]:
 							# partial sync_marks match
-							pulse_match = True
+							partial_sync_marks_match = True
 							self.sync_sequence_try += [self.halfbit_cells]
 							if self.sync_sequence_try == self.sync_marks[sequence_number]:
 								self.state = PLLstate.decoding
@@ -951,26 +951,21 @@ class Decoder(srd.Decoder):
 								print_('pll byte_synced', self.last_samplenum)
 							break
 
-					if not pulse_match:
+					if not partial_sync_marks_match:
 						self.reset_pll()
 						return False
 
-					# sync_marks is matched at this point
-
-					# rewrite RLL mark, this illegal sequence should only ever show up in RLL marks
-					# We rewrite it so rll_decode() doesnt choke on it.
-					if self.encoding == coding.RLL_OMTI:
-						# OMTI special rule "At SAM time a 2 of 7 pattern is searched for
-						# consisting of a nrz 62 with a pulse one clock delayed."
-						if self.shift & 0x7FFF == 0b100000001001001:
-							print_('RLL_OMTI rewrite mark', bin(self.shift)[1:], bin(self.shift ^ (1 << 7))[1:])
-							self.shift = self.shift ^ (1 << 6)
-							self.shift = self.shift ^ (1 << 7)
-					elif self.limits_key == coding.RLL:
-						# other RLL use common rule
-						if self.shift & 0xFFF == 0b100000001001:
-							print_('RLL rewrite mark', bin(self.shift)[1:], bin(self.shift ^ (1 << 7))[1:])
-							self.shift = self.shift ^ (1 << 7)
+					# Partial sync_marks match at this point
+					# if RLL then scan for illegal sequence to rewrite. We rewrite it so rll_decode() doesnt choke on it.
+					if self.halfbit_cells == 8 and self.limits_key == coding.RLL:
+						if self.encoding == coding.RLL_OMTI:
+							# OMTI special rule "At SAM time a 2 of 7 pattern is searched for
+							# consisting of a nrz 62 with a pulse one clock delayed."
+							#print_('RLL_OMTI rewrite mark', bin(self.shift)[1:], bin(self.shift ^ (1 << 7))[1:])
+							self.shift = self.shift ^ 3
+						else:
+							#print_('RLL rewrite mark', bin(self.shift)[1:], bin(self.shift ^ (1 << 7))[1:])
+							self.shift = self.shift ^ 16
 
 			if self.state == PLLstate.decoding:
 				# accumulate at least 16 bits, only return 16 bits at a time.
