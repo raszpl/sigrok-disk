@@ -711,7 +711,7 @@ class Decoder(srd.Decoder):
 			self.halfbit_cells = 0
 			self.integrator = 0.0
 			self.sync_lock_count = 0
-			self.sync_sequence_try = []
+			self.sync_marks_try = []
 			self.unsync_after_decode = False
 			self.sync_start = None
 			self.shift = 0xfffff
@@ -741,7 +741,7 @@ class Decoder(srd.Decoder):
 
 			self.state = PLLstate.locking
 			self.sync_lock_count = 0
-			self.sync_sequence_try = []
+			self.sync_marks_try = []
 			self.unsync_after_decode = False
 			self.sync_start = None
 			self.shift = 0xfffff
@@ -930,21 +930,21 @@ class Decoder(srd.Decoder):
 
 			if self.state == PLLstate.scanning_sync_mark:
 				# just another sync pulse
-				if not self.sync_sequence_try and self.halfbit_cells == self.sync_pulse:
+				if not self.sync_marks_try and self.halfbit_cells == self.sync_pulse:
 					self.sync_lock_count += 1
 
 				# scan for start of sync mark
 				else:
-					#print_('scanning_sync_mark', self.sync_sequence_try, self.last_samplenum)
+					#print_('scanning_sync_mark', self.sync_marks_try, self.last_samplenum)
 					partial_sync_marks_match = False
 					self.shift_index = self.encoding_current.shift_index
 					for sequence_number in range (0, self.sync_marks_len):
-						#print_('scanning_sync_mark_', sequence_number, self.sync_sequence_try)
-						if self.sync_sequence_try + [self.halfbit_cells] == self.sync_marks[sequence_number][:len(self.sync_sequence_try) + 1]:
+						#print_('scanning_sync_mark_', sequence_number, self.sync_marks_try)
+						if self.sync_marks_try + [self.halfbit_cells] == self.sync_marks[sequence_number][:len(self.sync_marks_try) + 1]:
 							# partial sync_marks match
 							partial_sync_marks_match = True
-							self.sync_sequence_try += [self.halfbit_cells]
-							if self.sync_sequence_try == self.sync_marks[sequence_number]:
+							self.sync_marks_try += [self.halfbit_cells]
+							if self.sync_marks_try == self.sync_marks[sequence_number]:
 								# full sync_marks match
 								self.state = PLLstate.decoding
 								self.shift_index = self.shift_index[sequence_number]
