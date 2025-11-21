@@ -640,7 +640,7 @@ class Decoder(srd.Decoder):
 			encoding_current['shift_index'] = encoding_current['shift_index'] * len(encoding_current['sync_marks'])
 		elif len(encoding_current['sync_marks']) != len(encoding_current['shift_index']):
 			raise raise_exception('Mistmatched number of shift_index defined. Requires either one common or equal number to sync_marks variants.')
-		
+
 		self.encoding_current = SimpleNamespace(**encoding_current)
 
 	# ------------------------------------------------------------------------
@@ -763,11 +763,11 @@ class Decoder(srd.Decoder):
 			self.shift_byte = (self.shift_byte + (self.shift_byte >> 2)) & 0x0F0F # compress nibbles
 			self.shift_byte = (self.shift_byte + (self.shift_byte >> 4)) & 0x00FF # final packed byte
 			# Python 3.4.0
-			#	Bitwise (original) : 311724.45 MiB/s
-			#	SWAR version       : 400735.35 MiB/s
+			#	Bitwise (original)	: 311724.45 MiB/s
+			#	SWAR version		: 400735.35 MiB/s
 			# Python 3.14.0
-			#	Bitwise (original) : 811854.90 MiB/s
-			#	SWAR version       : 967892.72 MiB/s
+			#	Bitwise (original)	: 811854.90 MiB/s
+			#	SWAR version		: 967892.72 MiB/s
 			#self.shift_byte = ((self.shift_byte & 0b100000000000000) >> 7) \
 			#				+ ((self.shift_byte & 0b1000000000000) >> 6) \
 			#				+ ((self.shift_byte & 0b10000000000) >> 5) \
@@ -1315,8 +1315,8 @@ class Decoder(srd.Decoder):
 	# ------------------------------------------------------------------------
 	# PURPOSE: State machine to process one byte extracted from pulse stream.
 	# IN: val
-	# RETURNS: True  = OK, get next byte
-	#		   False = start of Gap or error, resync
+	# OUT: True		= OK, get next byte
+	#	   False	= start of Gap or error, resync
 	# ------------------------------------------------------------------------
 
 	def process_byte(self, val):
