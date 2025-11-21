@@ -25,6 +25,7 @@
 
 import sigrokdecode as srd
 from array import *
+from copy import deepcopy
 from types import SimpleNamespace
 # ----------------------------------------------------------------------------
 # Warning: Python 3.4 Enums are EXTREMELY SLOW. It's been "fixed" in Python 3.5
@@ -385,10 +386,9 @@ class Decoder(srd.Decoder):
 	# codemap: code translation map
 	# sync_pulse: anything other halts PLLstate.locking phase and triggers reset_pll()
 	# sync_marks: used by PLLstate.scanning_sync_mark
-	# shift_index: every sync_mark entry has its own offset defining number of valid halfbit windows
-	#  already shifted in (minus last entry because PLLstate.decoding adds self.halfbit_cells) at the
-	#  moment of PLLstate.scanning_sync_mark mathing whole sync_marks. Define one common value or
-	#  provide list of values for every sync_marks entry.
+	# shift_index: every sync_mark entry has its own offset defining number of valid
+	#	halfbit windows already shifted in when sync_marks is matched. Define one common
+	#	value or provide list of values for every sync_marks entry.
 	# IDData_mark: replaces A1
 	# ID_mark: skip straight to decoding Header
 	# Data_mark: skip straight to decoding Data
@@ -400,7 +400,7 @@ class Decoder(srd.Decoder):
 			'codemap_key': coding.FM_MFM,
 			'sync_pulse': 2,
 			'sync_marks': [[1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 2], [1, 1, 1, 2, 2, 2, 1, 2, 1, 1, 1], [1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 2, 2]],
-			'shift_index': [15],
+			'shift_index': [17],
 			'ID_mark': [0xFE],
 			'Data_mark': [0xFB]
 		},
@@ -409,7 +409,7 @@ class Decoder(srd.Decoder):
 			'codemap_key': coding.FM_MFM,
 			'sync_pulse': 2,
 			'sync_marks': [[3, 4, 3, 4, 3], [3, 2, 3, 4, 3, 4]],
-			'shift_index': [13, 14],
+			'shift_index': [16, 18],
 			'IDData_mark': [0xA1]
 		},
 		# Seagate ST11M/21M
@@ -417,7 +417,7 @@ class Decoder(srd.Decoder):
 			'limits_key': coding.RLL,
 			'codemap_key': coding.RLL_IBM,
 			'sync_pulse': 3,
-			'sync_marks': [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4]],
+			'sync_marks': [[4, 3, 8, 3], [5, 6, 8, 3]],
 			'shift_index': [18],
 			'IDData_mark': [0xA1],
 			'ID_prefix_mark': [0x1E],
@@ -428,7 +428,7 @@ class Decoder(srd.Decoder):
 			'limits_key': coding.RLL,
 			'codemap_key': coding.RLL_IBM,
 			'sync_pulse': 3,
-			'sync_marks': [[4, 3, 8, 3, 4], [5, 6, 8, 3, 4], [8, 3, 4]],
+			'sync_marks': [[4, 3, 8, 3], [5, 6, 8, 3], [8, 3]],
 			'shift_index': [18],
 			'ID_mark': [0xA1],
 			'Data_mark': [0xA0],
@@ -438,7 +438,7 @@ class Decoder(srd.Decoder):
 			'limits_key': coding.RLL,
 			'codemap_key': coding.RLL_WD,
 			'sync_pulse': 3,
-			'sync_marks': [[8, 3, 5], [5, 8, 3, 5], [7, 8, 3, 5]],
+			'sync_marks': [[8, 3], [5, 8, 3], [7, 8, 3]],
 			'shift_index': [12],
 			'IDData_mark': [0xF0],
 		},
@@ -448,7 +448,7 @@ class Decoder(srd.Decoder):
 			'codemap_key': coding.RLL_IBM,
 			'sync_pulse': 4,
 			'sync_marks': [[6, 8, 3, 3], [5, 3, 8, 3, 3]],
-			'shift_index': [14],
+			'shift_index': [17],
 			'IDData_mark': [0x62],
 		},
 		# PLACEHOLDER! Weird format, almost as if it uses custom decoding_codemap? are those sync marks ESDI like?
@@ -458,7 +458,7 @@ class Decoder(srd.Decoder):
 			'codemap_key': coding.RLL_WD,
 			'sync_pulse': 4,
 			'sync_marks': [[5, 4, 4, 4, 4, 3, 8]],
-			'shift_index': [33],
+			'shift_index': [41],
 			'ID_mark': [0x49, 0x4a, 0x46, 0x4b],
 			'Data_mark': [0x0d,7,0x81],
 			'nop_mark': '*',
@@ -628,7 +628,9 @@ class Decoder(srd.Decoder):
 				'ID_prefix_mark':	[],
 				'nop_mark':			[],
 			}
-			encoding_current.update(self.encoding_table[self.encoding])
+			encoding_current.update(deepcopy(self.encoding_table[self.encoding]))
+			if '*' in encoding_current['nop_mark']:
+				encoding_current['nop_mark'] = helper_mock_all()
 
 		encoding_current['limits'] = self.encoding_limits[encoding_current['limits_key']]
 		encoding_current['codemap'] = self.decoding_codemap[encoding_current['codemap_key']]
@@ -636,13 +638,17 @@ class Decoder(srd.Decoder):
 		
 		# Let user define just one common shift_index for all sync_marks.
 		# Detect this case and automagically populate matching number of slots.
+		# Correct offset by subtracting last sync_marks pulse because PLLstate.decoding
+		# adds self.halfbit_cells before processing byte.
 		if len(encoding_current['shift_index']) == 1:
-			encoding_current['shift_index'] = encoding_current['shift_index'] * len(encoding_current['sync_marks'])
+			encoding_current['shift_index'] = [encoding_current['shift_index'][0] - encoding_current['sync_marks'][0][-1]] * len(encoding_current['sync_marks'])
 		elif len(encoding_current['sync_marks']) != len(encoding_current['shift_index']):
 			raise raise_exception('Mistmatched number of shift_index defined. Requires either one common or equal number to sync_marks variants.')
+		else:
+			for i in range (0, len(encoding_current['sync_marks'])):
+				encoding_current['shift_index'][i] = encoding_current['shift_index'][i] - encoding_current['sync_marks'][i][-1]
 
 		self.encoding_current = SimpleNamespace(**encoding_current)
-
 	# ------------------------------------------------------------------------
 	# PURPOSE: Get the data sample rate entered by the user.
 	# ------------------------------------------------------------------------
