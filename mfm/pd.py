@@ -114,7 +114,7 @@ class Decoder(srd.Decoder):
 		{'id': 'header_size', 'desc': 'Header payload length in bytes',
 			'default': '4', 'values': ('3', '4')},
 		{'id': 'sector_size', 'desc': 'Sector payload length in bytes',
-			'default': '512', 'values': ('128', '256', '512', '1024')},
+			'default': '512', 'values': ('auto', '128', '256', '512', '1024', '2048', '4096', '8192', '16384')},
 		{'id': 'header_crc_size', 'desc': 'Header field CRC bits',
 			'default': '16', 'values': ('16', '32')},
 		{'id': 'header_crc_poly', 'desc': 'Header field CRC Polynomial',
@@ -534,8 +534,8 @@ class Decoder(srd.Decoder):
 		self.rising_edge = True if self.options['leading_edge'] == 'rising' else False
 		self.data_rate = float(self.options['data_rate'])
 		self.format = getattr(coding, self.options['format'])
-		self.sector_size = int(self.options['sector_size'])
-		self.sector_size_auto = False
+		self.sector_size = 0 if self.options['sector_size'] == 'auto' else int(self.options['sector_size'])
+		self.sector_size_auto = True if self.options['sector_size'] == 'auto' else False
 		self.header_size = int(self.options['header_size'])
 		self.header_crc_size = int(self.options['header_crc_size'])
 		self.header_crc_bytes = self.header_crc_size // 8
@@ -1275,11 +1275,11 @@ class Decoder(srd.Decoder):
 			self.decode_id_rec_4byte(IDrec)
 
 	def decode_id_rec_3byte(self, IDrec):
-		for fld_code,val in enumerate(IDrec):	
-			if i == 0:
+		for fld_code, val in enumerate(IDrec):
+			if fld_code == 0:
 				if self.IDmark == []:
 					raise raise_exception('decode_id_rec_3byte: Cant have empty IDmark here, most likely wrong Encoding selected')
-				msb = self.IDmark[0] ^ 0xFE
+				msb = (self.IDmark[0] ^ 0xE) & 0x0F
 				# val holds Cylinder Number Low
 				# IDmark encodes 3 bits of Cylinder Number High
 				# IDmark & 0b0001 = 9th bit
@@ -1288,22 +1288,13 @@ class Decoder(srd.Decoder):
 				self.IDcyl = val + ((msb & 0b11) << 8) + ((msb & 0b1000) << 7)
 			elif fld_code == 1:
 				self.IDsid = val & 0x0F
-				self.IDlenc = 512
-				if val & 0xF0 == 0:
-					self.IDlenv = 128
-				elif val & 0xF0 == 0x10:
-					self.IDlenv = 256
-				elif val & 0xF0 == 0x20:
-					self.IDlenv = 512
-				elif val & 0xF0 == 0x30:
-					self.IDlenv = 1024
-				else:
-					self.IDlenv = 0
+				self.IDlenc = val >> 4
+				self.IDlenv = 128 << (self.IDlenc & 3)
 			elif fld_code == 2:
 				self.IDsec = val
 
 	def decode_id_rec_4byte(self, IDrec):
-		for fld_code,val in enumerate(IDrec):
+		for fld_code, val in enumerate(IDrec):
 			if fld_code == 0:
 				self.IDcyl = val
 			elif fld_code == 1:
@@ -1312,16 +1303,7 @@ class Decoder(srd.Decoder):
 				self.IDsec = val
 			elif fld_code == 3:
 				self.IDlenc = val
-				if val == 0:
-					self.IDlenv = 128
-				elif val == 1:
-					self.IDlenv = 256
-				elif val == 2:
-					self.IDlenv = 512
-				elif val == 3:
-					self.IDlenv = 1024
-				else:
-					self.IDlenv = 0
+				self.IDlenv = 128 << (val & 3)
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: State machine to process one byte extracted from pulse stream.
