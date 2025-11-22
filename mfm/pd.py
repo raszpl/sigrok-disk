@@ -650,6 +650,7 @@ class Decoder(srd.Decoder):
 				encoding_current['shift_index'][i] = encoding_current['shift_index'][i] - encoding_current['sync_marks'][i][-1]
 
 		self.encoding_current = SimpleNamespace(**encoding_current)
+
 	# ------------------------------------------------------------------------
 	# PURPOSE: Get the data sample rate entered by the user.
 	# ------------------------------------------------------------------------
