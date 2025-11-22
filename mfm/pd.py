@@ -490,8 +490,8 @@ class Decoder(srd.Decoder):
 		self.IDlenc = 0				# sector length code field in ID record (0..3)
 		self.IDlenv = 0				# sector length (from code field) in ID record (128/256/512/1024)
 
-		self.IDrec = array('B', [0 for _ in range(8)])		# ID record (7-8 bytes)
-		self.DRrec = array('B', [0 for _ in range(1024)])	# Data record (128/256/512/1024 bytes)
+		self.IDrec = [0] * 4		# ID record (7-8 bytes)
+		self.DRrec = [0] * 16384	# Data record (128/256/512/1024 bytes)
 
 		# Define and zero statistics counters.
 		self.IAMs	= 0				# number of Index Marks
@@ -990,22 +990,29 @@ class Decoder(srd.Decoder):
 	# OUT: self.crc_accum updated
 	# ------------------------------------------------------------------------
 
-	def calculate_crc_header(self, bytearray):
-		self.calculate_crc(bytearray, self.header_crc_init, self.header_crc_size, self.header_crc_mask, self.header_crc_poly)
+	def calculate_crc_header(self, all_arrays, last_array_size):
+		self.calculate_crc(all_arrays, last_array_size, self.header_crc_init, self.header_crc_size, self.header_crc_mask, self.header_crc_poly)
 
-	def calculate_crc_data(self, bytearray):
-		self.calculate_crc(bytearray, self.data_crc_init, self.data_crc_size, self.data_crc_mask, self.data_crc_poly)
+	def calculate_crc_data(self, all_arrays, last_array_size):
+		self.calculate_crc(all_arrays, last_array_size, self.data_crc_init, self.data_crc_size, self.data_crc_mask, self.data_crc_poly)
 
-	def calculate_crc(self, bytearray, crc_accum, crc_bits, crc_mask, crc_poly):
+	def calculate_crc(self, all_arrays, last_array_size, crc_accum, crc_bits, crc_mask, crc_poly):
 		crc_offset = crc_bits - 8
 		crc_shift = 1 << (crc_bits -1)
-		for byte in bytearray:
-			crc_accum = (crc_accum ^ (byte << crc_offset)) & crc_mask
-			for i in range(8):
-				check = crc_accum & crc_shift
-				crc_accum = (crc_accum << 1) & crc_mask
-				if check:
-					crc_accum = crc_accum ^ crc_poly
+
+		for arr in all_arrays:
+			limit = last_array_size
+			for byte in arr:
+				crc_accum = (crc_accum ^ (byte << crc_offset)) & crc_mask
+				for i in range(8):
+					check = crc_accum & crc_shift
+					crc_accum = (crc_accum << 1) & crc_mask
+					if check:
+						crc_accum = crc_accum ^ crc_poly
+
+				limit -=1
+				if limit == 0:
+					break
 
 		self.crc_accum = crc_accum
 
@@ -1393,7 +1400,7 @@ class Decoder(srd.Decoder):
 			self.IDcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc_header(bytes(self.A1 + self.IDmark) + self.IDrec[:self.header_size])
+				self.calculate_crc_header([self.A1, self.IDmark, self.IDrec], self.header_size)
 				if self.crc_accum == self.IDcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1415,7 +1422,7 @@ class Decoder(srd.Decoder):
 			self.DRcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc_data(bytes(self.A1 + self.DRmark) + self.DRrec[:self.sector_size])
+				self.calculate_crc_data([self.A1, self.DRmark, self.DRrec], self.sector_size)
 				if self.crc_accum == self.DRcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1713,7 +1720,7 @@ class Decoder(srd.Decoder):
 			self.IDcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc_header(bytes(self.IDmark) + self.IDrec[:self.header_size])
+				self.calculate_crc_header([self.IDmark, self.IDrec], self.header_size)
 				if self.crc_accum == self.IDcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1745,7 +1752,7 @@ class Decoder(srd.Decoder):
 			self.DRcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc_data(bytes(self.DRmark) + self.DRrec[:self.sector_size])
+				self.calculate_crc_data([self.DRmark, self.DRrec], self.sector_size)
 				if self.crc_accum == self.DRcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1829,7 +1836,7 @@ class Decoder(srd.Decoder):
 			self.IDcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc_header(bytes(self.A1 + self.IDmark) + self.IDrec[:self.header_size])
+				self.calculate_crc_header([self.A1, self.IDmark, self.IDrec], self.header_size)
 				if self.crc_accum == self.IDcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1851,7 +1858,7 @@ class Decoder(srd.Decoder):
 			self.DRcrc += val
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
-				self.calculate_crc_data(bytes(self.A1 + self.DRmark) + self.DRrec[:self.sector_size])
+				self.calculate_crc_data([self.A1, self.DRmark, self.DRrec], self.sector_size)
 				if self.crc_accum == self.DRcrc:
 					self.display_field(field.CRC_Ok)
 				else:
