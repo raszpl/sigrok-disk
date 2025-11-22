@@ -490,8 +490,11 @@ class Decoder(srd.Decoder):
 		self.IDlenc = 0				# sector length code field in ID record (0..3)
 		self.IDlenv = 0				# sector length (from code field) in ID record (128/256/512/1024)
 
-		self.IDrec = [0] * 4		# ID record (7-8 bytes)
-		self.DRrec = [0] * 16384	# Data record (128/256/512/1024 bytes)
+		# Speed difference is a wash, arrays smaller tho.
+		#self.IDrec = [0] * 4		# ID record (7-8 bytes)
+		#self.DRrec = [0] * 16384	# Data record (128/256/512/1024 bytes)
+		self.IDrec = array('B', [0 for _ in range(8)])		# ID record (3-4 bytes)
+		self.DRrec = array('B', [0 for _ in range(16384)])	# Data record (128-16384 bytes)
 
 		# Define and zero statistics counters.
 		self.IAMs	= 0				# number of Index Marks
