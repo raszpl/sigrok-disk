@@ -24,7 +24,7 @@
 ##
 
 import sigrokdecode as srd
-from array import *
+from array import array
 from copy import deepcopy
 from types import SimpleNamespace
 # ----------------------------------------------------------------------------
@@ -109,8 +109,8 @@ class Decoder(srd.Decoder):
 		{'id': 'data_rate', 'desc': 'Data rate (bps)',
 			'default': '5000000', 'values': ('125000', '150000',
 			'250000', '300000', '500000', '5000000', '7500000', '10000000')},
-		{'id': 'encoding', 'desc': 'Encoding',
-			'default': 'MFM', 'values': ('FM', 'MFM', 'RLL_Sea', 'RLL_Adaptec', 'RLL_WD', 'RLL_OMTI', 'custom', 'RLL_DTC7287_unknown')},
+		{'id': 'format', 'desc': 'Encoding format. Pick preset or custom to define your own',
+			'default': 'MFM', 'values': ('FM', 'MFM', 'RLL_Sea', 'RLL_Adaptec', 'RLL_WD', 'RLL_OMTI', 'RLL_DTC7287_unknown', 'custom')},
 		{'id': 'header_size', 'desc': 'Header payload length in bytes',
 			'default': '4', 'values': ('3', '4')},
 		{'id': 'sector_size', 'desc': 'Sector payload length in bytes',
@@ -380,7 +380,7 @@ class Decoder(srd.Decoder):
 	#		'0010':	'00100100'
 	#}
 
-	# encoding_table holds data for configuring process_byte() and SimplePLL State Machines
+	# format_table holds data for configuring process_byte() and SimplePLL State Machines
 	#
 	# limits: pulse widths outside reset PLL
 	# codemap: code translation map
@@ -394,7 +394,7 @@ class Decoder(srd.Decoder):
 	# Data_mark: skip straight to decoding Data
 	# ID_prefix_mark: Header Mark to be followed by IDData_mark
 	# nop_mark: inert mark
-	encoding_table = {
+	format_table = {
 		coding.FM: {
 			'limits_key': coding.FM,
 			'codemap_key': coding.FM_MFM,
@@ -533,7 +533,7 @@ class Decoder(srd.Decoder):
 		# Initialize user options.
 		self.rising_edge = True if self.options['leading_edge'] == 'rising' else False
 		self.data_rate = float(self.options['data_rate'])
-		self.encoding = getattr(coding, self.options['encoding'])
+		self.format = getattr(coding, self.options['format'])
 		self.sector_size = int(self.options['sector_size'])
 		self.header_size = int(self.options['header_size'])
 		self.header_crc_size = int(self.options['header_crc_size'])
@@ -601,8 +601,8 @@ class Decoder(srd.Decoder):
 			s = helper_list_of_lists(s)
 			return s[0] if len(s) == 1 else []
 
-		if self.encoding == coding.custom:
-			encoding_current = {
+		if self.format == coding.custom:
+			format_current = {
 				'limits_key':		{	'FM':	coding.FM,
 										'MFM':	coding.MFM,
 										'RLL':	coding.RLL,
@@ -621,35 +621,35 @@ class Decoder(srd.Decoder):
 				'nop_mark':			helper_list(self.options['custom_encoder_nop_mark'])
 			}
 		else:
-			encoding_current = {
+			format_current = {
 				'IDData_mark':		[],
 				'ID_mark':			[],
 				'Data_mark':		[],
 				'ID_prefix_mark':	[],
 				'nop_mark':			[],
 			}
-			encoding_current.update(deepcopy(self.encoding_table[self.encoding]))
+			format_current.update(deepcopy(self.format_table[self.format]))
 			# Support nop_mark * wildcard for reverse engineering new formats.
-			if '*' in encoding_current['nop_mark']:
-				encoding_current['nop_mark'] = helper_mock_all()
+			if '*' in format_current['nop_mark']:
+				format_current['nop_mark'] = helper_mock_all()
 
-		encoding_current['limits'] = self.encoding_limits[encoding_current['limits_key']]
-		encoding_current['codemap'] = self.decoding_codemap[encoding_current['codemap_key']]
-		encoding_current['coding'] = self.encoding
+		format_current['limits'] = self.encoding_limits[format_current['limits_key']]
+		format_current['codemap'] = self.decoding_codemap[format_current['codemap_key']]
+		format_current['format'] = self.format
 		
 		# Let user define just one common shift_index for all sync_marks.
 		# Detect this case and automagically populate matching number of slots.
 		# Correct offset by subtracting last sync_marks pulse because PLLstate.decoding
 		# adds self.halfbit_cells before processing byte.
-		if len(encoding_current['shift_index']) == 1:
-			encoding_current['shift_index'] = [encoding_current['shift_index'][0] - encoding_current['sync_marks'][0][-1]] * len(encoding_current['sync_marks'])
-		elif len(encoding_current['sync_marks']) != len(encoding_current['shift_index']):
+		if len(format_current['shift_index']) == 1:
+			format_current['shift_index'] = [format_current['shift_index'][0] - format_current['sync_marks'][0][-1]] * len(format_current['sync_marks'])
+		elif len(format_current['sync_marks']) != len(format_current['shift_index']):
 			raise raise_exception('Mistmatched number of shift_index defined. Requires either one common or equal number to sync_marks variants.')
 		else:
-			for i in range (0, len(encoding_current['sync_marks'])):
-				encoding_current['shift_index'][i] = encoding_current['shift_index'][i] - encoding_current['sync_marks'][i][-1]
+			for i in range (0, len(format_current['sync_marks'])):
+				format_current['shift_index'][i] = format_current['shift_index'][i] - format_current['sync_marks'][i][-1]
 
-		self.encoding_current = SimpleNamespace(**encoding_current)
+		self.format_current = SimpleNamespace(**format_current)
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Get the data sample rate entered by the user.
@@ -672,7 +672,7 @@ class Decoder(srd.Decoder):
 			decoding			= 2,
 		)
 
-		def __init__(self, owner, halfbit_ticks, kp, ki, pll_sync_tolerance, encoding_current):
+		def __init__(self, owner, halfbit_ticks, kp, ki, pll_sync_tolerance, format_current):
 			self.owner = owner
 			self.halfbit_nom = halfbit_ticks
 			self.halfbit_nom05 = 0.5 * halfbit_ticks
@@ -680,26 +680,26 @@ class Decoder(srd.Decoder):
 			self.kp = kp
 			self.ki = ki
 
-			self.encoding_current = encoding_current
-			self.encoding = encoding_current.coding
-			self.limits_key = encoding_current.limits_key
-			self.codemap = encoding_current.codemap
-			self.codemap_key = encoding_current.codemap_key
+			self.format_current = format_current
+			self.format = format_current.format
+			self.limits_key = format_current.limits_key
+			self.codemap = format_current.codemap
+			self.codemap_key = format_current.codemap_key
 			self.decode = {
 				coding.FM_MFM: self.fm_mfm_decode,
 				coding.RLL_IBM: self.rll_decode,
 				coding.RLL_WD: self.rll_decode,
 			}[self.codemap_key]
 
-			self.sync_pulse = encoding_current.sync_pulse
+			self.sync_pulse = format_current.sync_pulse
 			# Standard in literature seems to be 16 bit transitions (32 halfbit windows) as enough to lock PLO
 			self.sync_lock_threshold = round(32 / self.sync_pulse)
 			# pll_sync_tolerance: fractional percentage of tolerated deviations during initial PLL sync lock
 			self.pll_sync_tolerance = halfbit_ticks * pll_sync_tolerance
-			self.cells_allowed_min = min(encoding_current.limits)
-			self.cells_allowed_max = max(encoding_current.limits)
+			self.cells_allowed_min = min(format_current.limits)
+			self.cells_allowed_max = max(format_current.limits)
 
-			self.sync_marks = self.encoding_current.sync_marks
+			self.sync_marks = self.format_current.sync_marks
 			self.sync_marks_len = len(self.sync_marks)
 
 			# Ring buffer for storing info on individual halfbit windows, used by annotate_bits()
@@ -833,7 +833,7 @@ class Decoder(srd.Decoder):
 			# edge_samplenum: sample index of rising edge (flux transition)
 			# State Machine with 3 stages:
 			# - PLLstate.locking looks for sync_lock_threshold number of sync_pulse pulses
-			# - PLLstate.scanning_sync_mark keeps scanning for either sync_pulse or self.encoding_current.sync_marks, anything else resets PLL.
+			# - PLLstate.scanning_sync_mark keeps scanning for either sync_pulse or self.format_current.sync_marks, anything else resets PLL.
 			# - PLLstate.decoding
 
 			#print_('pll edge', edge_samplenum, pulse_ticks, '%.4f' % abs(pulse_ticks - 2.0 * self.halfbit), '%.4f' % self.halfbit)
@@ -945,7 +945,7 @@ class Decoder(srd.Decoder):
 				else:
 					#print_('scanning_sync_mark', self.sync_marks_try, self.last_samplenum)
 					partial_sync_marks_match = False
-					self.shift_index = self.encoding_current.shift_index
+					self.shift_index = self.format_current.shift_index
 					for sequence_number in range (0, self.sync_marks_len):
 						#print_('scanning_sync_mark_', sequence_number, self.sync_marks_try)
 						if self.sync_marks_try + [self.halfbit_cells] == self.sync_marks[sequence_number][:len(self.sync_marks_try) + 1]:
@@ -966,7 +966,7 @@ class Decoder(srd.Decoder):
 					# Partial sync_marks match at this point
 					# if RLL then scan for illegal sequence to rewrite. We rewrite it so rll_decode() doesnt choke on it.
 					if self.halfbit_cells == 8 and self.limits_key == coding.RLL:
-						if self.encoding == coding.RLL_OMTI:
+						if self.format == coding.RLL_OMTI:
 							# OMTI special rule "At SAM time a 2 of 7 pattern is searched for
 							# consisting of a nrz 62 with a pulse one clock delayed."
 							#print_('RLL_OMTI rewrite mark', bin(self.shift)[1:], bin(self.shift ^ (1 << 7))[1:])
@@ -1087,8 +1087,8 @@ class Decoder(srd.Decoder):
 
 			#print_(bit_start, win_end, win_val)
 			# Display annotation for bit using value from data window.
-			if (self.encoding == coding.MFM and (shift3 & 0b111) in (0b000, 0b011, 0b110, 0b111)) \
-				or (self.encoding == coding.FM and not (shift3 & 0b10)):
+			if (self.format == coding.MFM and (shift3 & 0b111) in (0b000, 0b011, 0b110, 0b111)) \
+				or (self.format == coding.FM and not (shift3 & 0b10)):
 				if not special_clock:
 					self.put(bit_start, win_end, self.out_ann, message.errorClock)
 					self.CkEr += 1
@@ -1167,7 +1167,7 @@ class Decoder(srd.Decoder):
 	def annotate_byte(self, val, special_clock = False):
 		# Display annotations for bits and windows of this byte.
 		#print_('annotate_bits',hex(val), special_clock)
-		if self.encoding in (coding.FM, coding.MFM):
+		if self.format in (coding.FM, coding.MFM):
 			self.annotate_bits_FM_MFM(special_clock)
 		else:
 			self.annotate_bits_RLL(val, special_clock)
@@ -1208,7 +1208,7 @@ class Decoder(srd.Decoder):
 
 		elif typ == field.Data_Address_Mark:
 			# DDAMs only on ancient FM floppies
-			if self.encoding == coding.FM and self.DRmark[0] in (0xF8, 0xF9, 0xFA):
+			if self.format == coding.FM and self.DRmark[0] in (0xF8, 0xF9, 0xFA):
 				self.DDAMs += 1
 				self.put(self.field_start, self.byte_end, self.out_ann, message.ddam)
 				self.report_last = field.Deleted_Data_Mark
@@ -1331,7 +1331,7 @@ class Decoder(srd.Decoder):
 		if self.pb_state == state.sync_mark:
 			self.annotate_byte(val, special_clock = True)
 			self.display_field(field.Sync)
-			if val in self.encoding_current.IDData_mark:
+			if val in self.format_current.IDData_mark:
 				self.A1 = [0xA1]
 				self.pb_state = state.IDData_Address_Mark
 				if self.IDmark:
@@ -1340,21 +1340,21 @@ class Decoder(srd.Decoder):
 					self.IDcrc = 0
 					self.byte_cnt = self.header_size
 					self.pb_state = state.ID_Record
-			elif val in self.encoding_current.ID_mark:
+			elif val in self.format_current.ID_mark:
 				self.IDmark = [val]
 				self.display_field(field.ID_Address_Mark)
 				self.IDcrc = 0
 				self.byte_cnt = self.header_size
 				self.pb_state = state.ID_Record
-			elif val in self.encoding_current.Data_mark:
+			elif val in self.format_current.Data_mark:
 				self.DRmark = [val]
 				self.display_field(field.Data_Address_Mark)
 				self.DRcrc = 0
 				self.byte_cnt = self.sector_size
 				self.pb_state = state.Data_Record
-			elif val in self.encoding_current.ID_prefix_mark:
+			elif val in self.format_current.ID_prefix_mark:
 				self.IDmark = [val]
-			elif val in self.encoding_current.nop_mark:
+			elif val in self.format_current.nop_mark:
 				pass
 			# FM Index Mark
 			elif val == 0xFC:
@@ -1506,9 +1506,9 @@ class Decoder(srd.Decoder):
 		window_size = bc10N / 2.0	# current half-bit-cell window size (in fractional samples)
 
 		interval = 0				# current interval (in samples, 1..n)
-		cells_allowed = self.encoding_current.limits
+		cells_allowed = self.format_current.limits
 
-		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, kp=self.pll_kp, ki=self.pll_ki, pll_sync_tolerance=self.pll_sync_tolerance, encoding_current=self.encoding_current)
+		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, kp=self.pll_kp, ki=self.pll_ki, pll_sync_tolerance=self.pll_sync_tolerance, format_current=self.format_current)
 
 		# all this pain below to support dynamic Interval/window annotation
 		interval_multi = {
@@ -1650,8 +1650,8 @@ class Decoder(srd.Decoder):
 			# bit for the previous byte has already been displayed previously.
 
 			if bitn < 8:
-				if (self.encoding == coding.MFM and (shift3 == 0 or shift3 == 3 or shift3 == 6 or shift3 == 7)) \
-				 or (self.encoding == coding.FM and (shift3 == 0 or shift3 == 1 or shift3 == 4 or shift3 == 5)):
+				if (self.format == coding.MFM and (shift3 == 0 or shift3 == 3 or shift3 == 6 or shift3 == 7)) \
+				 or (self.format == coding.FM and (shift3 == 0 or shift3 == 1 or shift3 == 4 or shift3 == 5)):
 					if not special_clock:
 						self.put(bit_end - 1, bit_end, self.out_ann, message.error)
 						self.CkEr += 1
@@ -1995,7 +1995,7 @@ class Decoder(srd.Decoder):
 			# Also display leading-edge to leading-edge annotation, showing starting
 			# sample number, and interval in nsec.
 
-			if self.encoding == coding.FM:
+			if self.format == coding.FM:
 				if interval >= bc05L and interval <= bc05U:
 					hbcpi = 1.0
 				elif interval >= bc10L and interval <= bc10U:
@@ -2077,7 +2077,7 @@ class Decoder(srd.Decoder):
 
 				# Display all MFM mC2h and mA1h prefix bytes to help with locating damaged records.
 
-				if self.encoding == coding.MFM and self.dsply_pfx:
+				if self.format == coding.MFM and self.dsply_pfx:
 					if (shift31 & 0xFFFF) == 0x4489:
 						self.put(win_start, win_end, self.out_ann, message.prefixA1)
 					elif (shift31 & 0xFFFF) == 0x5224:
@@ -2096,7 +2096,7 @@ class Decoder(srd.Decoder):
 				if (not byte_sync) and (self.fifo_cnt == 33):
 
 					# Process FM patterns.
-					if self.encoding == coding.FM:
+					if self.format == coding.FM:
 
 						# FM ID Address Mark pattern found.
 						if shift31 == 0x2AAAF57E:	# 00h,mFEh bytes
@@ -2149,7 +2149,7 @@ class Decoder(srd.Decoder):
 					# Process and display (initial) mark pattern.
 					if byte_sync:
 
-						if self.encoding == coding.FM:
+						if self.format == coding.FM:
 							self.process_byteFM_legacy(data_byte)
 						else:
 							self.process_byteMFM_legacy(data_byte)
@@ -2168,7 +2168,7 @@ class Decoder(srd.Decoder):
 					if bit_cnt == 8 and self.fifo_cnt == 17:
 
 						# Process FM byte.
-						if self.encoding == coding.FM:
+						if self.format == coding.FM:
 
 							if self.process_byteFM_legacy(data_byte) == 0:
 								bit_cnt = 0
