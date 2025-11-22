@@ -629,6 +629,7 @@ class Decoder(srd.Decoder):
 				'nop_mark':			[],
 			}
 			encoding_current.update(deepcopy(self.encoding_table[self.encoding]))
+			# Support nop_mark * wildcard for reverse engineering new formats.
 			if '*' in encoding_current['nop_mark']:
 				encoding_current['nop_mark'] = helper_mock_all()
 
