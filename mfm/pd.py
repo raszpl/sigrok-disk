@@ -392,7 +392,7 @@ class Decoder(srd.Decoder):
 	# IDData_mark: replaces A1
 	# ID_mark: skip straight to decoding Header
 	# Data_mark: skip straight to decoding Data
-	# ID_prefix_mark: Header Mark to be followed by IDData_mark
+	# ID_prefix_mark: Overrides the meaning of following IDData_mark to mean ID_mark
 	# nop_mark: inert mark
 	format_table = {
 		coding.FM: {
