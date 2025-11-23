@@ -493,8 +493,10 @@ class Decoder(srd.Decoder):
 		# Speed difference is a wash, arrays smaller tho.
 		#self.IDrec = [0] * 4		# ID record (7-8 bytes)
 		#self.DRrec = [0] * 16384	# Data record (128/256/512/1024 bytes)
-		self.IDrec = array('B', [0 for _ in range(8)])		# ID record (3-4 bytes)
-		self.DRrec = array('B', [0 for _ in range(16384)])	# Data record (128-16384 bytes)
+		#self.IDrec = array('B', [0 for _ in range(8)])		# ID record (3-4 bytes)
+		#self.DRrec = array('B', [0 for _ in range(16384)])	# Data record (128-16384 bytes)
+		self.IDrec = bytearray(4)		# ID record (3-4 bytes)
+		self.DRrec = bytearray(16384)	# Data record (128-16384 bytes)
 
 		# Define and zero statistics counters.
 		self.IAMs	= 0				# number of Index Marks
