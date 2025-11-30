@@ -824,7 +824,7 @@ class Decoder(srd.Decoder):
 							decoded += RLL_TABLE[pattern]
 							i += pattern_length
 							self.shift_index -= pattern_length
-							self.shift_decoded_1 -= pattern_length
+							self.shift_decoded_1 += pattern_length
 							#print_("RLL() decoded:", decoded, 'pattern:', RLL_TABLE[pattern], 'raw:', pattern, 'i', i)
 							matched = True
 							break
@@ -845,7 +845,7 @@ class Decoder(srd.Decoder):
 			#print_('RLL_shift', bin(self.shift)[1:], decoded[:8], self.shift_index, self.shift_decoded_1, self.last_samplenum)
 			self.shift_byte = int(decoded[:8], 2)
 			self.shift_decoded = decoded[8:]
-			self.shift_decoded_1 += 16
+			self.shift_decoded_1 -= 16
 			return True
 
 		def edge(self, edge_samplenum):
@@ -1151,23 +1151,23 @@ class Decoder(srd.Decoder):
 		bit_start = 0			# start of bit (sample number)
 		bit_end = 0				# end of bit (sample number)
 		bitn = 7				# starting bit
-		offset = self.pll.shift_decoded_1 - self.pll.shift_index
+		offset = self.pll.shift_decoded_1 + self.pll.shift_index
 
 		# binary_str is the raw bitstream with overwritten Sync Mark illegal pattern
 		# use it to mark illegal windows/bits
-		shift_win = (self.pll.shift >> (-offset) ) & 0xffff
+		shift_win = (self.pll.shift >> offset) & 0xffff
 		binary_str = bin(shift_win)[2:].zfill(self.pll.shift_index)
 
 		# Initialize self.byte_start with byte_end of last bit of previous byte.
-		_, self.byte_start, _ = self.pll.ring_read_offset(offset - 16)
+		_, self.byte_start, _ = self.pll.ring_read_offset(- offset - 16)
 
 		while bitn >= 0:
-			win_start, win_end, win_val1 = self.pll.ring_read_offset(offset - bitn * 2 - 1)
+			win_start, win_end, win_val1 = self.pll.ring_read_offset(- offset - bitn * 2 - 1)
 			bit_start = win_start
 
 			self.annotate_window(ann.dat, win_start, win_end, win_val1)
 
-			win_start, win_end, win_val2 = self.pll.ring_read_offset(offset - bitn * 2)
+			win_start, win_end, win_val2 = self.pll.ring_read_offset(- offset - bitn * 2)
 
 			self.annotate_window(ann.dat, win_start, win_end, win_val2)
 
