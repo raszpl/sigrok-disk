@@ -1003,7 +1003,7 @@ class Decoder(srd.Decoder):
 				# accumulate at least 16 bits, only return 16 bits at a time.
 				self.shift_index += self.halfbit_cells
 				#print_('pll_shift1', bin(self.shift)[1:], self.shift_index, self.halfbit_cells, self.shift_index +self.halfbit_cells)
-				if self.shift_index >= 16:
+				if self.shift_index + self.shift_decoded_1 >= 16:
 					return self.decode()
 			return False
 
