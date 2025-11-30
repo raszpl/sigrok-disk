@@ -1091,7 +1091,7 @@ class Decoder(srd.Decoder):
 		bit_end = 0				# end of bit (sample number)
 		shift3 = 0				# 3-bit shift register of window values
 		bitn = 7				# starting bit
-		offset = self.pll.shift_decoded_1 - self.pll.shift_index
+		offset = - self.pll.shift_index
 
 		# MFM error checking requires 3 consecutive windows, initialize shift3 with last bit of
 		# previous byte. Initialize self.byte_start with byte_end of last bit of previous byte.
