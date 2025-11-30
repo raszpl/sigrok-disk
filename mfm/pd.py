@@ -764,45 +764,12 @@ class Decoder(srd.Decoder):
 			# Pseudo SWAR, same speed as LUT in python 3.4
 			self.shift_index -= 16
 			self.shift_byte = (self.shift >> self.shift_index) & 0x5555
-			self.shift_byte = (self.shift_byte + (self.shift_byte >> 1)) & 0x3333 # compress pairs
-			self.shift_byte = (self.shift_byte + (self.shift_byte >> 2)) & 0x0F0F # compress nibbles
-			self.shift_byte = (self.shift_byte + (self.shift_byte >> 4)) & 0x00FF # final packed byte
-			# Python 3.4.0
-			#	Bitwise			0.59 MiB/s
-			#	BitwiseAd		0.60 MiB/s
-			#	SWAR			0.77 MiB/s
-			#	LUT				2.38 MiB/s
-			#	array LUT		2.07 MiB/s
-			#	DICK LUT		2.19 MiB/s
-			#	bytearray LUT	2.35 MiB/s
-			# LUT sizes:
-			#	List			 85.37 KiB
-			#	Array			 42.70 KiB
-			#	DICK			  6.05 KiB	+ 22KB keys and values
-			#	bytearray		 21.36 KiB
-
-			# Python 3.14.0
-			#	Bitwise			1.79 MiB/s
-			#	BitwiseAd		1.84 MiB/s
-			#	SWAR			2.45 MiB/s
-			#	LUT				6.67 MiB/s
-			#	array LUT		5.79 MiB/s
-			#	DICK LUT		5.15 MiB/s
-			#	bytearray LUT	6.26 MiB/s
-			# LUT sizes:
-			#	List			170.73 KiB
-			#	Array			 42.75 KiB
-			#	DICK			  9.09 KiB	+ 22KB keys and values
-			#	bytearray		 21.39 KiB
-
-			#self.shift_byte = ((self.shift_byte & 0b100000000000000) >> 7) \
-			#				+ ((self.shift_byte & 0b1000000000000) >> 6) \
-			#				+ ((self.shift_byte & 0b10000000000) >> 5) \
-			#				+ ((self.shift_byte & 0b100000000) >> 4) \
-			#				+ ((self.shift_byte & 0b1000000) >> 3) \
-			#				+ ((self.shift_byte & 0b10000) >> 2) \
-			#				+ ((self.shift_byte & 0b100) >> 1) \
-			#				+ (self.shift_byte & 1)
+			# compress pairs
+			self.shift_byte = (self.shift_byte + (self.shift_byte >> 1)) & 0x3333
+			# compress nibbles
+			self.shift_byte = (self.shift_byte + (self.shift_byte >> 2)) & 0x0F0F
+			# final packed byte
+			self.shift_byte = (self.shift_byte + (self.shift_byte >> 4)) & 0x00FF
 			return True
 
 		def rll_decode(self):
