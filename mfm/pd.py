@@ -1157,7 +1157,6 @@ class Decoder(srd.Decoder):
 		# binary_str is the raw bitstream with overwritten Sync Mark illegal pattern
 		# use it to mark illegal windows/bits
 		shift_win = (self.pll.shift >> offset) & 0xffff
-		binary_str = bin(shift_win)[2:].zfill(self.pll.shift_index)
 
 		# Initialize self.byte_start with byte_end of last bit of previous byte.
 		_, self.byte_start, _ = self.pll.ring_read_offset(- offset - 16)
