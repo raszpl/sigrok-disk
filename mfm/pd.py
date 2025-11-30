@@ -953,7 +953,7 @@ class Decoder(srd.Decoder):
 			y = edge_samplenum + 0.5 * halfbit
 			self.ring_write(int(round(x)), int(round(y)), True)
 
-			self.shift = ((self.shift << self.halfbit_cells) + 1) & 0xffffffffff
+			self.shift = ((self.shift << self.halfbit_cells) + 1) & 0xffffffff
 			#print_('pll_shift', bin(self.shift)[1:], self.halfbit_cells, self.last_samplenum)
 
 			if self.state == PLLstate.scanning_sync_mark:
