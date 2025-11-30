@@ -91,7 +91,8 @@ class Decoder(srd.Decoder):
 
 	global ann
 	# create ann dict directly from annotations
-	ann = type('ann', (), {key: i for i, (key, _) in enumerate(annotations)})()
+	#ann = type('ann', (), {key: i for i, (key, _) in enumerate(annotations)})()
+	ann = SimpleNamespace(**{key: idx for idx, (key, _) in enumerate(annotations)})
 
 	annotation_rows = (
 		('pulses', 'Pulses', (ann.pul, ann.erp,)),
