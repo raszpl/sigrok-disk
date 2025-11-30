@@ -1215,7 +1215,7 @@ class Decoder(srd.Decoder):
 
 	# ------------------------------------------------------------------------
 	# Display an annotation for a field.
-	# IN: typ	Enum field
+	# IN: typ	Enum like field
 	#	  self.field_start, self.byte_end
 	# OUT: self.field_start	updated
 	# ------------------------------------------------------------------------
