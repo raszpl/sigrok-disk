@@ -883,6 +883,7 @@ class Decoder(srd.Decoder):
 						self.sync_start = edge_samplenum - pulse_ticks - round(self.halfbit * 0.5)
 						self.phase_ref = edge_samplenum
 						#print_('sync_start', edge_samplenum - pulse_ticks - round(self.halfbit * 0.5), edge_samplenum, pulse_ticks, round(self.halfbit * 0.5), self.last_samplenum)
+						return False
 					elif self.sync_lock_count >= self.sync_lock_threshold:
 						# seen enough clock pulses, PLL locked in
 						self.state = PLLstate.scanning_sync_mark
@@ -937,7 +938,7 @@ class Decoder(srd.Decoder):
 			if self.halfbit < self.halfbit_nom05:
 				print_('pll -ERRR!!!!!!!!!!!!!!!!!!!!!!!!!!', self.halfbit, self.halfbit_nom, self.halfbit_nom05)
 				self.halfbit = self.halfbit_nom05
-			if self.halfbit > self.halfbit_nom15:
+			elif self.halfbit > self.halfbit_nom15:
 				print_('pll +ERRR!!!!!!!!!!!!!!!!!!!!!!!!!!', self.halfbit, self.halfbit_nom, self.halfbit_nom15)
 				self.halfbit = self.halfbit_nom15
 
