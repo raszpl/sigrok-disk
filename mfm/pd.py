@@ -710,9 +710,7 @@ class Decoder(srd.Decoder):
 			# with safe margin.
 			self.ring_ptr = 0
 			self.ring_size = 255											# in halfbit windows
-			self.ring_ws = array('l', [0 for _ in range(self.ring_size)])	# win_start
-			self.ring_we = array('l', [0 for _ in range(self.ring_size)])	# win_end
-			self.ring_wv = array('l', [0 for _ in range(self.ring_size)])	# value
+			self.ring_wv = [(0, 0, 0) for _ in range(self.ring_size)]
 
 			# PLL state
 			self.state = PLLstate.locking
@@ -735,13 +733,10 @@ class Decoder(srd.Decoder):
 
 		def ring_write(self, win_start, win_end, value):
 			self.ring_ptr = (self.ring_ptr + 1) % self.ring_size
-			self.ring_ws[self.ring_ptr] = win_start
-			self.ring_we[self.ring_ptr] = win_end
-			self.ring_wv[self.ring_ptr] = value
+			self.ring_wv[self.ring_ptr] = (win_start, win_end, value)
 
 		def ring_read_offset(self, offset):
-			rp = (self.ring_ptr + offset) % self.ring_size
-			return self.ring_ws[rp], self.ring_we[rp], self.ring_wv[rp]
+			return self.ring_wv[(self.ring_ptr + offset) % self.ring_size]
 
 		def reset_pll(self):
 			print_('pll reset_pll', self.last_samplenum)
