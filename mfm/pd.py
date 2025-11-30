@@ -724,7 +724,7 @@ class Decoder(srd.Decoder):
 			self.sync_marks_try = []
 			self.unsync_after_decode = False
 			self.sync_start = None
-			self.shift = 0xfffff
+			self.shift = 0
 			self.shift_byte = 0
 			self.shift_decoded = ''
 			self.shift_decoded_1 = 0
@@ -754,7 +754,7 @@ class Decoder(srd.Decoder):
 			self.sync_marks_try = []
 			self.unsync_after_decode = False
 			self.sync_start = None
-			self.shift = 0xfffff
+			self.shift = 0
 			self.shift_decoded = ''
 			self.shift_decoded_1 = 0
 			# reset Decoder variables directly FIXME: mixing contexts is UGLY and bad
