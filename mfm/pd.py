@@ -705,11 +705,11 @@ class Decoder(srd.Decoder):
 			self.sync_marks_len = len(self.sync_marks)
 
 			# Ring buffer for storing info on individual halfbit windows, used by annotate_bits()
-			# We need 16 halfbit windows + whatever the max shift_index is so we can rewind to
+			# We need 16 halfbit windows + max shift_index possible (14+8) so we can rewind to
 			# annotate already shifted data at the moment of Sync Mark match. Hardcoded for now
 			# with safe margin.
 			self.ring_ptr = 0
-			self.ring_size = 255											# in halfbit windows
+			self.ring_size = 40											# in halfbit windows
 			self.ring_wv = [(0, 0, 0) for _ in range(self.ring_size)]
 
 			# PLL state
