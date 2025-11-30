@@ -672,7 +672,7 @@ class Decoder(srd.Decoder):
 			scanning_sync_mark	= 1,
 			decoding			= 2,
 		)
-		__slots__ = ('cells_allowed_max', 'cells_allowed_min', 'code_0b000100', 'code_0b100100', 'decode', 'format', 'format_current', 'halfbit', 'halfbit_cells', 'halfbit_nom', 'halfbit_nom05', 'halfbit_nom15', 'integrator', 'ki', 'kp', 'last_last_samplenum', 'last_samplenum', 'limits_key', 'owner', 'phase_ref', 'pll_sync_tolerance', 'pulse_ticks', 'ring_ptr', 'ring_size', 'ring_we', 'ring_ws', 'ring_wv', 'shift', 'shift_byte', 'shift_decoded', 'shift_decoded_1', 'shift_decodedd', 'shift_decoded_11', 'shift_index', 'state', 'sync_lock_count', 'sync_lock_threshold', 'sync_marks', 'sync_marks_len', 'sync_marks_try', 'sync_pulse', 'sync_start', 'unsync_after_decode', 'codemap', 'codemap_key')
+		__slots__ = ('cells_allowed_max', 'cells_allowed_min', 'code_0b000100', 'code_0b100100', 'decode', 'format', 'format_current', 'halfbit', 'halfbit_cells', 'halfbit_nom', 'halfbit_nom05', 'halfbit_nom15', 'integrator', 'ki', 'kp', 'last_last_samplenum', 'last_samplenum', 'limits_key', 'owner', 'phase_ref', 'pll_sync_tolerance', 'pulse_ticks', 'ring_ptr', 'ring_size', 'ring_we', 'ring_ws', 'ring_wv', 'shift', 'shift_byte', 'shift_decoded', 'shift_decoded_1', 'shift_decoded_s', 'shift_index', 'state', 'sync_lock_count', 'sync_lock_threshold', 'sync_marks', 'sync_marks_len', 'sync_marks_try', 'sync_pulse', 'sync_start', 'unsync_after_decode', 'codemap')
 
 		def __init__(self, owner, halfbit_ticks, kp, ki, pll_sync_tolerance, format_current):
 			self.owner = owner
@@ -686,13 +686,21 @@ class Decoder(srd.Decoder):
 			self.format = format_current.format
 			self.limits_key = format_current.limits_key
 			self.codemap = format_current.codemap
-			self.codemap_key = format_current.codemap_key
+			self.code_0b000100 = {
+				coding.FM_MFM: 0,
+				coding.RLL_IBM: 0,
+				coding.RLL_WD: 2,
+			}[format_current.codemap_key]
+			self.code_0b100100 = {
+				coding.FM_MFM: 0,
+				coding.RLL_IBM: 2,
+				coding.RLL_WD: 0,
+			}[format_current.codemap_key]
 			self.decode = {
 				coding.FM_MFM: self.fm_mfm_decode,
 				coding.RLL_IBM: self.rll_decode,
 				coding.RLL_WD: self.rll_decode,
-			}[self.codemap_key]
-			
+			}[format_current.codemap_key]
 			self.sync_pulse = format_current.sync_pulse
 			# Standard in literature seems to be 16 bit transitions (32 halfbit windows) as enough to lock PLO
 			self.sync_lock_threshold = round(32 / self.sync_pulse)
@@ -724,7 +732,8 @@ class Decoder(srd.Decoder):
 			self.sync_start = None
 			self.shift = 0
 			self.shift_byte = 0
-			self.shift_decoded = ''
+			self.shift_decoded = 0
+			self.shift_decoded_s = ''
 			self.shift_decoded_1 = 0
 			self.shift_index = 0
 			self.pulse_ticks = 0
@@ -750,7 +759,8 @@ class Decoder(srd.Decoder):
 			self.unsync_after_decode = False
 			self.sync_start = None
 			self.shift = 0
-			self.shift_decoded = ''
+			self.shift_decoded = 0
+			self.shift_decoded_s = ''
 			self.shift_decoded_1 = 0
 			# reset Decoder variables directly FIXME: mixing contexts is UGLY and bad
 			self.owner.pb_state = state.sync_mark
@@ -768,17 +778,129 @@ class Decoder(srd.Decoder):
 			# final packed byte
 			self.shift_byte = (shift_byte + (shift_byte >> 4)) & 0x00FF
 			return True
+
 		def rll_decode(self):
+			top_bits = 0
+			while True:
+				#print(bin(self.shift & ((1 << self.shift_index) - 1))[2:].zfill(self.shift_index), self.shift_index, self.shift_decoded_1, bin(self.shift_decoded)[2:].zfill(self.shift_decoded_1), 'rll_decode w')
+				if self.shift_decoded_1 >= 16:
+					self.shift_decoded_1 -= 16
+					self.shift_byte = (self.shift_decoded >> (self.shift_decoded_1//2)) & 0xff
+					self.shift_decoded &= 0xF
+					return True
+	
+				elif self.shift_index >= 8:
+					top_bits = (self.shift >> self.shift_index - 8) & 0xff
+					if top_bits == 0b00100100:
+						self.shift_decoded = (self.shift_decoded << 4) + 0b0010
+						self.shift_decoded_1 += 8
+						self.shift_index -= 8
+						continue
+					
+					elif top_bits == 0b00001000:
+						self.shift_decoded = (self.shift_decoded << 4) + 0b0011
+						self.shift_decoded_1 += 8
+						self.shift_index -= 8
+						continue
+						
+					top_bits = top_bits & 0b11111100
+					if top_bits == 0b10010000:
+						self.shift_decoded = (self.shift_decoded << 3) + self.code_0b100100
+						self.shift_decoded_1 += 6
+						self.shift_index -= 6
+						continue
+		
+					elif top_bits == 0b00100000:
+						self.shift_decoded = (self.shift_decoded << 3) + 0b011
+						self.shift_decoded_1 += 6
+						self.shift_index -= 6
+						continue
+		
+					elif top_bits == 0b00010000:
+						self.shift_decoded = (self.shift_decoded << 3) + self.code_0b000100
+						self.shift_decoded_1 += 6
+						self.shift_index -= 6
+						continue
+	
+					top_bits = top_bits & 0b11110000
+					if top_bits == 0b10000000:
+						self.shift_decoded = (self.shift_decoded << 2) + 0b11
+						self.shift_decoded_1 += 4
+						self.shift_index -= 4
+						continue
+		
+					elif top_bits == 0b01000000:
+						self.shift_decoded = (self.shift_decoded << 2) + 0b10
+						self.shift_decoded_1 += 4
+						self.shift_index -= 4
+						continue
+					
+					print("ERROR: no matches, skip whole byte")
+					self.shift_index -= 16 - shift_decoded_1
+					self.shift_decoded_1 = 0
+					return False
+	
+				elif self.shift_index >= 6:
+					top_bits = (self.shift >> self.shift_index - 6) & 0b111111
+					if top_bits == 0b100100:
+						self.shift_decoded = (self.shift_decoded << 3) + self.code_0b100100
+						self.shift_decoded_1 += 6
+						self.shift_index -= 6
+						continue
+		
+					elif top_bits == 0b001000:
+						self.shift_decoded = (self.shift_decoded << 3) + 0b011
+						self.shift_decoded_1 += 6
+						self.shift_index -= 6
+						continue
+		
+					elif top_bits == 0b000100:
+						self.shift_decoded = (self.shift_decoded << 3) + self.code_0b000100
+						self.shift_decoded_1 += 6
+						self.shift_index -= 6
+						continue
+	
+					top_bits = top_bits & 0b111100
+					if top_bits == 0b100000:
+						self.shift_decoded = (self.shift_decoded << 2) + 0b11
+						self.shift_decoded_1 += 4
+						self.shift_index -= 4
+						continue
+		
+					elif top_bits == 0b010000:
+						self.shift_decoded = (self.shift_decoded << 2) + 0b10
+						self.shift_decoded_1 += 4
+						self.shift_index -= 4
+						continue
+	
+				elif self.shift_index >= 4:
+					top_bits = (self.shift >> self.shift_index - 4) & 0b1111
+					if top_bits == 0b1000:
+						self.shift_decoded = (self.shift_decoded << 2) + 0b11
+						self.shift_decoded_1 += 4
+						self.shift_index -= 4
+						continue
+		
+					elif top_bits == 0b0100:
+						self.shift_decoded = (self.shift_decoded << 2) + 0b10
+						self.shift_decoded_1 += 4
+						self.shift_index -= 4
+						continue
+
+				return False
+			return False
+
+		def rll_decode_string(self):
 			RLL_TABLE = self.codemap
 			shift_win = self.shift & (2 ** self.shift_index -1)
 
 			#print_('RLL_1', bin(self.shift)[1:], self.shift_index, bin(shift_win)[2:].zfill(self.shift_index))
 			binary_str = bin(shift_win)[2:].zfill(self.shift_index)
-			#print_('RLL input', bin(shift_win)[1:], binary_str)
 			binary_str_len = len(binary_str)
-			decoded = self.shift_decoded
+			decoded = self.shift_decoded_s
 			i = 0
 			while len(decoded) < 8:
+				#print_('RLL input', bin(shift_win)[1:], binary_str, self.shift_index, self.shift_decoded_11, self.shift_decodedd)
 				matched = False
 				for pattern_length in [8, 6, 4]:
 					if i + pattern_length <= binary_str_len:
@@ -788,7 +910,7 @@ class Decoder(srd.Decoder):
 							i += pattern_length
 							self.shift_index -= pattern_length
 							self.shift_decoded_1 += pattern_length
-							#print_("RLL() decoded:", decoded, 'pattern:', RLL_TABLE[pattern], 'raw:', pattern, 'i', i)
+							#print_("RLL() decoded:", decoded, 'raw:', pattern, 'match:', RLL_TABLE[pattern], self.shift_index, self.shift_decoded_11)
 							matched = True
 							break
 				if not matched:
@@ -802,12 +924,12 @@ class Decoder(srd.Decoder):
 						self.reset_pll()
 						return False
 					#print_("RLL not matched", binary_str[i:], decoded, i)
-					self.shift_decoded = decoded
+					self.shift_decoded_s = decoded
 					return False
 
 			#print_('RLL_shift', bin(self.shift)[1:], decoded[:8], self.shift_index, self.shift_decoded_1, self.last_samplenum)
 			self.shift_byte = int(decoded[:8], 2)
-			self.shift_decoded = decoded[8:]
+			self.shift_decoded_s = decoded[8:]
 			self.shift_decoded_1 -= 16
 			return True
 
