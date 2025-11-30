@@ -943,7 +943,7 @@ class Decoder(srd.Decoder):
 
 			#print_('byyyte', pulse_ticks, self.halfbit_cells, self.halfbit, self.last_samplenum, edge_samplenum)
 			halfbit = (edge_samplenum - last_samplenum) / self.halfbit_cells
-			_, x, _ = self.ring_read_offset(0)
+			_, x, _ = self.ring_wv[self.ring_ptr]
 			y = last_samplenum + 1.5 * halfbit
 			for _ in range (0, self.halfbit_cells-1):
 				self.ring_write(int(round(x)), int(round(y)), False)
