@@ -757,9 +757,6 @@ class Decoder(srd.Decoder):
 			self.owner.IDmark = []
 			self.owner.DRmark = []
 
-		def read(self):
-			return self.last_samplenum, self.pulse_ticks
-
 		def fm_mfm_decode(self):
 			# Pseudo SWAR, same speed as LUT in python 3.4
 			self.shift_index -= 16
