@@ -763,15 +763,14 @@ class Decoder(srd.Decoder):
 		def fm_mfm_decode(self):
 			# Pseudo SWAR, same speed as LUT in python 3.4
 			self.shift_index -= 16
-			self.shift_byte = (self.shift >> self.shift_index) & 0x5555
+			shift_byte = (self.shift >> self.shift_index) & 0x5555
 			# compress pairs
-			self.shift_byte = (self.shift_byte + (self.shift_byte >> 1)) & 0x3333
+			shift_byte = (shift_byte + (shift_byte >> 1)) & 0x3333
 			# compress nibbles
-			self.shift_byte = (self.shift_byte + (self.shift_byte >> 2)) & 0x0F0F
+			shift_byte = (shift_byte + (shift_byte >> 2)) & 0x0F0F
 			# final packed byte
-			self.shift_byte = (self.shift_byte + (self.shift_byte >> 4)) & 0x00FF
+			self.shift_byte = (shift_byte + (shift_byte >> 4)) & 0x00FF
 			return True
-
 		def rll_decode(self):
 			RLL_TABLE = self.codemap
 			shift_win = self.shift & (2 ** self.shift_index -1)
