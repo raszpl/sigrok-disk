@@ -12,7 +12,7 @@ Start by loading one of available [test sample files](#available-test-sample-fil
 <summary><h2>Table of Contents</h2></summary>
 
 - [Screenshots](#screenshots)
-- [Test samples](#available-test-sample-files)
+- [Samples](#available-test-sample-files)
 - [Command line usage](#sigrok-cli-command-line-usage)
   - [Options](#options)
   - [Annotations](#annotations)
@@ -46,34 +46,34 @@ This is a spare/unused sector created at the end of every track on MFM drive by 
 <hr>
 
 ## Available test sample files
- - [fdd_fm.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/fdd_fm.sr) 15MHz sample rate. FDD, 5:1 interleave. 125000 bps, FM format, 256 Byte Sectors, Data CRC 16bit, Data poly 0x1021
+ - [fdd_fm.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/fdd_fm.sr) 15MHz sample rate. FDD, 5:1 interleave. 125000 bps, FM format, 256 Byte Sectors, Data CRC 16bit, Data poly 0x1021
 
- - [fdd_mfm.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/fdd_mfm.sr) 15MHz sample rate. FDD, 5:1 interleave. Cylinder 1, Head 0. 250000 bps, MFM format, 256 Byte Sectors, Data CRC 16bit, Data poly 0x1021
+ - [fdd_mfm.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/fdd_mfm.sr) 15MHz sample rate. FDD, 5:1 interleave. Cylinder 1, Head 0. 250000 bps, MFM format, 256 Byte Sectors, Data CRC 16bit, Data poly 0x1021
 
- - [hdd_mfm_RQDX3.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_mfm_RQDX3.sr) 100MHz sample rate. 5000000 bps, MFM format, 512 Byte Sectors, Data CRC 32bit, Data poly 0xA00805.<br>DEC RD54 (re-branded Maxtor XT-2190) containing VMS. Paired to build-in SMC HDC9224 (RQDX3 compatible?) disk controller in [VAXstation2000](https://gunkies.org/wiki/KA410_MicroVAX_2000/VAXstation_2000_System_Module). Note: Drive had rather [spectacularly blown Index pulse generator captured on video.](https://www.youtube.com/watch?v=rvOJJcxFEO4&t=2699)
- - [hdd_mfm_RQDX3.dsl](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_mfm_RQDX3.dsl) as above but in DSView format
- - [hdd_mfm_RQDX3_sector.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_mfm_RQDX3_sector.sr) one sector (sec=8) from above capture. ID CRC F38D, Data CRC C1847279
- - [hdd_mfm_AMS1100M4.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_mfm_AMS1100M4.sr) 200MHz sample rate. Cylinder 622, Head 1. Bad Sector 9. 5000000 bps, MFM format, Header size 3, data poly 0x140a0445.<br>Seagate ST-251 formatted using American Multisource (AMS) 1100M4 (AIC-6060/CL-SH260, SSI 32D534)
- - [hdd_mfm_EV346.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_mfm_EV346.sr) 200MHz sample rate. Cylinder 819, Head 2. 5000000 bps, MFM format, Header size 3, Data poly 0x140a0445.<br>Seagate ST-251 formatted using Everex EV-346 (CL-SH260, SSI 32D534)
- - [hdd_mfm_WD1003V-MM2.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_mfm_WD1003V-MM2.sr) 200MHz sample rate. 5000000 bps, MFM format,  Header size 3, data poly 0x140a0445.<br>Seagate ST-278R formatted using WD1003V-MM2 (WD42C22A, WD10C22B)
- - [hdd_mfm_WD1003V-MM2_int.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_mfm_WD1003V-MM2_int.sr) 200MHz sample rate. 2:1 interleave. 5000000 bps, MFM format, Header size 3, data poly 0x140a0445.<br>Seagate ST-251 formatted using WD1003V-MM2 (WD42C22A, WD10C22B)
- - [hdd_mfm_NDC5525.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_mfm_NDC5525.sr) 200MHz sample rate. 2:1 interleave. 5000000 bps, MFM format, Header format semi unknown, Header size 3, data poly 0x140a0445.<br>Seagate ST-251 formatted using NCL America Computer NDC5525 (NEC Z80, various NCL chips)
- - [hdd_mfm_OMTI8240.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_mfm_OMTI8240.sr) 200MHz sample rate. Track 4919: Cylinder 819, Head 5. 5000000 bps, MFM format, Header format unknown, Header CRC 32bit, other Header CRC parameters unknown, Data poly 0x0104c981, Data CRC init 0xd4d7ca20.<br>Seagate ST-251 on Scientific Micro Systems Inc. OMTI 8240 (Z8 micro, OMTI 20516 aka OMTI 5098, OMTI 20507 aka 5070)
- - [hdd_mfm_ST21M.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_mfm_ST21M.sr) 200MHz sample rate. Track 6, Cylinder 1, Head 0. 5000000 bps, MFM format, Header format semi unknown, Header CRC 32bit, Header poly 0x41044185, Header CRC init 0, Data poly 0x41044185, Data CRC init 0.<br>Seagate ST-251 on Seagate ST21M (custom Seagate VLSI)
- - [hdd_mfm_ST21M_2.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_mfm_ST21M_2.sr) 200MHz sample rate. Track 6, Cylinder 1, Head 0. 5000000 bps, MFM format, Header format semi unknown, Header CRC 32bit, Header poly 0x41044185, Header CRC init 0, Data poly 0x41044185, Data CRC init 0.<br>Seagate ST-278R on Seagate ST21M (custom Seagate VLSI)
+ - [hdd_mfm_RQDX3.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_mfm_RQDX3.sr) 100MHz sample rate. 5000000 bps, MFM format, 512 Byte Sectors, Data CRC 32bit, Data poly 0xA00805.<br>DEC RD54 (re-branded Maxtor XT-2190) containing VMS. Paired to build-in SMC HDC9224 (RQDX3 compatible?) disk controller in [VAXstation2000](https://gunkies.org/wiki/KA410_MicroVAX_2000/VAXstation_2000_System_Module). Note: Drive had rather [spectacularly blown Index pulse generator captured on video.](https://www.youtube.com/watch?v=rvOJJcxFEO4&t=2699)
+ - [hdd_mfm_RQDX3.dsl](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_mfm_RQDX3.dsl) as above but in DSView format
+ - [hdd_mfm_RQDX3_sector.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_mfm_RQDX3_sector.sr) one sector (sec=8) from above capture. ID CRC F38D, Data CRC C1847279
+ - [hdd_mfm_AMS1100M4.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_mfm_AMS1100M4.sr) 200MHz sample rate. Cylinder 622, Head 1. Bad Sector 9. 5000000 bps, MFM format, Header size 3, data poly 0x140a0445.<br>Seagate ST-251 formatted using American Multisource (AMS) 1100M4 (AIC-6060/CL-SH260, SSI 32D534)
+ - [hdd_mfm_EV346.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_mfm_EV346.sr) 200MHz sample rate. Cylinder 819, Head 2. 5000000 bps, MFM format, Header size 3, Data poly 0x140a0445.<br>Seagate ST-251 formatted using Everex EV-346 (CL-SH260, SSI 32D534)
+ - [hdd_mfm_WD1003V-MM2.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_mfm_WD1003V-MM2.sr) 200MHz sample rate. 5000000 bps, MFM format,  Header size 3, data poly 0x140a0445.<br>Seagate ST-278R formatted using WD1003V-MM2 (WD42C22A, WD10C22B)
+ - [hdd_mfm_WD1003V-MM2_int.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_mfm_WD1003V-MM2_int.sr) 200MHz sample rate. 2:1 interleave. 5000000 bps, MFM format, Header size 3, data poly 0x140a0445.<br>Seagate ST-251 formatted using WD1003V-MM2 (WD42C22A, WD10C22B)
+ - [hdd_mfm_NDC5525.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_mfm_NDC5525.sr) 200MHz sample rate. 2:1 interleave. 5000000 bps, MFM format, Header format semi unknown, Header size 3, data poly 0x140a0445.<br>Seagate ST-251 formatted using NCL America Computer NDC5525 (NEC Z80, various NCL chips)
+ - [hdd_mfm_OMTI8240.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_mfm_OMTI8240.sr) 200MHz sample rate. Track 4919: Cylinder 819, Head 5. 5000000 bps, MFM format, Header format unknown, Header CRC 32bit, other Header CRC parameters unknown, Data poly 0x0104c981, Data CRC init 0xd4d7ca20.<br>Seagate ST-251 on Scientific Micro Systems Inc. OMTI 8240 (Z8 micro, OMTI 20516 aka OMTI 5098, OMTI 20507 aka 5070)
+ - [hdd_mfm_ST21M.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_mfm_ST21M.sr) 200MHz sample rate. Track 6, Cylinder 1, Head 0. 5000000 bps, MFM format, Header format semi unknown, Header CRC 32bit, Header poly 0x41044185, Header CRC init 0, Data poly 0x41044185, Data CRC init 0.<br>Seagate ST-251 on Seagate ST21M (custom Seagate VLSI)
+ - [hdd_mfm_ST21M_2.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_mfm_ST21M_2.sr) 200MHz sample rate. Track 6, Cylinder 1, Head 0. 5000000 bps, MFM format, Header format semi unknown, Header CRC 32bit, Header poly 0x41044185, Header CRC init 0, Data poly 0x41044185, Data CRC init 0.<br>Seagate ST-278R on Seagate ST21M (custom Seagate VLSI)
 
- - [hdd_rll_ACB4070.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_rll_ACB4070.sr) 200MHz sample rate. 2:1 interleave. 7500000 bps, RLL_Adaptec format, Header format unknown, Header CRC 32bit, Header poly 0x41044185, Header CRC init 0, Data poly 0x41044185, Data CRC init 0. Requires more aggressive pll_kp=1 due to wobly timings.<br>Seagate ST251 on Adaptec ACB-4070 RLL to SCSI bridge (AIC-300F, AIC-010F) from [Mattis Linds ABC1600 containing DNIX 5.3 (UNIX SVR3)](https://forum.vcfed.org/index.php?threads/rll-drive-sampling-project.1209575/#post-1209655)
- - [hdd_rll_ACB2370A.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_rll_ACB2370A.sr) 200MHz sample rate. 7500000 bps, RLL_Adaptec format, Header format semi unknown, Header CRC init 0, Data ECC 56bit, other CRC parameters unknown.<br>Seagate ST251 on Adaptec ACB-2370A (AIC-610F, AIC-280L, AIC-270L, AIC-6225)
- - [hdd_rll_ACB2372.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_rll_ACB2372.sr) 200MHz sample rate. 7500000 bps, RLL_Adaptec format, Header format semi unknown, Header CRC init 0, Data ECC 56bit, other CRC parameters unknown.<br>Seagate ST-278R on Adaptec ACB-2372 (AIC-610F, AIC-280L, AIC-270L, AIC-6225)
- - [hdd_rll_ST21R.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_rll_ST21R.sr) 200MHz sample rate. 7500000 bps, RLL_Sea format, Header format semi unknown, Header CRC 32bit, Header poly 0x41044185, Header CRC init 0, Data poly 0x41044185, Data CRC init 0.<br>Seagate ST-278R on Seagate ST21R (custom Seagate VLSI)
- - [hdd_rll_WD1003V-SR1.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_rll_WD1003V-SR1.sr) 200MHz sample rate. 7500000 bps, RLL_WD format, Header size 3, Data ECC 56bit, Data poly 0x140a0445000101.<br>Seagate ST-278R WD1003V-SR1 (WD42C22A, WD10C22B)
- - [hdd_rll_WD1003V-SR1int.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_rll_WD1003V-SR1int.sr) 200MHz sample rate. 2:1 interleave. 7500000 bps, RLL_WD format, Header size 3, Data ECC 56bit, Data poly 0x140a0445000101.<br>Seagate ST-251 WD1003V-SR1 (WD42C22A, WD10C22B)
- - [hdd_rll_WD1006V-SR2.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_rll_WD1006V-SR2.sr) 200MHz sample rate. 7500000 bps, RLL_WD format, Header size 3, Data ECC 56bit, Data poly 0x140a0445000101.<br>Seagate ST-251 WD1006V-SR2 (WD42C22A, WD10C22B)
- - [hdd_rll_OMTI8247.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_rll_OMTI8247.sr) 200MHz sample rate. 7500000 bps, RLL_OMTI format, Header format unknown, Header poly unknown, Data ECC 48bit, Data poly unknown.<br>Seagate ST-251 on Scientific Micro Systems Inc. OMTI 8247 (Z8 micro, OMTI 20516 aka OMTI 5098, OMTI 20527 aka 5027)
- - [hdd_rll_DTC7287.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_rll_DTC7287.sr)
- - [hdd_rll_DTC7287_track0](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_rll_DTC7287_track0.sr)
- - [hdd_rll_DTC7287_track1](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_rll_DTC7287_track1.sr)
- - [hdd_rll_DTC7287_track4919](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/test/hdd_rll_DTC7287_track4919.sr)<br>DTC7287 captures 200MHz sample rate. 7500000 bps, Broken unknown RLL_DTC7287_unknown format, Header size 3?<br>ST-251 on [Data Technology Corporation DTC-7287](https://www.vogonswiki.com/index.php/DTC_7287) Format looks very ESDI like. Help deciphering appreciated.
+ - [hdd_rll_ACB4070.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_ACB4070.sr) 200MHz sample rate. 2:1 interleave. 7500000 bps, RLL_Adaptec format, Header format unknown, Header CRC 32bit, Header poly 0x41044185, Header CRC init 0, Data poly 0x41044185, Data CRC init 0. Requires more aggressive pll_kp=1 due to wobly timings.<br>Seagate ST251 on Adaptec ACB-4070 RLL to SCSI bridge (AIC-300F, AIC-010F) from [Mattis Linds ABC1600 containing DNIX 5.3 (UNIX SVR3)](https://forum.vcfed.org/index.php?threads/rll-drive-sampling-project.1209575/#post-1209655)
+ - [hdd_rll_ACB2370A.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_ACB2370A.sr) 200MHz sample rate. 7500000 bps, RLL_Adaptec format, Header format semi unknown, Header CRC init 0, Data ECC 56bit, other CRC parameters unknown.<br>Seagate ST251 on Adaptec ACB-2370A (AIC-610F, AIC-280L, AIC-270L, AIC-6225)
+ - [hdd_rll_ACB2372.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_ACB2372.sr) 200MHz sample rate. 7500000 bps, RLL_Adaptec format, Header format semi unknown, Header CRC init 0, Data ECC 56bit, other CRC parameters unknown.<br>Seagate ST-278R on Adaptec ACB-2372 (AIC-610F, AIC-280L, AIC-270L, AIC-6225)
+ - [hdd_rll_ST21R.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_ST21R.sr) 200MHz sample rate. 7500000 bps, RLL_Sea format, Header format semi unknown, Header CRC 32bit, Header poly 0x41044185, Header CRC init 0, Data poly 0x41044185, Data CRC init 0.<br>Seagate ST-278R on Seagate ST21R (custom Seagate VLSI)
+ - [hdd_rll_WD1003V-SR1.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_WD1003V-SR1.sr) 200MHz sample rate. 7500000 bps, RLL_WD format, Header size 3, Data ECC 56bit, Data poly 0x140a0445000101.<br>Seagate ST-278R WD1003V-SR1 (WD42C22A, WD10C22B)
+ - [hdd_rll_WD1003V-SR1int.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_WD1003V-SR1int.sr) 200MHz sample rate. 2:1 interleave. 7500000 bps, RLL_WD format, Header size 3, Data ECC 56bit, Data poly 0x140a0445000101.<br>Seagate ST-251 WD1003V-SR1 (WD42C22A, WD10C22B)
+ - [hdd_rll_WD1006V-SR2.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_WD1006V-SR2.sr) 200MHz sample rate. 7500000 bps, RLL_WD format, Header size 3, Data ECC 56bit, Data poly 0x140a0445000101.<br>Seagate ST-251 WD1006V-SR2 (WD42C22A, WD10C22B)
+ - [hdd_rll_OMTI8247.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_OMTI8247.sr) 200MHz sample rate. 7500000 bps, RLL_OMTI format, Header format unknown, Header poly unknown, Data ECC 48bit, Data poly unknown.<br>Seagate ST-251 on Scientific Micro Systems Inc. OMTI 8247 (Z8 micro, OMTI 20516 aka OMTI 5098, OMTI 20527 aka 5027)
+ - [hdd_rll_DTC7287.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_DTC7287.sr)
+ - [hdd_rll_DTC7287_track0](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_DTC7287_track0.sr)
+ - [hdd_rll_DTC7287_track1](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_DTC7287_track1.sr)
+ - [hdd_rll_DTC7287_track4919](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_DTC7287_track4919.sr)<br>DTC7287 captures 200MHz sample rate. 7500000 bps, Broken unknown RLL_DTC7287_unknown format, Header size 3?<br>ST-251 on [Data Technology Corporation DTC-7287](https://www.vogonswiki.com/index.php/DTC_7287) Format looks very ESDI like. Help deciphering appreciated.
 
 Huge thanks to Al Kossow for providing majority of the [samples hosted by bitsavers](http://bitsavers.org/projects/hd_samples).
 
@@ -215,7 +215,7 @@ Use '-A mfm=' with whole groups like `fields`, individual messages `crc:cre` or 
 <hr>
 
 ### Example invocation
-<details><summary>Show fields and raw bytestream:<br><code>sigrok-cli -D -i hdd_mfm_RQDX3_sector.sr -P mfm -A mfm=bytes:fields</code></summary>
+<details><summary>Show fields and raw bytestream:<br><code>sigrok-cli -D -i samples\hdd_mfm_RQDX3_sector.sr -P mfm -A mfm=bytes:fields</code></summary>
 <pre>
 mfm-1: A1
 mfm-1: Sync pattern 13 bytes
@@ -757,7 +757,7 @@ mfm-1: 00
 </details>  
 
 Dirty cut|tr trick to extrack strings from above output:  
-<code>sigrok-cli.exe -D -i hdd_mfm_RQDX3_sector.sr -P mfm -A mfm=bytes | cut -c 12 | tr -d '\n'</code>
+<code>sigrok-cli.exe -D -i samples\hdd_mfm_RQDX3_sector.sr -P mfm -A mfm=bytes | cut -c 12 | tr -d '\n'</code>
 <pre>
 N = @. BYTES SKIP/SPACE COUNT (SKIP/SPACE @p. TAPE MARKS/REC
 MESSAGE BUFFER NOT VALID MESSAGE BUFFER XSTAT1 XSTAT2 (DEAD TRACK CHANNEL
@@ -766,12 +766,12 @@ MASSBUS0DAIGNOSTIC MODEABA/B MF CS1 (@l (@ (@ (@ MF IS (@ (@ry
 </pre>  
 
 Report of the first 17 sectors:  
-<code>sigrok-cli -D -i hdd_mfm_RQDX3.sr -P mfm:report=DAM:report_qty=17 -A mfm=reports</code>
+<code>sigrok-cli -D -i samples\hdd_mfm_RQDX3.sr -P mfm:report=DAM:report_qty=17 -A mfm=reports</code>
 <pre>
 mfm-1: Summary: IAM=0, IDAM=17, DAM=17, DDAM=0, CRC_OK=34, CRC_err=0, EiPW=0, CkEr=0, OoTI=13/74987
 </pre>  
 
-<details><summary>Show all fields:<br><code>sigrok-cli -D -i fdd_fm.sr -P mfm:data_rate=125000:encoding=FM:data_crc_size=16:data_crc_poly=0x1021:sector_size=256 -A mfm=fields</code></summary>  
+<details><summary>Show all fields:<br><code>sigrok-cli -D -i samples\fdd_fm.sr -P mfm:data_rate=125000:encoding=FM:data_crc_size=16:data_crc_poly=0x1021:sector_size=256 -A mfm=fields</code></summary>  
 <pre>
 mfm-1: Sync pattern 6 bytes
 mfm-1: ID Address Mark
@@ -873,7 +873,7 @@ mfm-1: Data Address Mark
 </details>
 
 Display just CRC fields, both good and bad, and nothing more:  
-<code>sigrok-cli -D -i test\hdd_mfm_RQDX3_sector.sr -P mfm:data_crc_poly_custom=0xbad -A mfm=crc:cre</code>
+<code>sigrok-cli -D -i samples\hdd_mfm_RQDX3_sector.sr -P mfm:data_crc_poly_custom=0xbad -A mfm=crc:cre</code>
 <pre>
 mfm-1: CRC OK F38D
 mfm-1: CRC error 115E0390
