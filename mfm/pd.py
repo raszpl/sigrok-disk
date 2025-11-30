@@ -672,6 +672,7 @@ class Decoder(srd.Decoder):
 			scanning_sync_mark	= 1,
 			decoding			= 2,
 		)
+		__slots__ = ('cells_allowed_max', 'cells_allowed_min', 'code_0b000100', 'code_0b100100', 'decode', 'format', 'format_current', 'halfbit', 'halfbit_cells', 'halfbit_nom', 'halfbit_nom05', 'halfbit_nom15', 'integrator', 'ki', 'kp', 'last_last_samplenum', 'last_samplenum', 'limits_key', 'owner', 'phase_ref', 'pll_sync_tolerance', 'pulse_ticks', 'ring_ptr', 'ring_size', 'ring_we', 'ring_ws', 'ring_wv', 'shift', 'shift_byte', 'shift_decoded', 'shift_decoded_1', 'shift_decodedd', 'shift_decoded_11', 'shift_index', 'state', 'sync_lock_count', 'sync_lock_threshold', 'sync_marks', 'sync_marks_len', 'sync_marks_try', 'sync_pulse', 'sync_start', 'unsync_after_decode', 'codemap', 'codemap_key')
 
 		def __init__(self, owner, halfbit_ticks, kp, ki, pll_sync_tolerance, format_current):
 			self.owner = owner
