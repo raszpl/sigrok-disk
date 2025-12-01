@@ -95,7 +95,7 @@ Huge thanks to Al Kossow for providing majority of the [samples hosted by bitsav
 **Default**: `4` **Values**: `3`, `4`
 
 `sector_size` Sector payload length in bytes.  
-**Default**: `512` **Values**: `auto`, `128`, `256`, `512`, `1024`, `2048`, `4096`, `8192`, `16384`
+**Default**: `auto` **Values**: `auto`, `128`, `256`, `512`, `1024`, `2048`, `4096`, `8192`, `16384`
 
 `header_crc_size` Header field CRC size in bits.  
 **Default**: `16` **Values**: `16`, `32`
@@ -991,18 +991,18 @@ Full [Changelog](doc/changelog.md). Biggest changes from original:
 - [x] RLL decoding
 - [x] more Test samples
 - [ ] annotate reason of PLL reset
-- [ ] dont reset PLL on data decode error, try to recover with ECC
+- [~] dont reset PLL on data decode error, try to recover with ECC
 - [ ] Binary Decoder Output
 - [ ] more `auto` modes
     - [ ] `auto` data_rate detection
-    - [ ] `auto` sect_len mode using Sector length value from the Header
+    - [x] `auto` sector_size mode using Sector length value from the Header
     - [ ] `auto` header_bytes detection
     - [ ] `auto` CRC modes
 		- [ ] `auto` header_crc_size detection
 		- [ ] `auto` header_crc_poly/header_crc_init detection
 		- [ ] `auto` data_crc_size detection
 		- [ ] `auto` data_crc_poly/data_crc_init detection
-    - [ ] `auto` encoding detection - this is a BIG one
+    - [ ] `auto` encoding detection - this is a difficult one
 - [ ] Rename Errors annotation field to more general Status
 - [ ] Figure out crazy RLL_DTC7287 format
 - [ ] use RevEng to reverse all crc/ecc

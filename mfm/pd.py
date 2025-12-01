@@ -113,7 +113,7 @@ class Decoder(srd.Decoder):
 		{'id': 'header_size', 'desc': 'Header payload length in bytes',
 			'default': '4', 'values': ('3', '4')},
 		{'id': 'sector_size', 'desc': 'Sector payload length in bytes',
-			'default': '512', 'values': ('auto', '128', '256', '512', '1024', '2048', '4096', '8192', '16384')},
+			'default': 'auto', 'values': ('auto', '128', '256', '512', '1024', '2048', '4096', '8192', '16384')},
 		{'id': 'header_crc_size', 'desc': 'Header field CRC bits',
 			'default': '16', 'values': ('16', '32')},
 		{'id': 'header_crc_poly', 'desc': 'Header field CRC Polynomial',
