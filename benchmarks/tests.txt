@@ -2,11 +2,11 @@
 # Run next line as one big command in PowerShell, will read every non commented line from this file and execute as benchmark
 # $i=0; Get-Content 'tests.txt' | Where-Object { $_.Trim() -ne "" -and -not $_.Trim().StartsWith('#') } | ForEach-Object { $cmd = $_; $i++; $match = [regex]::match($cmd, '-i\s*["'']([^"'']+\.sr)["'']'); $name = if ($match.Success) { [System.IO.Path]::GetFileName($match.Groups[1].Value) } else { "Command #$i" }; $time = (Measure-Command { Invoke-Expression $cmd }).TotalSeconds; Write-Host ("{0} {1:N4} seconds" -f $name, $time) }
 
-& "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\sigrok-mfm\samples\fdd_fm.sr" -P mfm:data_rate=125000:format=FM:data_crc_size=16:data_crc_poly=0x1021:sector_size=256:dsply_pfx=yes:dsply_sn=yes:decoder=legacy -A mfm=fields
-& "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\sigrok-mfm\samples\fdd_mfm.sr" -P mfm:data_rate=250000:format=MFM:data_crc_size=16:data_crc_poly=0x1021:sector_size=256:dsply_pfx=yes:dsply_sn=yes:decoder=legacy -A mfm=fields
+& "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\sigrok-mfm\samples\fdd_fm.sr" -P mfm:data_rate=125000:format=FM:data_crc_size=16:data_crc_poly=0x1021:dsply_pfx=yes:dsply_sn=yes:decoder=legacy -A mfm=fields
+& "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\sigrok-mfm\samples\fdd_mfm.sr" -P mfm:data_rate=250000:format=MFM:data_crc_size=16:data_crc_poly=0x1021:dsply_pfx=yes:dsply_sn=yes:decoder=legacy -A mfm=fields
 
-& "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\sigrok-mfm\samples\fdd_fm.sr" -P mfm:data_rate=125000:format=FM:data_crc_size=16:data_crc_poly=0x1021:sector_size=256:dsply_pfx=yes:dsply_sn=yes -A mfm=fields
-& "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\sigrok-mfm\samples\fdd_mfm.sr" -P mfm:data_rate=250000:format=MFM:data_crc_size=16:data_crc_poly=0x1021:sector_size=256:dsply_pfx=yes:dsply_sn=yes -A mfm=fields
+& "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\sigrok-mfm\samples\fdd_fm.sr" -P mfm:data_rate=125000:format=FM:data_crc_size=16:data_crc_poly=0x1021:dsply_pfx=yes:dsply_sn=yes -A mfm=fields
+& "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\sigrok-mfm\samples\fdd_mfm.sr" -P mfm:data_rate=250000:format=MFM:data_crc_size=16:data_crc_poly=0x1021:dsply_pfx=yes:dsply_sn=yes -A mfm=fields
 & "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\sigrok-mfm\samples\hdd_mfm_RQDX3.sr" -P mfm:report=DAM:report_qty=17 -A mfm=fields:reports
 & "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\sigrok-mfm\samples\hdd_mfm_RQDX3.sr" -P mfm:report=DAM:report_qty=17 -A mfm=reports
 & "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\sigrok-mfm\samples\hdd_mfm_AMS1100M4.sr" -P mfm:header_size=3:data_crc_poly=0x140a0445:report=DAM:report_qty=17 -A mfm=reports
@@ -14,7 +14,8 @@
 & "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\sigrok-mfm\samples\hdd_mfm_WD1003V-MM2_int.sr" -P mfm:header_size=3:data_crc_poly=0x140a0445:report=DAM:report_qty=17 -A mfm=reports
 & "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\sigrok-mfm\samples\hdd_mfm_EV346.sr" -P mfm:header_size=3:data_crc_poly=0x140a0445:report=DAM:report_qty=17 -A mfm=reports
 
-& "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\sigrok-mfm\samples\hdd_rll_ST21R.sr" -P mfm:data_rate=7500000:format=RLL_Sea:header_crc_size=32:header_crc_init=0:header_crc_poly=0x41044185:data_crc_init=0:data_crc_poly=0x41044185:report=DAM:report_qty=27 -A mfm=reports
+& "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\sigrok-mfm\samples\hdd_rll_ST21R.sr" -P mfm:data_rate=7500000:format=RLL_Sea:header_crc_size=32:header_crc_init=0:header_crc_poly=0x41044185:sector_size=512:data_crc_init=0:data_crc_poly=0x41044185:report=DAM:report_qty=27 -A mfm=reports
+
 & "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\sigrok-mfm\samples\hdd_rll_WD1003V-SR1.sr" -P mfm:data_rate=7500000:format=RLL_WD:data_crc_size=56:data_crc_poly=0x140a0445000101:header_size=3:report=DAM:report_qty=26 -A mfm=reports
 & "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\sigrok-mfm\samples\hdd_rll_WD1003V-SR1.sr" -P mfm:data_rate=7500000:format=RLL_WD:data_crc_size=56:data_crc_poly=0x140a0445000101:header_size=3:report=DAM:report_qty=26 -A mfm=reports
 & "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\sigrok-mfm\samples\hdd_rll_WD1003V-SR1.sr" -P mfm:data_rate=7500000:format=RLL_WD:data_crc_size=56:data_crc_poly=0x140a0445000101:header_size=3:report=DAM:report_qty=26 -A mfm=reports
@@ -22,28 +23,28 @@
 & "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\sigrok-mfm\samples\hdd_rll_WD1003V-SR1.sr" -P mfm:data_rate=7500000:format=RLL_WD:data_crc_size=56:data_crc_poly=0x140a0445000101:header_size=3:report=DAM:report_qty=26 -A mfm=reports
 
 # HDD_11tracks.sr is a special concatenation of 6 RLL trancks followed by 5 MFM tracks
-#& "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\HDD_11tracks.sr" -P mfm:dsply_sn=yes:data_rate=7500000:format=RLL_Adaptec:data_crc_size=16:header_crc_poly=0x1021:data_crc_poly_custom=0x1021 -A mfm=fields:bytes
-#& "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\HDD_11tracks.sr" -P mfm:dsply_sn=yes:data_crc_size=16:header_crc_poly=0x1021:data_crc_poly_custom=0x1021 -A mfm=fields:bytes
+& "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\HDD_11tracks.sr" -P mfm:dsply_sn=yes:data_rate=7500000:format=RLL_Adaptec:data_crc_size=16:header_crc_poly=0x1021:data_crc_poly_custom=0x1021:sector_size=512 -A mfm=fields:bytes
+& "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\HDD_11tracks.sr" -P mfm:dsply_sn=yes:data_crc_size=16:header_crc_poly=0x1021:data_crc_poly_custom=0x1021:sector_size=512 -A mfm=fields:bytes
 
 # i7-4790 results:
 #fdd_fm.sr 0.9385 seconds
 #fdd_mfm.sr 1.4774 seconds
-#fdd_fm.sr 0.8711 seconds
-#fdd_mfm.sr 1.2547 seconds
-#hdd_mfm_RQDX3.sr 1.9737 seconds
-#hdd_mfm_RQDX3.sr 1.9749 seconds
-#hdd_mfm_AMS1100M4.sr 1.4681 seconds
-#hdd_mfm_WD1003V-MM2.sr 1.8142 seconds
-#hdd_mfm_WD1003V-MM2_int.sr 1.8067 seconds
-#hdd_mfm_EV346.sr 1.8215 seconds
-#hdd_rll_ST21R.sr 1.9353 seconds
-#hdd_rll_WD1003V-SR1.sr 2.1984 seconds
-#hdd_rll_WD1003V-SR1.sr 2.2085 seconds
-#hdd_rll_WD1003V-SR1.sr 2.2186 seconds
-#hdd_rll_WD1003V-SR1.sr 2.1830 seconds
-#hdd_rll_WD1003V-SR1.sr 2.2213 seconds
-#HDD_11tracks.sr 17.4245 seconds
-#HDD_11tracks.sr 12.3864 seconds
+#fdd_fm.sr 0.8653 seconds
+#fdd_mfm.sr 1.2532 seconds
+#hdd_mfm_RQDX3.sr 1.9680 seconds
+#hdd_mfm_RQDX3.sr 1.9545 seconds
+#hdd_mfm_AMS1100M4.sr 1.4384 seconds
+#hdd_mfm_WD1003V-MM2.sr 1.8137 seconds
+#hdd_mfm_WD1003V-MM2_int.sr 1.7694 seconds
+#hdd_mfm_EV346.sr 1.7882 seconds
+#hdd_rll_ST21R.sr 1.8942 seconds
+#hdd_rll_WD1003V-SR1.sr 2.2082 seconds
+#hdd_rll_WD1003V-SR1.sr 2.1568 seconds
+#hdd_rll_WD1003V-SR1.sr 2.1567 seconds
+#hdd_rll_WD1003V-SR1.sr 2.1763 seconds
+#hdd_rll_WD1003V-SR1.sr 2.1803 seconds
+#HDD_11tracks.sr 17.4568 seconds
+#HDD_11tracks.sr 12.3689 seconds
 
 # i7-4790 before any speed optimizations results:
 #fdd_fm.sr 0.9755 seconds
