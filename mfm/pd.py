@@ -835,7 +835,7 @@ class Decoder(srd.Decoder):
 						continue
 					
 					print("ERROR: no matches, skip whole byte")
-					self.shift_index -= 16 - shift_decoded_1
+					self.shift_index -= 16 - self.shift_decoded_1
 					self.shift_decoded_1 = 0
 					return False
 	
