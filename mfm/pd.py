@@ -500,6 +500,7 @@ class Decoder(srd.Decoder):
 		self.CkEr = 0				# number of bits with clocking errors
 		self.OoTI = 0				# number of out-of-tolerance leading edge intervals
 		self.Intrvls = 0			# number of leading edge intervals
+		self.crc_accum = 0
 
 		self.report_start = 0
 		self.reports_called = 0
