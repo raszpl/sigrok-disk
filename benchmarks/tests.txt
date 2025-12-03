@@ -27,7 +27,7 @@
 & "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\HDD_11tracks.sr" -P mfm:dsply_sn=yes:data_crc_size=16:header_crc_poly=0x1021:data_crc_poly_custom=0x1021:sector_size=512 -A mfm=fields:bytes
 
 # i7-4790 results:
-#fdd_fm.sr 0.9385 seconds
+#fdd_fm.sr 0.9256 seconds
 #fdd_mfm.sr 1.4774 seconds
 #fdd_fm.sr 0.8653 seconds
 #fdd_mfm.sr 1.2532 seconds

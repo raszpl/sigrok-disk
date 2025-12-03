@@ -1813,6 +1813,9 @@ class Decoder(srd.Decoder):
 			if self.byte_cnt == 0:
 				self.decode_id_rec(self.IDrec)
 				self.display_field(field.ID_Record)
+				if self.sector_size_auto and self.sector_size != self.IDlenv:
+					self.sector_size = self.IDlenv
+					self.DRrec = bytearray(self.sector_size)
 				self.byte_cnt = self.header_crc_bytes
 				self.pb_state = state.ID_Record_CRC
 
@@ -1929,6 +1932,9 @@ class Decoder(srd.Decoder):
 			if self.byte_cnt == 0:
 				self.decode_id_rec(self.IDrec)
 				self.display_field(field.ID_Record)
+				if self.sector_size_auto and self.sector_size != self.IDlenv:
+					self.sector_size = self.IDlenv
+					self.DRrec = bytearray(self.sector_size)
 				self.byte_cnt = self.header_crc_bytes
 				self.pb_state = state.ID_Record_CRC
 
