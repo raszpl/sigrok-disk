@@ -984,8 +984,8 @@ Old user instructions are in [documentation](doc/PulseView-MFM-Decoder.wri.md)
 - 0x140a0445000101 X56 + X52 + X50 + X43 + X41 + X34 + X30 + X26 + X24 + X8 + 1 WD40C22/etc ECC56
 - 0x1021 (init 0x7107) OMTI 8247 CRC16
 - 0x181814503011 (init 0x6062ebbf22b4) OMTI 8247 ECC48
-- 0x0104c981 x32 + x24 + x18 + x15 + x14 + x11 + x8 + x7 + 1 (init 0x2605fb9c) OMTI 8240/?5510 header CRC32
-- 0x0104c981 x32 + x24 + x18 + x15 + x14 + x11 + x8 + x7 + 1 (init 0xd4d7ca20) OMTI 8240/?5510 data CRC32
+- 0x0104c981 x32 + x24 + x18 + x15 + x14 + x11 + x8 + x7 + 1 (init 0x2605fb9c) OMTI 8240/5510 header CRC32
+- 0x0104c981 x32 + x24 + x18 + x15 + x14 + x11 + x8 + x7 + 1 (init 0xd4d7ca20) OMTI 8240/5510 data CRC32
 - 0x181814503011 (init 0x010000000000) Adaptec ECC48
 - OMTI_5510_Apr85.pdf: ?0x40c99041 x32 + x31 + x24 + x23 + x20 + x17 + x16 + x13 + x7 + 1?
 - 1983_Western_Digital_Components_Catalog.pdf WD1100-06 most likely typos claiming:
