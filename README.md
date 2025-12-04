@@ -1071,6 +1071,7 @@ Full [Changelog](doc/changelog.md). Biggest changes from original:
 - [ ] annotate reason of PLL reset
 - [~] dont reset PLL on data decode error, try to recover with ECC
 - [x] Binary Output
+- [ ] Support more Header formats
 - [ ] more `auto` modes
     - [ ] `auto` data_rate detection
     - [x] `auto` sector_size mode using Sector length value from the Header
