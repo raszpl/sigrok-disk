@@ -134,7 +134,7 @@ class Decoder(srd.Decoder):
 			'default': '32', 'values': ('16', '32', '48', '56')},
 		{'id': 'data_crc_poly', 'desc': 'Data field CRC Polynomial',
 			'default': '0xA00805', 'values': ('0x1021', '0xA00805', '0x140a0445',
-			'0x0104c981', '0x41044185', '0x140a0445000101')},
+			'0x0104c981', '0x41044185', '0x181814503011', '0x140a0445000101')},
 		{'id': 'data_crc_init', 'desc': 'Data field CRC init',
 			'default': '0xffffffffffffff'},
 		{'id': 'data_crc_poly_custom', 'desc': 'Custom Data Polynomial (overrides above)',
@@ -440,7 +440,7 @@ class Decoder(srd.Decoder):
 			'sync_marks': [[4, 3, 8, 3], [5, 6, 8, 3], [8, 3]],
 			'shift_index': [18],
 			'ID_mark': [0xA1],
-			'Data_mark': [0xA0],
+			'IDData_mark': [0xA0],
 			'nop_mark': [0x1E, 0x5E, 0xDE]
 		},
 		coding.RLL_WD: {
@@ -773,6 +773,7 @@ class Decoder(srd.Decoder):
 			self.shift_decoded_1 = 0
 			# reset Decoder variables directly FIXME: mixing contexts is UGLY and bad
 			self.owner.pb_state = state.sync_mark
+			self.owner.A1 = []
 			self.owner.IDmark = []
 			self.owner.DRmark = []
 
