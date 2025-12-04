@@ -16,6 +16,7 @@ Start by loading one of available [test sample files](#available-test-sample-fil
 - [Command line usage](#sigrok-cli-command-line-usage)
   - [Options](#options)
   - [Annotations](#annotations)
+  - [Binary Output](#binary-output)
   - [Example invocation](#example-invocation)
 - [Installation](#installation)
 - [Resources](#resources)
@@ -62,7 +63,7 @@ This is a spare/unused sector created at the end of every track on MFM drive by 
  - [hdd_mfm_ST21M.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_mfm_ST21M.sr) 200MHz sample rate. Track 6, Cylinder 1, Head 0. 5000000 bps, MFM format, Header format semi unknown, Header CRC 32bit, Header poly 0x41044185, Header CRC init 0, Data poly 0x41044185, Data CRC init 0.<br>Seagate ST-251 on Seagate ST21M (custom Seagate VLSI)
  - [hdd_mfm_ST21M_2.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_mfm_ST21M_2.sr) 200MHz sample rate. Track 6, Cylinder 1, Head 0. 5000000 bps, MFM format, Header format semi unknown, Header CRC 32bit, Header poly 0x41044185, Header CRC init 0, Data poly 0x41044185, Data CRC init 0.<br>Seagate ST-278R on Seagate ST21M (custom Seagate VLSI)
 
- - [hdd_rll_ACB4070.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_ACB4070.sr) 200MHz sample rate. 2:1 interleave. 7500000 bps, RLL_Adaptec format, Header format unknown, Header CRC 32bit, Header poly 0x41044185, Header CRC init 0, Data poly 0x41044185, Data CRC init 0. Requires more aggressive pll_kp=1 due to wobly timings.<br>Seagate ST251 on Adaptec ACB-4070 RLL to SCSI bridge (AIC-300F, AIC-010F) from [Mattis Linds ABC1600 containing DNIX 5.3 (UNIX SVR3)](https://forum.vcfed.org/index.php?threads/rll-drive-sampling-project.1209575/#post-1209655)
+ - [hdd_rll_ACB4070.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_ACB4070.sr) 200MHz sample rate. 2:1 interleave. 7500000 bps, RLL_Adaptec format, Header format unknown, Header CRC 32bit, Header poly 0x41044185, Header CRC init 0, Data poly 0x41044185, Data CRC init 0. Requires more aggressive pll_kp=1 due to wobbly timings.<br>Seagate ST251 on Adaptec ACB-4070 RLL to SCSI bridge (AIC-300F, AIC-010F) from [Mattis Linds ABC1600 containing DNIX 5.3 (UNIX SVR3)](https://forum.vcfed.org/index.php?threads/rll-drive-sampling-project.1209575/#post-1209655)
  - [hdd_rll_ACB2370A.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_ACB2370A.sr) 200MHz sample rate. 7500000 bps, RLL_Adaptec format, Header format semi unknown, Header CRC init 0, Data ECC 56bit, other CRC parameters unknown.<br>Seagate ST251 on Adaptec ACB-2370A (AIC-610F, AIC-280L, AIC-270L, AIC-6225)
  - [hdd_rll_ACB2372.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_ACB2372.sr) 200MHz sample rate. 7500000 bps, RLL_Adaptec format, Header format semi unknown, Header CRC init 0, Data ECC 56bit, other CRC parameters unknown.<br>Seagate ST-278R on Adaptec ACB-2372 (AIC-610F, AIC-280L, AIC-270L, AIC-6225)
  - [hdd_rll_ST21R.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_ST21R.sr) 200MHz sample rate. 7500000 bps, RLL_Sea format, Header format semi unknown, Header CRC 32bit, Header poly 0x41044185, Header CRC init 0, Data poly 0x41044185, Data CRC init 0.<br>Seagate ST-278R on Seagate ST21R (custom Seagate VLSI)
@@ -211,6 +212,23 @@ Use '-A mfm=' with whole groups like `fields`, individual messages `crc:cre` or 
 &nbsp;&nbsp;&nbsp;&nbsp;'-A mfm=fields'  
 &nbsp;&nbsp;&nbsp;&nbsp;'-A mfm=crc:cre'  
 &nbsp;&nbsp;&nbsp;&nbsp;'-A mfm=fields:err'  
+
+### Binary Output
+
+| Name | Meaning |
+| --- | --- |
+| `id` | raw ID Records (Header contents)|
+| `data` | raw Data Records, order as on track|
+| `iddata` | combined ID + Data Records, order as on track|
+| `idcrc` | whole ID Records including Address Mark and crc<br>useful for reverse engineering Header CRC|
+| `datacrc` | whole Data Records including Address Mark and crc<br>useful for reverse engineering Data CRC|
+| ~~`tr`~~ | dgesswein/mfm transitions file format|
+| ~~`ex`~~ | dgesswein/mfm extract file format|
+
+Use '-B mfm=' with a name of desired output like `iddata`, or combination like `id:data` producing same output as `iddata`. `idcrc` and `datacrc` are used for reverse engineering non standard CRC parameters (Polynomial and Init). `tr` and `ex` unsupported while Im figuring out how to implement it efficiently. At the moment output only in _order as on track_ meaning some post processing required when converting interleaved tracks to disk images. Redirect output to a file to grab it or pipe it to another program.  
+&nbsp;&nbsp;&nbsp;&nbsp;'-B mfm=idcrc > header_crc.bin'  
+&nbsp;&nbsp;&nbsp;&nbsp;'-B mfm=iddata > track_dump.img'  
+&nbsp;&nbsp;&nbsp;&nbsp;'-B mfm=id:data > track_dump.img'  
 
 <hr>
 
@@ -765,6 +783,46 @@ MESSAGE BUFFER NOT VALID MESSAGE BUFFER XSTAT1 XSTAT2 (DEAD TRACK CHANNEL
 MASSBUS0DAIGNOSTIC MODEABA/B MF CS1 (@l (@ (@ (@ MF IS (@ (@ry
 </pre>  
 
+Proper binary dump of same sector to the screen using xxd:  
+<code>sigrok-cli.exe -D -i samples\hdd_mfm_RQDX3_sector.sr -P mfm -B mfm=data | xxd</code>
+<pre>
+00000000: 203d 2098 40a1 9000 000f 072e 2042 5954   = .@....... BYT
+00000010: 4553 040f 0120 0d08 0f10 534b 4950 2f53  ES... ....SKIP/S
+00000020: 5041 4345 2043 4f55 4e54 0d18 1c08 0404  PACE COUNT......
+00000030: 0f01 200d 280f 0b53 4b49 502f 5350 4143  .. .(..SKIP/SPAC
+00000040: 4520 9840 7090 0000 0f10 2e20 5441 5045  E .@p...... TAPE
+00000050: 204d 4152 4b53 2f52 4543 040f 0120 0f18   MARKS/REC... ..
+00000060: 4d45 5353 4147 4520 4255 4646 4552 204e  MESSAGE BUFFER N
+00000070: 4f54 2056 414c 4944 0504 050f 0120 0f0e  OT VALID..... ..
+00000080: 4d45 5353 4147 4520 4255 4646 4552 0504  MESSAGE BUFFER..
+00000090: 0f01 200d 080f 0658 5354 4154 310d 181c  .. ....XSTAT1...
+000000a0: 0804 040f 0120 0d08 0f06 5853 5441 5432  ..... ....XSTAT2
+000000b0: 0d18 1c08 0404 0f01 200d 280f 1344 4541  ........ .(..DEA
+000000c0: 4420 5452 4143 4b20 4348 414e 4e45 4c20  D TRACK CHANNEL
+000000d0: 1801 0f01 2e04 0f01 200d 280f 1944 4541  ........ .(..DEA
+000000e0: 4420 5452 4143 4b20 5041 5249 5459 2043  D TRACK PARITY C
+000000f0: 4841 4e4e 454c 040f 0120 0d08 0f06 5853  HANNEL... ....XS
+00000100: 5441 5433 0d18 1c08 0404 0f01 200d 280f  TAT3........ .(.
+00000110: 1c4d 4943 524f 2044 4941 474e 4f53 5449  .MICRO DIAGNOSTI
+00000120: 4320 4552 524f 5220 434f 4445 201a 0303  C ERROR CODE ...
+00000130: 040f 0120 0704 0000 0500 0000 0100 0000  ... ............
+00000140: 0000 0000 0200 0000 0800 0000 0b00 0000  ................
+00000150: 0600 0000 0400 0000 1000 0000 0e00 0000  ................
+00000160: 0a00 0000 0300 0000 0f00 0000 0c00 0000  ................
+00000170: 0700 0000 4d41 5353 4255 5300 3000 4441  ....MASSBUS.0.DA
+00000180: 4947 4e4f 5354 4943 204d 4f44 4541 4241  IGNOSTIC MODEABA
+00000190: 2f42 050f 0120 0d08 0f06 4d46 2043 5331  /B... ....MF CS1
+000001a0: 0d18 1c08 0804 0f01 200d 2895 406c aa00  ........ .(.@l..
+000001b0: 0004 0f01 200d 2895 4082 aa00 0004 0f01  .... .(.@.......
+000001c0: 200d 2895 4098 aa00 0004 0f01 200d 2895   .(.@....... .(.
+000001d0: 40ae aa00 0004 0f01 200d 080f 054d 4620  @....... ....MF
+000001e0: 4953 0d18 1c08 0804 0f01 200d 2895 40b2  IS........ .(.@.
+000001f0: aa00 0004 0f01 200d 2895 40c8 aa00 0004  ...... .(.@.....
+</pre>  
+
+Proper binary dump of same sector to sector_dump.bin file:  
+<code>sigrok-cli.exe -D -i samples\hdd_mfm_RQDX3_sector.sr -P mfm -B mfm=data > sector_dump.bin</code>
+
 Report of the first 17 sectors:  
 <code>sigrok-cli -D -i samples\hdd_mfm_RQDX3.sr -P mfm:report=DAM:report_qty=17 -A mfm=reports</code>
 <pre>
@@ -879,8 +937,26 @@ mfm-1: CRC OK F38D
 mfm-1: CRC error 115E0390
 </pre>
 
+Reverse engineering Header CRC using RevEng. You need to know Header size (3 or 4 bytes), size of Address Mark (OMTI8247 uses implicit A1 with standard FE) and CRC size (in this case 16 bits). CRC size can be deduced by looking at couple of Headers and comparing where CRC bytes start repeating. 'xxd -c' takes size of idcrc (A1 + FE + 4 bytes + 2 crc bytes), 'reveng -w' takes crc size in bits (16):  
+<code>sigrok-cli -D -i samples\hdd_rll_OMTI8247.sr mfm:data_rate=7500000:format=RLL_OMTI:header_size=4 -B mfm=idcrc | xxd -p -c 8 | paste -sd' ' - | xargs ./reveng -w 16 -F -s</code>
+<pre>
+width=16  poly=0x1021  init=0x7107  refin=false  refout=false  xorout=0x0000  check=0xb623  residue=0x0000  name=(none)
+</pre>
+
+Reverse engineering Data CRC using RevEng. You need to know Sector size (most likely 512), size of Address Mark (OMTI8247 uses implicit A1 with somewhat standard F8) and CRC size (in this case 48 bits). CRC size can be deduced by looking at couple of Headers and comparing where CRC bytes start repeating. 'xxd -c' takes size of datacrc (A1 + F8 + 512 bytes + 6 crc bytes), 'reveng -w' takes crc size in bits (48):  
+<code>sigrok-cli -D -i samples\hdd_rll_OMTI8247.sr -P mfm:data_rate=7500000:format=RLL_OMTI:data_crc_size=48:sector_size=512 -B mfm=datacrc | xxd -p -c 520 | paste -sd' ' - | xargs ./reveng -w 48 -F -s</code>
+<pre>
+width=48  poly=0x181814503011  init=0x6062ebbf22b4  refin=false  refout=false  xorout=0x000000000000  check=0xc8c112fa414b  residue=0x000000000000  name=(none)
+</pre>
+We got lucky _twice_ with this one! Above command shouldnt really work because
+1. RevEng demands at least _four_ distict samples while hdd_rll_OMTI8247.sr containing Track 0: Cylinder 0, Head 0 has only _three_ unique data CRCs (9E0686655A45 45321CB260F5 968B4351B496). Somehow RevEng guesses correctly as confirmed by scanning rest of full original [OMTI-8247_RLL_820-6.tr hard drive image](https://bitsavers.org/projects/hd_samples/ST-251/RLL_1-1_interleave_26sect/OMTI-8247_RLL_820-6.tr.gz). If it failed we would have to find at least one more sector with different data CRC, quick scan of this disk dump has one at Track 611: Cylinder 101, Head 5 Sector 2 (A105DEE7B206).
+2. passing 26 sectors worth of hex encoded data is ~27000 characters. Windows has a 32767 character command line limit, but standard conhost only 8191 characters! It most likely worked for me because I use [OpenConsole.exe renamed to conhost.exe](https://github.com/microsoft/terminal/issues/1817). It ?should? also work in modern Linuxes (Bash ARG_MAX).
+
+Fallback solution for Reverse engineering Data CRC using RevEng with temporary files:  
+<code>sigrok-cli -D -i samples\hdd_rll_OMTI8247.sr -P mfm:data_rate=7500000:format=RLL_OMTI:data_crc_size=48:sector_size=512 -B mfm=datacrc | split -b 520 -d --additional-suffix=.bin - tmp_chunk_ & reveng.exe -w 48 -F -s -f tmp_chunk_*.bin & rm tmp_chunk_*.bin</code>
+
 General structure of arguments:  
-<code>sigrok-cli -D -I csv:logic_channels=3:column_formats=t,l,l,l -i YourHugeSlow.csv -P mfm:option1=value1:option2=value2 -A mfm=annotation1:annotation2</code>
+<code>sigrok-cli -D -I csv:logic_channels=3:column_formats=t,l,l,l -i YourHugeSlow.csv -P mfm:option1=value1:option2=value2 -A mfm=annotation1:annotation2 -B mfm=binaryoutput3</code>
 
 <hr>
 
@@ -904,12 +980,12 @@ Old user instructions are in [documentation](doc/PulseView-MFM-Decoder.wri.md)
 - 0x1021 x16 + x12 + x5 + 1. Good old CRC-CCITT.
 - 0xA00805 x32 + x23 + x21 + x11 + x2 + 1. Used by SMSC/SMC HDC9224 in VAXstation 2000 ("VAXSTAR" ). It just so happens to be an official CRC32 algorithm of CCSDS (Consultative Committee for Space Data Systems) used in [Proximity-1 Space Link Protocol](https://ccsds.org/Pubs/211x2b1s.pdf). Thats right - [the one place that hasn't been corrupted by capitalism: SPACE!](https://www.youtube.com/watch?v=g1Sq1Nr58hM)
 - 0x140a0445 X32 + X28 + X26 + X19 + X17 + X10 + X6 + X2 + 1 WD1003/WD1006/WD1100 CRC32
-- 0x41044185 x32 + x30 + x24 + x18 + x14 + x8 + x7 + x2 + 1 (0 init) Seagate ST11/21 header/data CRC32
-- 0x0104c981 x32 + x24 + x18 + x15 + x14 + x11 + x8 + x7 + 1 (0xd4d7ca20 init) OMTI 8240/?5510?
+- 0x41044185 x32 + x30 + x24 + x18 + x14 + x8 + x7 + x2 + 1 (init 0) Seagate ST11/21 header/data CRC32
 - 0x140a0445000101 X56 + X52 + X50 + X43 + X41 + X34 + X30 + X26 + X24 + X8 + 1 WD40C22/etc ECC56
-- 0x4440a051 X32 + X30 + X26 + X22 + X15 + x13 + X6 + X4 + 1 WD1003/WD1006/WD1100 CRC32 reciprocal
-- 0x100004440a051 X56 + X48 + X32 + X30 + X26 + X22 + X15 + X13 + X6 + X4 + 1 WD40C22/etc 56bit ecc reciprocal
+- 0x1021 (init 0x7107) OMTI 8247 CRC16
+- 0x181814503011 (init 0x6062ebbf22b4) OMTI 8247 ECC48
 - OMTI_5510_Apr85.pdf: ?0x40c99041 x32 + x31 + x24 + x23 + x20 + x17 + x16 + x13 + x7 + 1?
+- 0x0104c981 x32 + x24 + x18 + x15 + x14 + x11 + x8 + x7 + 1 (init 0xd4d7ca20) OMTI 8240/?5510?
 - 1983_Western_Digital_Components_Catalog.pdf WD1100-06 most likely typos claiming:
   - ? 0x140a0405 X32 + X28 + X26 + X19 + X17 + X10 + X2 + 1
   - ? 0x140a0444 X32 + X28 + X26 + X19 + X17 + X10 + X6 + X2 + 0
@@ -924,9 +1000,9 @@ Now try CRC32-CCSDS x32 + x23 + x21 + x11 + x2 + 1
 2. Drop most significant bit, becomes 0b101000000000100000000101 (0xA00805)
 3. 0xA00805, done!
 ### CRC
+- [CRC RevEng: arbitrary-precision CRC calculator and algorithm finder](https://reveng.sourceforge.io/)
 - [CRC Calculator (Javascript)](https://www.sunshine2k.de/coding/javascript/crc/crc_js.html) Set custom CRC-16/32 with appropriately sized initial value 0xFFFF/0xFFFFFFFF. Dont forget to prepend ID/Data Mark bytes (FE, A1FE, A1A1A1FE what have you) to your data.
 - [Online CRC Calculation](https://www.ghsi.de/pages/subpages/online_crc_calculation/) [Cyclic Redundancy Check (CRC) Step-by-Step Calculator](https://rndtool.info/CRC-step-by-step-calculator/) Useful for converting binary Polynomial to x^ notation.
-- [CRC RevEng: arbitrary-precision CRC calculator and algorithm finder](https://reveng.sourceforge.io/)
 ### Tutorials
 - Thierry Nouspikel [The TI floppy disk controller card]( https://www.unige.ch/medecine/nouspikel/ti99/disks.htm#Data%20encoding) Award winning resouce on FM/MFM modulation and floppy encoding schemes.
 - Wouter Vermaelen [Low-level disk storage](https://map.grauw.nl/articles/low-level-disk/)
@@ -992,7 +1068,7 @@ Full [Changelog](doc/changelog.md). Biggest changes from original:
 - [x] more Test samples
 - [ ] annotate reason of PLL reset
 - [~] dont reset PLL on data decode error, try to recover with ECC
-- [ ] Binary Decoder Output
+- [x] Binary Output
 - [ ] more `auto` modes
     - [ ] `auto` data_rate detection
     - [x] `auto` sector_size mode using Sector length value from the Header

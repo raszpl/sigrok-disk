@@ -27,7 +27,7 @@
 & "C:\Program Files\sigrok\sigrok-cli\sigrok-cli.exe" -D -i "D:\_code\disk mfm\HDD_11tracks.sr" -P mfm:dsply_sn=yes:data_crc_size=16:header_crc_poly=0x1021:data_crc_poly_custom=0x1021:sector_size=512 -A mfm=fields:bytes
 
 # i7-4790 results (updated when I get better reading, garbage collecion means readings arent always the same):
-#fdd_fm.sr 0.9208 seconds
+#fdd_fm.sr 0.9193 seconds
 #fdd_mfm.sr 1.4738 seconds
 #fdd_fm.sr 0.8520 seconds
 #fdd_mfm.sr 1.2347 seconds
@@ -35,16 +35,16 @@
 #hdd_mfm_RQDX3.sr 1.9471 seconds
 #hdd_mfm_AMS1100M4.sr 1.4330 seconds
 #hdd_mfm_WD1003V-MM2.sr 1.7693 seconds
-#hdd_mfm_WD1003V-MM2_int.sr 1.7681 seconds
+#hdd_mfm_WD1003V-MM2_int.sr 1.7627 seconds
 #hdd_mfm_EV346.sr 1.7657 seconds
 #hdd_rll_ST21R.sr 1.8792 seconds
-#hdd_rll_WD1003V-SR1.sr 2.1603 seconds
-#hdd_rll_WD1003V-SR1.sr 2.1518 seconds
-#hdd_rll_WD1003V-SR1.sr 2.1489 seconds
-#hdd_rll_WD1003V-SR1.sr 2.1539 seconds
-#hdd_rll_WD1003V-SR1.sr 2.1768 seconds
-#HDD_11tracks.sr 17.2687 seconds
-#HDD_11tracks.sr 12.2691 seconds
+#hdd_rll_WD1003V-SR1.sr 2.1617 seconds
+#hdd_rll_WD1003V-SR1.sr 2.1688 seconds
+#hdd_rll_WD1003V-SR1.sr 2.1662 seconds
+#hdd_rll_WD1003V-SR1.sr 2.1506 seconds
+#hdd_rll_WD1003V-SR1.sr 2.1838 seconds
+#HDD_11tracks.sr 17.2464 seconds
+#HDD_11tracks.sr 12.2555 seconds
 
 # i7-4790 before any speed optimizations results:
 #fdd_fm.sr 0.9755 seconds

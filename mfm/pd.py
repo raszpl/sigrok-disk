@@ -88,9 +88,19 @@ class Decoder(srd.Decoder):
 		('erb', 'bad bit'),
 		('err', 'error'),
 	)
+	binary = (
+		('id', 'raw ID Records (Header data fields)'),
+		('data', 'raw Data Records, order as on track'),
+		('iddata', 'combined ID + Data Records, order as on track'),
+		('idcrc', 'whole headers including Address Mark and crc'),
+		('datacrc', 'whole data field including Address Mark and crc'),
+		('tr', 'dgesswein/mfm transitions file format'),
+		('ex', 'dgesswein/mfm extract file format'),
+	)
 
-	global ann
+	global ann, bnr
 	ann = SimpleNamespace(**{key: idx for idx, (key, _) in enumerate(annotations)})
+	bnr = SimpleNamespace(**{key: idx for idx, (key, _) in enumerate(binary)})
 
 	annotation_rows = (
 		('pulses', 'Pulses', (ann.pul, ann.erp,)),
@@ -516,7 +526,7 @@ class Decoder(srd.Decoder):
 
 	def start(self):
 		self.out_ann = self.register(srd.OUTPUT_ANN)
-		#self.out_binary = self.register(srd.OUTPUT_BINARY)
+		self.out_binary = self.register(srd.OUTPUT_BINARY)
 		#self.out_meta = self.register(srd.OUTPUT_META, meta=(int, 'meta', 'meta meta?'))
 
 		# Validate user provided command-line options.
@@ -834,7 +844,8 @@ class Decoder(srd.Decoder):
 						self.shift_index -= 4
 						continue
 					
-					print("ERROR: no matches, skip whole byte")
+					# TODO: figure out a way to send signal about error upstream to try ECC correction
+					#print("ERROR: no matches, skip whole byte")
 					self.shift_index -= 16 - self.shift_decoded_1
 					self.shift_decoded_1 = 0
 					return False
@@ -1340,7 +1351,8 @@ class Decoder(srd.Decoder):
 			self.put(self.field_start, self.byte_end, self.out_ann,
 					 [ann.crc, ['CRC OK %02X' % self.crc_accum, 'CRC OK', 'CRC', 'C']])
 			if self.report_last in (field.Deleted_Data_Mark, field.Data_Address_Mark):
-				self.display_report() # called in CRC message so we know when Data_Mark ended
+				# display_report called in CRC message so we know when Data_Mark ended
+				self.display_report()
 
 		elif typ == field.CRC_Error:
 			self.CRC_err += 1
@@ -1486,6 +1498,7 @@ class Decoder(srd.Decoder):
 			if self.byte_cnt == self.header_size:
 				self.decode_id_rec(self.IDrec)
 				self.display_field(field.ID_Record)
+				self.put(self.field_start, self.byte_end, self.out_binary, [bnr.id, bytes(self.IDrec)])
 				if self.sector_size_auto and self.sector_size != self.IDlenv:
 					self.sector_size = self.IDlenv
 					self.DRrec = bytearray(self.sector_size)
@@ -1499,6 +1512,7 @@ class Decoder(srd.Decoder):
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
 				self.calculate_crc_header((self.A1, self.IDmark, self.IDrec))
+				self.put(self.field_start, self.byte_end, self.out_binary, [bnr.idcrc, bytes(self.A1 + self.IDmark) + bytes(self.IDrec) + self.IDcrc.to_bytes(self.header_crc_bytes, 'big')])
 				if self.crc_accum == self.IDcrc:
 					self.display_field(field.CRC_Ok)
 				else:
@@ -1521,6 +1535,10 @@ class Decoder(srd.Decoder):
 			self.byte_cnt -= 1
 			if self.byte_cnt == 0:
 				self.calculate_crc_data((self.A1, self.DRmark, self.DRrec))
+				DRrec = bytes(self.DRrec)
+				self.put(self.field_start, self.byte_end, self.out_binary, [bnr.data, bytes(self.DRrec)])
+				self.put(self.field_start, self.byte_end, self.out_binary, [bnr.iddata, bytes(self.IDrec + self.DRrec)])
+				self.put(self.field_start, self.byte_end, self.out_binary, [bnr.datacrc, bytes(self.A1 + self.DRmark) + bytes(self.DRrec) + self.DRcrc.to_bytes(self.data_crc_bytes, 'big')])
 				if self.crc_accum == self.DRcrc:
 					self.display_field(field.CRC_Ok)
 				else:
