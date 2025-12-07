@@ -1490,9 +1490,9 @@ class Decoder(srd.Decoder):
 				return True
 			self.annotate_byte(val)
 			self.display_field(field.Sync)
-			if (self.header_size == 4 and val == 0xFE) or \
-				(self.header_size == 3 and (val & 0xF4) == 0xF4):
-				# FEh FC-FFh ID Address Mark
+			if (val & 0xF4) == 0xF4:
+				# FC-FFh ID Address Mark
+				# & 0xF4 because id_rec_3byte stores 3 bits of Cylinder High in Address Mark
 				self.IDmark = [val]
 				self.display_field(field.ID_Address_Mark)
 				self.pb_state = state.ID_Record
