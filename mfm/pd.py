@@ -119,7 +119,7 @@ class Decoder(srd.Decoder):
 			'default': '5000000', 'values': ('125000', '150000',
 			'250000', '300000', '500000', '5000000', '7500000', '10000000')},
 		{'id': 'format', 'desc': 'Encoding format. Pick preset or custom to define your own',
-			'default': 'MFM', 'values': ('FM', 'MFM', 'RLL_Seagate', 'RLL_Adaptec', 'RLL_WD', 'RLL_OMTI', 'RLL_DTC7287_unknown', 'custom')},
+			'default': 'MFM', 'values': ('FM', 'MFM', 'RLL_Seagate', 'RLL_Adaptec', 'RLL_Adaptec4070', 'RLL_WD', 'RLL_OMTI', 'RLL_DTC7287_unknown', 'custom')},
 		{'id': 'header_size', 'desc': 'Header payload length in bytes',
 			'default': '4', 'values': ('3', '4')},
 		{'id': 'sector_size', 'desc': 'Sector payload length in bytes',
@@ -443,6 +443,17 @@ class Decoder(srd.Decoder):
 			'shift_index': [18],
 			'ID_mark': [0xA1],
 			'IDData_mark': [0xA0],
+			'nop_mark': [0x1E, 0x5E, 0xDE]
+		},
+		# Adaptec ACB-237x, ACB-4070
+		coding.RLL_Adaptec4070: {
+			'limits_key': coding.RLL,
+			'codemap_key': coding.RLL_IBM,
+			'sync_pulse': 3,
+			'sync_marks': [[4, 3, 8, 3], [5, 6, 8, 3], [8, 3]],
+			'shift_index': [18],
+			'ID_mark': [0xA1],
+			'Data_mark': [0xA0],
 			'nop_mark': [0x1E, 0x5E, 0xDE]
 		},
 		coding.RLL_WD: {
