@@ -187,7 +187,8 @@ def verify_track_crc(f, track_start_pos, track_header_size, num_data_bytes, sile
 	return data
 
 def parse_track_range(range_str, max_Range):
-	# Parse a string like '5', '3-7', '10-', '-5', '1,3-5,10-15,20' into a sorted # list of unique integers between 0 and max_Range (inclusive).
+	# Parse a string like '5', '3-7', '10-', '-5', '-2,5,10-15,20' into a
+	# sorted list of unique integers between 0 and max_Range (inclusive).
 
 	for c in range_str:
 		if not (c.isdigit() or c == ',' or c == '-'):
@@ -379,7 +380,7 @@ def process_tracks(filename, track_range=None, list=False, dump=None, pipe=False
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description='Transitions file (dgesswein/mfm) to VCD converter')
-	parser.add_argument('-t', '--track', type=str, help='Track(s) to dump: 5, 3-7, 10-, -8')
+	parser.add_argument('-t', '--track', type=str, help="Track(s) to dump: '5', '3-7', '10-', '-5', '-2,5,10-15,20', etc")
 
 	group = parser.add_mutually_exclusive_group()
 	group.add_argument('-l', '--list', action='store_true', help='Show Header and list all tracks')
