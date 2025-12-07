@@ -1514,6 +1514,8 @@ class Decoder(srd.Decoder):
 				self.display_field(field.ID_Record)
 				self.put(self.field_start, self.byte_end, self.out_binary, [bnr.id, bytes(self.IDrec)])
 				if self.sector_size_auto and self.sector_size != self.IDlenv:
+					if self.IDlenv not in (128, 256, 512, 1024, 2048, 4096, 8192, 16384):
+						raise ValueError("Failed sector_size_auto, ID_Record IDlenv", self.IDlenv)
 					self.sector_size = self.IDlenv
 					self.DRrec = bytearray(self.sector_size)
 				self.byte_cnt = 0
