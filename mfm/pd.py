@@ -120,8 +120,8 @@ class Decoder(srd.Decoder):
 			'250000', '300000', '500000', '5000000', '7500000', '10000000')},
 		{'id': 'format', 'desc': 'Encoding format. Pick preset or custom to define your own',
 			'default': 'MFM', 'values': ('FM', 'MFM', 'RLL_Seagate', 'RLL_Adaptec', 'RLL_Adaptec4070', 'RLL_WD', 'RLL_OMTI', 'RLL_DTC7287_unknown', 'custom')},
-		{'id': 'header_size', 'desc': 'Header payload length in bytes',
-			'default': '4', 'values': ('3', '4')},
+		{'id': 'header_format', 'desc': 'Header format, defines length in bytes',
+			'default': '4', 'values': ('3', '4', 'Seagate', 'OMTI', 'Adaptec', 'Adaptec4070')},
 		{'id': 'sector_size', 'desc': 'Sector payload length in bytes',
 			'default': 'auto', 'values': ('auto', '128', '256', '512', '1024', '2048', '4096', '8192', '16384')},
 		{'id': 'header_crc_size', 'desc': 'Header field CRC bits',
@@ -282,6 +282,15 @@ class Decoder(srd.Decoder):
 		GCR_IBM				= 13,
 		GCR_CBM				= 14,
 	)
+	
+	header_format = {
+			'3': (3, 'decode_id_rec_3byte'),
+			'4': (4, 'decode_id_rec_4byte'),
+			'Seagate': (4, 'decode_id_rec_4byte_Seagate'),
+			'OMTI': (4, 'decode_id_rec_4byte_OMTI'),
+			'Adaptec': (4, 'decode_id_rec_4byte_Adaptec'),
+			'Adaptec4070': (4, 'decode_id_rec_4byte_Adaptec4070'),
+	}
 
 	encoding_limits = {
 		coding.FM:	(1, 2),				# (0,1) RLL
@@ -554,7 +563,8 @@ class Decoder(srd.Decoder):
 		self.rising_edge = True if self.options['leading_edge'] == 'rising' else False
 		self.data_rate = float(self.options['data_rate'])
 		self.format = getattr(coding, self.options['format'])
-		self.header_size = int(self.options['header_size'])
+		self.header_size, header_format = self.header_format[self.options['header_format']]
+		self.decode_id_rec = getattr(self, header_format)
 		self.IDrec = bytearray(self.header_size)	# ID record (3-4 bytes)
 		self.sector_size = 0 if self.options['sector_size'] == 'auto' else int(self.options['sector_size'])
 		self.DRrec = bytearray(self.sector_size)	# Data record (128-16384 bytes)
@@ -1393,47 +1403,66 @@ class Decoder(srd.Decoder):
 		self.field_start = self.byte_end
 
 	# ------------------------------------------------------------------------
-	# PURPOSE: Decode the ID Record subfields.
-	# IN: fld_code	4 = cylinder, 3 = side, 2 = sector, 1 = length code
-	#	  val  8-bit subfield value (00h..FFh)
+	# PURPOSE: Decode ID Record subfields.
 	# ------------------------------------------------------------------------
 
-	def decode_id_rec(self, IDrec):
-		if self.header_size == 3:
-			self.decode_id_rec_3byte(IDrec)
-		else:
-			self.decode_id_rec_4byte(IDrec)
-
 	def decode_id_rec_3byte(self, IDrec):
-		for fld_code, val in enumerate(IDrec):
-			if fld_code == 0:
-				if self.IDmark == []:
-					raise raise_exception('decode_id_rec_3byte: Cant have empty IDmark here, most likely wrong Encoding selected')
-				msb = (self.IDmark[0] ^ 0xE) & 0x0F
-				# val holds Cylinder Number Low
-				# IDmark encodes 3 bits of Cylinder Number High
-				# IDmark & 0b0001 = 9th bit
-				# (IDmark & 0b0010) ^ 0b0010 = 10th bit
-				# (IDmark & 0b1000) ^ 0b1000 = 11th bit
-				self.IDcyl = val + ((msb & 0b11) << 8) + ((msb & 0b1000) << 7)
-			elif fld_code == 1:
-				self.IDsid = val & 0x0F
-				self.IDlenc = val >> 4
-				self.IDlenv = 128 << (self.IDlenc & 3)
-			elif fld_code == 2:
-				self.IDsec = val
+		if self.IDmark == []:
+			raise raise_exception('decode_id_rec_3byte: Cant have empty IDmark here, wrong encoding or header_format selected')
+		# IDmark encodes 3 bits of Cylinder upper byte
+		# IDmark & 0b0001 = 9th bit
+		# (IDmark & 0b0010) ^ 0b0010 = 10th bit
+		# (IDmark & 0b1000) ^ 0b1000 = 11th bit
+		msb = (self.IDmark[0] ^ 0xE) & 0x0F
+		# IDrec[0] holds Cylinder lower byte
+		self.IDcyl = ((msb & 0b11) << 8) + ((msb & 0b1000) << 7) + IDrec[0]
+		self.IDsid = IDrec[1] & 0x0F
+		self.IDsec = IDrec[2]
+		self.IDlenc = IDrec[1] >> 4
+		self.IDlenv = 128 << (self.IDlenc & 7)
 
 	def decode_id_rec_4byte(self, IDrec):
-		for fld_code, val in enumerate(IDrec):
-			if fld_code == 0:
-				self.IDcyl = val
-			elif fld_code == 1:
-				self.IDsid = val
-			elif fld_code == 2:
-				self.IDsec = val
-			elif fld_code == 3:
-				self.IDlenc = val
-				self.IDlenv = 128 << (val & 3)
+		self.IDcyl = IDrec[0]
+		self.IDsid = IDrec[1]
+		self.IDsec = IDrec[2]
+		self.IDlenc = IDrec[3]
+		self.IDlenv = 128 << (IDrec[3] & 7)
+
+	def decode_id_rec_4byte_Seagate(self, IDrec):
+		self.IDcyl = ((IDrec[0] & 0b11000000) << 2) + IDrec[1]
+		self.IDsid = IDrec[0] & 0xF
+		self.IDsec = IDrec[2]
+		#self.IDlenc = IDrec[3]
+		#self.IDlenv = 512 << (IDrec[3] & 7) probably not :), hardcode 512 for now
+		self.IDlenc = 2
+		self.IDlenv = 512
+
+	def decode_id_rec_4byte_OMTI(self, IDrec):
+		self.IDcyl = (IDrec[0] << 8) + IDrec[1]
+		self.IDsid = IDrec[2]
+		self.IDsec = IDrec[3]
+		# no space for encoding Sector size, hardcode 512
+		self.IDlenc = 2
+		self.IDlenv = 512
+
+	def decode_id_rec_4byte_Adaptec(self, IDrec):
+		self.IDcyl = ((IDrec[1] & 0xF0) << 4) + IDrec[0]
+		self.IDsid = IDrec[1] & 0xF
+		self.IDsec = IDrec[2]
+		# hardcoded 512
+		self.IDlenc = 2
+		self.IDlenv = 512
+
+	# Adaptek RLL to SCSI bridge, stores LBA in headers
+	def decode_id_rec_4byte_Adaptec4070(self, IDrec):
+		LBA = (IDrec[0] << 16) + (IDrec[1] << 8) + IDrec[2]
+		track = LBA // 26
+		self.IDcyl = track // 6
+		self.IDsid = track - self.IDcyl * 6
+		self.IDsec = LBA - track * 26
+		# hardcoded 512, 6 heads, 26 sectors/track
+		self.IDlenc = 2
+		self.IDlenv = 512
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: State machine to process one byte extracted from pulse stream.
