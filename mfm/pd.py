@@ -1503,15 +1503,15 @@ class Decoder(srd.Decoder):
 				if self.sector_size_auto and self.sector_size != self.IDlenv:
 					self.sector_size = self.IDlenv
 					self.DRrec = bytearray(self.sector_size)
-				self.byte_cnt = self.header_crc_bytes
+				self.byte_cnt = 0
 				self.pb_state = state.ID_Record_CRC
 
 		elif self.pb_state == state.ID_Record_CRC:
 			self.annotate_byte(val)
 			self.IDcrc <<= 8
 			self.IDcrc += val
-			self.byte_cnt -= 1
-			if self.byte_cnt == 0:
+			self.byte_cnt += 1
+			if self.byte_cnt == self.header_crc_bytes:
 				self.calculate_crc_header((self.A1, self.IDmark, self.IDrec))
 				self.put(self.field_start, self.byte_end, self.out_binary, [bnr.idcrc, bytes(self.A1 + self.IDmark) + bytes(self.IDrec) + self.IDcrc.to_bytes(self.header_crc_bytes, 'big')])
 				if self.crc_accum == self.IDcrc:
@@ -1526,15 +1526,15 @@ class Decoder(srd.Decoder):
 			self.byte_cnt += 1
 			if self.byte_cnt == self.sector_size:
 				self.display_field(field.Data_Record)
-				self.byte_cnt = self.data_crc_bytes
+				self.byte_cnt = 0
 				self.pb_state = state.Data_Record_CRC
 
 		elif self.pb_state == state.Data_Record_CRC:
 			self.annotate_byte(val)
 			self.DRcrc <<= 8
 			self.DRcrc += val
-			self.byte_cnt -= 1
-			if self.byte_cnt == 0:
+			self.byte_cnt += 1
+			if self.byte_cnt == self.data_crc_bytes:
 				self.calculate_crc_data((self.A1, self.DRmark, self.DRrec))
 				DRrec = bytes(self.DRrec)
 				self.put(self.field_start, self.byte_end, self.out_binary, [bnr.data, bytes(self.DRrec)])
