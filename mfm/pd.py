@@ -265,20 +265,22 @@ class Decoder(srd.Decoder):
 	)
 
 	coding = SimpleNamespace(
-		FM			= 0,
-		MFM			= 1,
-		RLL_Seagate	= 3,
-		RLL_Adaptec = 4,
-		RLL_WD		= 5,
-		RLL_DTC7287_unknown	= 6,
-		RLL_OMTI	= 7,
-		custom		= 8,
-		RLL			= 10,
-		FM_MFM		= 11,
-		RLL_IBM		= 12,
-		GCR			= 13,
-		GCR_IBM		= 14,
-		GCR_CBM		= 15,
+		FM					= 0,
+		MFM					= 1,
+		RLL_Seagate			= 2,
+		RLL_Adaptec 		= 3,
+		RLL_Adaptec4070		= 4,
+		RLL_WD				= 5,
+		RLL_OMTI			= 6,
+		RLL_DTC7287_unknown	= 7,
+		custom				= 8,
+
+		FM_MFM				= 9,
+		RLL					= 10,
+		RLL_IBM				= 11,
+		GCR					= 12,
+		GCR_IBM				= 13,
+		GCR_CBM				= 14,
 	)
 
 	encoding_limits = {
