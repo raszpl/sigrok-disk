@@ -1431,6 +1431,7 @@ class Decoder(srd.Decoder):
 	def decode_id_rec_4byte_Seagate(self, IDrec):
 		self.IDcyl = ((IDrec[0] & 0b11000000) << 2) + IDrec[1]
 		self.IDsid = IDrec[0] & 0xF
+		# Quirks: spare unused sector marked as IDsec == 254
 		self.IDsec = IDrec[2]
 		#self.IDlenc = IDrec[3]
 		#self.IDlenv = 512 << (IDrec[3] & 7) probably not :), hardcode 512 for now
