@@ -113,11 +113,11 @@ Huge thanks to Al Kossow for providing majority of the [samples hosted by bitsav
 `data_crc_poly` Polynomial used in Data field CRC calculation.  
 **Default**: `0xA00805` **Values**: `0x1021` (CRC-CCITT), `0xA00805` (CRC32-CCSDS), `0x140a0445`, `0x0104c981`, `0x41044185`, `0x140a0445000101`
 
-`data_crc_init` Initial value for Data field CRC calculation.  
-**Default**: `0xffffffffffffff`
-
 `data_crc_poly_custom` Custom Data field Polynomial, overrides `data_crc_poly` setting.  
 **Default**: `` (empty string)
+
+`data_crc_init` Initial value for Data field CRC calculation.  
+**Default**: `0xffffffffffffff`
 
 `time_unit` Select Pulse time units or number of half-bit windows.  
 **Default**: `ns` **Values**: `ns`, `us`, `auto`, `window`
