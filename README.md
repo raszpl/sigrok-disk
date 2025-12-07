@@ -66,7 +66,7 @@ This is a spare/unused sector created at the end of every track on MFM drive by 
  - [hdd_rll_ACB4070.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_ACB4070.sr) 200MHz sample rate. 2:1 interleave. 7500000 bps, RLL_Adaptec format, Header format unknown, Sector size 512, Header CRC 32bit, Header poly 0x41044185, Header CRC init 0, Data poly 0x41044185, Data CRC init 0. Requires more aggressive pll_kp=1 due to wobbly timings.<br>Seagate ST251 on Adaptec ACB-4070 RLL to SCSI bridge (AIC-300F, AIC-010F) from [Mattis Linds ABC1600 containing DNIX 5.3 (UNIX SVR3)](https://forum.vcfed.org/index.php?threads/rll-drive-sampling-project.1209575/#post-1209655)
  - [hdd_rll_ACB2370A.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_ACB2370A.sr) 200MHz sample rate. 7500000 bps, RLL_Adaptec format, Header format semi unknown, Sector size 512, Header CRC init 0, Data ECC 48bit, Data poly 0x181814503011, Data CRC init 0x010000000000.<br>Seagate ST251 on Adaptec ACB-2370A (AIC-610F, AIC-280L, AIC-270L, AIC-6225)
  - [hdd_rll_ACB2372.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_ACB2372.sr) 200MHz sample rate. 7500000 bps, RLL_Adaptec format, Header format semi unknown, Sector size 512, Header CRC init 0, Data ECC 48bit, Data poly 0x181814503011, Data CRC init 0x010000000000.<br>Seagate ST-278R on Adaptec ACB-2372 (AIC-610F, AIC-280L, AIC-270L, AIC-6225)
- - [hdd_rll_ST21R.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_ST21R.sr) 200MHz sample rate. 7500000 bps, RLL_Sea format, Header format semi unknown, Sector size 512, Header CRC 32bit, Header poly 0x41044185, Header CRC init 0, Data poly 0x41044185, Data CRC init 0.<br>Seagate ST-278R on Seagate ST21R (custom Seagate VLSI)
+ - [hdd_rll_ST21R.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_ST21R.sr) 200MHz sample rate. 7500000 bps, RLL_Seagate format, Header format semi unknown, Sector size 512, Header CRC 32bit, Header poly 0x41044185, Header CRC init 0, Data poly 0x41044185, Data CRC init 0.<br>Seagate ST-278R on Seagate ST21R (custom Seagate VLSI)
  - [hdd_rll_WD1003V-SR1.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_WD1003V-SR1.sr) 200MHz sample rate. 7500000 bps, RLL_WD format, Header size 3, Data ECC 56bit, Data poly 0x140a0445000101.<br>Seagate ST-278R WD1003V-SR1 (WD42C22A, WD10C22B)
  - [hdd_rll_WD1003V-SR1int.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_WD1003V-SR1int.sr) 200MHz sample rate. 2:1 interleave. 7500000 bps, RLL_WD format, Header size 3, Data ECC 56bit, Data poly 0x140a0445000101.<br>Seagate ST-251 WD1003V-SR1 (WD42C22A, WD10C22B)
  - [hdd_rll_WD1006V-SR2.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/hdd_rll_WD1006V-SR2.sr) 200MHz sample rate. 7500000 bps, RLL_WD format, Header size 3, Data ECC 56bit, Data poly 0x140a0445000101.<br>Seagate ST-251 WD1006V-SR2 (WD42C22A, WD10C22B)
@@ -90,7 +90,7 @@ Huge thanks to Al Kossow for providing majority of the [samples hosted by bitsav
 **Default**: `5000000` **Values**: `125000`, `150000`, `250000`, `300000`, `500000`, `5000000`, `7500000`, `10000000`
 
 `format` Encoding schemes available. 'custom' lets you build own decoder interactively in the GUI fully controlling its behavior.  
-**Default**: `MFM` **Values**: `FM`, `MFM`, `RLL_Sea`, `RLL_Adaptec`, `RLL_WD`, `RLL_OMTI`, `custom`, `RLL_DTC7287_unknown`
+**Default**: `MFM` **Values**: `FM`, `MFM`, `RLL_Seagate`, `RLL_Adaptec`, `RLL_WD`, `RLL_OMTI`, `custom`, `RLL_DTC7287_unknown`
 
 `header_size` Header payload length in bytes.  
 **Default**: `4` **Values**: `3`, `4`
@@ -190,7 +190,7 @@ All custom_encoder_ _mark options below support * wildcard, useful when debuggin
 **Default**: `` (empty string) **Example**: `0xFB` used by original FM floppies
 
 `custom_encoder_ID_prefix_mark` ID_prefix_mark is a Header Mark to be followed by IDData_mark.  
-**Default**: `` (empty string) **Example**: `0x1E` weird arrangement used by RLL_Sea
+**Default**: `` (empty string) **Example**: `0x1E` weird arrangement used by RLL_Seagate
 
 `custom_encoder_nop_mark` nop_mark is an inert Mark.  
 **Default**: `` (empty string) **Example**: `0x1E, 0x5E, 0xDE` for RLL_Adaptec
@@ -1069,7 +1069,8 @@ Full [Changelog](doc/changelog.md). Biggest changes from original:
 - [x] RLL decoding
 - [x] more Test samples
 - [ ] annotate reason of PLL reset
-- [~] dont reset PLL on data decode error, try to recover with ECC
+- [x] dont reset PLL on data decode error
+- [ ] try to recover with ECC
 - [x] Binary Output
 - [ ] Support more Header formats
 - [ ] more `auto` modes

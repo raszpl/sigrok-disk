@@ -119,7 +119,7 @@ class Decoder(srd.Decoder):
 			'default': '5000000', 'values': ('125000', '150000',
 			'250000', '300000', '500000', '5000000', '7500000', '10000000')},
 		{'id': 'format', 'desc': 'Encoding format. Pick preset or custom to define your own',
-			'default': 'MFM', 'values': ('FM', 'MFM', 'RLL_Sea', 'RLL_Adaptec', 'RLL_WD', 'RLL_OMTI', 'RLL_DTC7287_unknown', 'custom')},
+			'default': 'MFM', 'values': ('FM', 'MFM', 'RLL_Seagate', 'RLL_Adaptec', 'RLL_WD', 'RLL_OMTI', 'RLL_DTC7287_unknown', 'custom')},
 		{'id': 'header_size', 'desc': 'Header payload length in bytes',
 			'default': '4', 'values': ('3', '4')},
 		{'id': 'sector_size', 'desc': 'Sector payload length in bytes',
@@ -267,7 +267,7 @@ class Decoder(srd.Decoder):
 	coding = SimpleNamespace(
 		FM			= 0,
 		MFM			= 1,
-		RLL_Sea		= 3,
+		RLL_Seagate	= 3,
 		RLL_Adaptec = 4,
 		RLL_WD		= 5,
 		RLL_DTC7287_unknown	= 6,
@@ -422,7 +422,7 @@ class Decoder(srd.Decoder):
 			'IDData_mark': [0xA1]
 		},
 		# Seagate ST11M/21M
-		coding.RLL_Sea: {
+		coding.RLL_Seagate: {
 			'limits_key': coding.RLL,
 			'codemap_key': coding.RLL_IBM,
 			'sync_pulse': 3,
@@ -1223,7 +1223,7 @@ class Decoder(srd.Decoder):
 	# NOTES:
 	#	Synchronisation marks implemented by emitting illegal 0b100000001001 sequence.
 	#	PLLstate.scanning_sync_mark overrides those into 0b100010001001 creating:
-	#	RLL_Sea:
+	#	RLL_Seagate:
 	#		1Eh ID_prefix_mark
 	#		DEh nop_mark
 	#	RLL_WD:
