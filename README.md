@@ -1002,7 +1002,7 @@ Now try CRC32-CCSDS x32 + x23 + x21 + x11 + x2 + 1
 2. Drop most significant bit, becomes 0b101000000000100000000101 (0xA00805)
 3. 0xA00805, done!
 ### CRC
-- [CRC RevEng: arbitrary-precision CRC calculator and algorithm finder](https://reveng.sourceforge.io/)
+- [CRC RevEng: arbitrary-precision CRC calculator and algorithm finder](https://reveng.sourceforge.io/) by [Greg Cook](http://regregex.bbcmicro.net)
 - [CRC Calculator (Javascript)](https://www.sunshine2k.de/coding/javascript/crc/crc_js.html) Set custom CRC-16/32 with appropriately sized initial value 0xFFFF/0xFFFFFFFF. Dont forget to prepend ID/Data Mark bytes (FE, A1FE, A1A1A1FE what have you) to your data.
 - [Online CRC Calculation](https://www.ghsi.de/pages/subpages/online_crc_calculation/) [Cyclic Redundancy Check (CRC) Step-by-Step Calculator](https://rndtool.info/CRC-step-by-step-calculator/) Useful for converting binary Polynomial to x^ notation.
 ### Tutorials
@@ -1012,6 +1012,7 @@ Now try CRC32-CCSDS x32 + x23 + x21 + x11 + x2 + 1
 - [Hard Disk Geometry and Low-Level Data Structures](https://www.viser.edu.rs/uploads/2018/03/Predavanje%2002c%20-%20Hard%20disk%20geometrija.pdf) by School of Electrical and Computer Engineering of Applied Studies in Belgrade (VISER)
 - Artem Rubtsov (creator of HDDScan) [HDD from Inside: Hard Drive Main Parts](https://hddscan.com/doc/HDD_from_inside.html)   [HDD inside: Tracks and Zones](https://hddscan.com/doc/HDD_Tracks_and_Zones.html)
 - [Bit Banging a 3.5" Floppy Drive](https://floppy.cafe/)
+- [Logic analyzer: visualizing latency between two digital signals in real time with sigrok and matplotlib](https://blog.savoirfairelinux.com/en-ca/2014/logic-analyzer-visualize-latency-with-sigrok-and-matplotlib/)
 ### Patents
 - [US3794987 Mfm readout with assymetrical data window](https://patents.google.com/patent/US3794987)
 - [US5062011A Address mark generating method and its circuit in a data memory](https://patents.google.com/patent/US5062011A)
