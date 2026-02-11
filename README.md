@@ -129,7 +129,7 @@ Huge thanks to Al Kossow for providing majority of the [samples hosted by bitsav
 **Default**: `no` **Values**: `no`, `IAM` (Index Mark), `IDAM` (ID Address Mark), `DAM` (Data Address Mark), `DDAM` (Deleted Data Address Mark)
 
 `report_qty` Number of Marks (specified above) between reports. This is a workaround for lack of sigrok/pulseview capability to signal end_of_capture.  
-**Default**: `9` **Example**: `9` for floppies, `17` for MFM hdd, `26` for RLL drives
+**Default**: `9` **Example**: `9` for floppies, `17` for MFM hdd, `26` for 7.5Mbit RLL drives, `34` for 10Mbit RLL drives etc
 
 `decoder` Choice between PI Loop Filter based PLL, or `legacy` with hardcoded immediate andustments.  
 **Default**: `PLL` **Values**: `PLL`, `legacy`
