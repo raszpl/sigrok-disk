@@ -188,7 +188,7 @@ def verify_track_crc(f, track_start_pos, track_header_size, num_data_bytes, sile
 
 def parse_track_range(range_str, max_Range):
 	# Parse a string like '5', '3-7', '10-', '-5', '-2,5,10-15,20' into a
-	# sorted list of unique integers between 0 and max_Range (inclusive).
+	# sorted list of unique integers between 0 and max_Range -1.
 
 	for c in range_str:
 		if not (c.isdigit() or c == ',' or c == '-'):
@@ -207,7 +207,7 @@ def parse_track_range(range_str, max_Range):
 				end = int(part[1:])
 			elif part.endswith('-'):
 				start = int(part[:-1])
-				end = max_Range
+				end = max_Range - 1
 			else:
 				start_str, end_str = part.split('-', 1)
 				start = int(start_str)
@@ -217,7 +217,7 @@ def parse_track_range(range_str, max_Range):
 			start = end = int(part)
 
 		# clamp
-		end = min(max_Range, end)
+		end = min(max_Range - 1, end)
 
 		if start > end:
 			raise ValueError(f"Invalid argument -t/--track: {start} > {end} in {range_str}")
@@ -279,6 +279,7 @@ def process_tracks(filename, track_range=None, list=False, dump=None, pipe=False
 		buf_offset += 4
 		num_heads = struct.unpack('<I', header_buf[buf_offset:buf_offset+4])[0]
 		buf_offset += 4
+		num_tracks = num_cylinders * num_heads
 
 		# Read bit rate (emulator) or transition count rate (transition)
 		bit_rate = struct.unpack('<I', header_buf[buf_offset:buf_offset+4])[0]
@@ -310,7 +311,7 @@ def process_tracks(filename, track_range=None, list=False, dump=None, pipe=False
 			computed_crc = calculate_crc32(header_buf[:offset_first_track - 4])
 			read_crc = struct.unpack('<I', header_buf[buf_offset:buf_offset+4])[0]
 
-		if not pipe:
+		if not pipe and not args.tch:
 			# Print file header info
 			print(f"File Type: {file_type} ({file_type_str}), Major Version: {major_version}, Minor Version: {minor_version}")
 			print(f"Offset to first track: {offset_first_track} bytes")
@@ -329,7 +330,7 @@ def process_tracks(filename, track_range=None, list=False, dump=None, pipe=False
 		if not is_emulator:
 			if computed_crc != read_crc:
 				print("Warning: Header CRC mismatch", file=sys.stderr)
-			if not pipe:
+			if not pipe and not args.tch:
 				print(f"Header CRC: read {read_crc:08x}, computed {computed_crc:08x}")
 
 		if list:
@@ -350,7 +351,7 @@ def process_tracks(filename, track_range=None, list=False, dump=None, pipe=False
 				track_count += 1
 
 		elif track_range:
-			tracks = parse_track_range(track_range, num_cylinders * num_heads)
+			tracks = parse_track_range(track_range, num_tracks)
 			timestamp = 0
 
 			for track_idx in tracks:
@@ -365,11 +366,14 @@ def process_tracks(filename, track_range=None, list=False, dump=None, pipe=False
 
 				if not pipe:
 					print(f"Track {track_idx}: Cylinder {cyl}, Head {head}")
-					if not is_emulator:
+					if args.tch:
+						print(bin(track_idx)[2:].zfill(num_tracks.bit_length()), bin(cyl)[2:].zfill(num_cylinders.bit_length()), bin(head)[2:].zfill(num_heads.bit_length()), '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
+					if not is_emulator and not args.tch:
 						print(f"  Data bytes: {data_size}")
 
 				if not is_emulator:
-					track_data = verify_track_crc(f, track_start_pos, track_header_size, data_size, pipe)
+					if not args.tch:
+						track_data = verify_track_crc(f, track_start_pos, track_header_size, data_size, pipe)
 				else:
 					track_data = f.read(data_size)
 					if len(track_data) != data_size:
@@ -381,6 +385,7 @@ def process_tracks(filename, track_range=None, list=False, dump=None, pipe=False
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description='Transitions file (dgesswein/mfm) to VCD converter')
 	parser.add_argument('-t', '--track', type=str, help="Track(s) to dump: '5', '3-7', '10-', '-5', '-2,5,10-15,20', etc")
+	parser.add_argument('-tch', action='store_true', help='-t only shows "Track Cylinder Head" + its binary encoding. Helpful for decoding unsupported Headers.')
 
 	group = parser.add_mutually_exclusive_group()
 	group.add_argument('-l', '--list', action='store_true', help='Show Header and list all tracks')
@@ -389,6 +394,7 @@ if __name__ == "__main__":
 
 	parser.add_argument('filename', help='.tr file')
 
+	global args
 	args = parser.parse_args()
 
 	if args.list and args.track:
