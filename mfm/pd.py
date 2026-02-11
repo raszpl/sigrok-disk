@@ -121,7 +121,7 @@ class Decoder(srd.Decoder):
 		{'id': 'format', 'desc': 'Encoding format. Pick preset or custom to define your own',
 			'default': 'MFM', 'values': ('FM', 'MFM', 'RLL_Seagate', 'RLL_Adaptec', 'RLL_Adaptec4070', 'RLL_WD', 'RLL_OMTI', 'RLL_DTC7287_unknown', 'custom')},
 		{'id': 'header_format', 'desc': 'Header format, defines length in bytes',
-			'default': '4', 'values': ('3', '4', 'Seagate', 'OMTI', 'Adaptec', 'Adaptec4070')},
+			'default': '4', 'values': ('3', '4', 'Seagate', 'OMTI', 'Adaptec', 'Adaptec4070', 'RLL_DTC7287_unknown')},
 		{'id': 'sector_size', 'desc': 'Sector payload length in bytes',
 			'default': 'auto', 'values': ('auto', '128', '256', '512', '1024', '2048', '4096', '8192', '16384')},
 		{'id': 'header_crc_size', 'desc': 'Header field CRC bits',
@@ -290,6 +290,7 @@ class Decoder(srd.Decoder):
 			'OMTI': (4, 'decode_id_rec_4byte_OMTI'),
 			'Adaptec': (4, 'decode_id_rec_4byte_Adaptec'),
 			'Adaptec4070': (4, 'decode_id_rec_4byte_Adaptec4070'),
+			'RLL_DTC7287_unknown': (3, 'decode_id_rec_3byte_RLL_DTC7287'),
 	}
 
 	encoding_limits = {
@@ -483,17 +484,35 @@ class Decoder(srd.Decoder):
 			'IDData_mark': [0x62],
 		},
 		# PLACEHOLDER! Weird format, almost as if it uses custom decoding_codemap? are those sync marks ESDI like?
+		# XORed with 0xFF?
 		# Data Technology Corporation DTC7287
 		coding.RLL_DTC7287_unknown: {
 			'limits_key': coding.RLL,
 			'codemap_key': coding.RLL_WD,
 			'sync_pulse': 4,
-			'sync_marks': [[5, 4, 4, 4, 4, 3, 8]],
-			'shift_index': [41],
-			'ID_mark': [0x49, 0x4a, 0x46, 0x4b],
-			'Data_mark': [0x0d,7,0x81],
-			'nop_mark': '*',
+			'sync_marks': [
+				[5, 4, 4, 4, 4, 3, 8, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 7],
+				[5, 4, 4, 4, 4, 3, 8, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 7],
+				[5, 4, 4, 4, 4, 3, 8, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 7]],
+			'shift_index': [18],
+			'ID_mark': [0x90, 0x91, 0x92, 0x93, 0x95, 0x96, 0x97],
+			'Data_mark': [2, 3],
+			'nop_mark': [0x36, 0x83],
 		},
+		# XORed with 0xFF
+		#coding.RLL_DTC7287_unknown: {
+		#	'limits_key': coding.RLL,
+		#	'codemap_key': coding.RLL_WD,
+		#	'sync_pulse': 4,
+		#	'sync_marks': [
+		#		[5, 4, 4, 4, 4, 3, 8, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 7],
+		#		[5, 4, 4, 4, 4, 3, 8, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 7],
+		#		[5, 4, 4, 4, 4, 3, 8, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 6, 6, 7]],
+		#	'shift_index': [18],
+		#	'ID_mark': [0x6F, 0x6E, 0x6D, 0x6C, 0x6A, 0x69, 0x68],
+		#	'Data_mark': [0xFD, 0xFC],
+		#	'nop_mark': [0xC9, 0x7C],
+		#},
 	}
 
 	# ------------------------------------------------------------------------
@@ -681,7 +700,6 @@ class Decoder(srd.Decoder):
 		else:
 			for i in range (0, len(format_current['sync_marks'])):
 				format_current['shift_index'][i] = format_current['shift_index'][i] - format_current['sync_marks'][i][-1]
-
 		self.format_current = SimpleNamespace(**format_current)
 
 	# ------------------------------------------------------------------------
@@ -1465,6 +1483,42 @@ class Decoder(srd.Decoder):
 		self.IDlenc = 2
 		self.IDlenv = 512
 
+	def decode_id_rec_3byte_RLL_DTC7287(self, IDrec):
+		rec = bytes([b ^ 0xff for b in IDrec])
+		mark = self.IDmark[0] ^ 0xff
+		print(''.join("{:08b}".format(byte) for byte in (bytes([self.IDmark[0] ^ 0xff]) + rec)))
+		msb = (mark ^ 0x0c) & 0x0F
+		#print(hex(mark), hex(msb), hex(mark ^ 0xc), hex(((msb & 0b11) << 8)), hex(((msb & 0b1000) << 7)), hex(rec[0]), hex(rec[0] >> 1))
+		# IDrec[0] holds Cylinder lower byte
+		self.IDcyl = ((msb & 0b11) << 8) + ((msb & 0b1000) << 7) + (rec[0] >> 1)
+		self.IDsid = (rec[1] & 0x0F) >> 1
+		if self.IDsid == 7:
+			self.IDsid = 5
+		#print(bin(rec), hex(msb), hex(mark ^ 0xc), hex(((msb & 0b11) << 8)), hex(((msb & 0b1000) << 7)), hex(rec[0]), hex(rec[0] >> 1))
+		#self.IDsec = ((rec[2] & 0b101110) >> 1) #+  (((rec[2] ^ 1) & 1) << 3)
+		self.IDsec = ((rec[2] & 0b111110) >> 1) #+  (((rec[2] ^ 1) & 1) << 3)
+		#bit_16 = 1 if (rec[2] & 0b100000) else 0
+		#bit_8  = 1 if (rec[2] & 0b010000) else 0
+		#bit_4  = 1 if (rec[2] & 0b001000) else 0
+		#raw_bit_2 = 1 if (rec[2] & 0b000100) else 0
+		#bit_1  = 1 if (rec[2] & 0b000010) else 0
+		#bit_2 = raw_bit_2 ^ (bit_4 & bit_1)
+		#self.IDsec = (bit_16 * 16) + (bit_8 * 8) + (bit_4 * 4) + (bit_2 * 2) + bit_1
+		#bit_16 = 1 if (rec[2] & 0b100000) else 0
+		#bit_8  = 1 if (rec[2] & 0b010000) else 0
+		#bit_4  = 1 if (rec[2] & 0b001000) else 0
+		#raw_bit_2 = 1 if (rec[2] & 0b000100) else 0
+		#bit_1  = 1 if (rec[2] & 0b000010) else 0
+		#bit_2 = raw_bit_2 ^ (bit_4 & bit_1)
+		#self.IDsec = (bit_16 * 16) + (bit_8 * 8) + (bit_4 * 4) + (bit_2 * 2) + bit_1
+		# hardcoded 512
+		self.IDlenc = 2
+		self.IDlenv = 512
+		# unless special header, then bizzarre 64byte data leftover with hardcoded sector number 254
+		if rec[1] & 0b00000001:
+			self.IDlenv = 64
+			self.IDsec = 254
+
 	# ------------------------------------------------------------------------
 	# PURPOSE: State machine to process one byte extracted from pulse stream.
 	# IN: val
@@ -1544,8 +1598,6 @@ class Decoder(srd.Decoder):
 				self.display_field(field.ID_Record)
 				self.put(self.field_start, self.byte_end, self.out_binary, [bnr.id, bytes(self.IDrec)])
 				if self.sector_size_auto and self.sector_size != self.IDlenv:
-					if self.IDlenv not in (128, 256, 512, 1024, 2048, 4096, 8192, 16384):
-						raise ValueError("Failed sector_size_auto, ID_Record IDlenv", self.IDlenv)
 					self.sector_size = self.IDlenv
 					self.DRrec = bytearray(self.sector_size)
 				self.byte_cnt = 0
@@ -1655,6 +1707,9 @@ class Decoder(srd.Decoder):
 		window_size = bc10N / 2.0	# current half-bit-cell window size (in fractional samples)
 
 		interval = 0				# current interval (in samples, 1..n)
+		ret_val = 0
+		pll_ret = False
+		last_samplenum = 0
 		cells_allowed = self.format_current.limits
 
 		self.pll = self.SimplePLL(owner=self, halfbit_ticks=window_size, kp=self.pll_kp, ki=self.pll_ki, pll_sync_tolerance=self.pll_sync_tolerance, format_current=self.format_current)
@@ -1686,6 +1741,10 @@ class Decoder(srd.Decoder):
 			'auto':		interval_time_func,
 			'window':	interval_window_func
 						}[self.time_unit]
+
+		# Quirk: DTC7287 appears to XOR all data with 0xFF
+		xor_ed = False if self.format_current.format != coding.RLL_DTC7287_unknown else True
+		xor_ed = False
 
 		# --- Process all input data.
 		while True:
@@ -1725,11 +1784,12 @@ class Decoder(srd.Decoder):
 					self.put(last_samplenum, self.samplenum, self.out_ann,	[ann.erp, ['%s out-of-tolerance leading edge' % interval_annotation, '%s OoTI' % interval_annotation, 'OoTI']])
 
 			if pll_ret:
-				if not self.process_byte(self.pll.shift_byte):
+				ret_val = self.pll.shift_byte ^ 0xff if xor_ed else self.pll.shift_byte
+				if not self.process_byte(ret_val):
 					print_('not byte_sync')
 					self.pll.reset_pll()
 
-				print_('data_byte', hex(self.pll.shift_byte), self.pb_state)
+				print_('data_byte', hex(ret_val), self.pb_state)
 
 	# ------------------------------------------------------------------------
 	# Legacy decoder below
