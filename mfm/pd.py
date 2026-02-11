@@ -282,7 +282,7 @@ class Decoder(srd.Decoder):
 		GCR_IBM				= 13,
 		GCR_CBM				= 14,
 	)
-	
+
 	header_format = {
 			'3': (3, 'decode_id_rec_3byte'),
 			'4': (4, 'decode_id_rec_4byte'),
@@ -600,6 +600,7 @@ class Decoder(srd.Decoder):
 		self.data_crc_init = int(self.options['data_crc_init'], 0) & self.data_crc_mask
 		if self.options['data_crc_poly_custom']:
 			self.data_crc_poly = int(self.options['data_crc_poly_custom'], 0) & self.data_crc_mask
+		self.data_crc_table = []
 
 		self.time_unit = self.options['time_unit']
 		self.show_sample_num = True if self.options['dsply_sn'] == 'yes' else False
@@ -688,7 +689,7 @@ class Decoder(srd.Decoder):
 		format_current['limits'] = self.encoding_limits[format_current['limits_key']]
 		format_current['codemap'] = self.decoding_codemap[format_current['codemap_key']]
 		format_current['format'] = self.format
-		
+
 		# Let user define just one common shift_index for all sync_marks.
 		# Detect this case and automagically populate matching number of slots.
 		# Correct offset by subtracting last sync_marks pulse because PLLstate.decoding
@@ -839,7 +840,7 @@ class Decoder(srd.Decoder):
 					self.shift_byte = (self.shift_decoded >> (self.shift_decoded_1//2)) & 0xff
 					self.shift_decoded &= 0xF
 					return True
-	
+
 				elif self.shift_index >= 8:
 					top_bits = (self.shift >> self.shift_index - 8) & 0xff
 					if top_bits == 0b00100100:
@@ -847,51 +848,51 @@ class Decoder(srd.Decoder):
 						self.shift_decoded_1 += 8
 						self.shift_index -= 8
 						continue
-					
+
 					elif top_bits == 0b00001000:
 						self.shift_decoded = (self.shift_decoded << 4) + 0b0011
 						self.shift_decoded_1 += 8
 						self.shift_index -= 8
 						continue
-						
+
 					top_bits = top_bits & 0b11111100
 					if top_bits == 0b10010000:
 						self.shift_decoded = (self.shift_decoded << 3) + self.code_0b100100
 						self.shift_decoded_1 += 6
 						self.shift_index -= 6
 						continue
-		
+
 					elif top_bits == 0b00100000:
 						self.shift_decoded = (self.shift_decoded << 3) + 0b011
 						self.shift_decoded_1 += 6
 						self.shift_index -= 6
 						continue
-		
+
 					elif top_bits == 0b00010000:
 						self.shift_decoded = (self.shift_decoded << 3) + self.code_0b000100
 						self.shift_decoded_1 += 6
 						self.shift_index -= 6
 						continue
-	
+
 					top_bits = top_bits & 0b11110000
 					if top_bits == 0b10000000:
 						self.shift_decoded = (self.shift_decoded << 2) + 0b11
 						self.shift_decoded_1 += 4
 						self.shift_index -= 4
 						continue
-		
+
 					elif top_bits == 0b01000000:
 						self.shift_decoded = (self.shift_decoded << 2) + 0b10
 						self.shift_decoded_1 += 4
 						self.shift_index -= 4
 						continue
-					
+
 					# TODO: figure out a way to send signal about error upstream to try ECC correction
 					#print("ERROR: no matches, skip whole byte")
 					self.shift_index -= 16 - self.shift_decoded_1
 					self.shift_decoded_1 = 0
 					return False
-	
+
 				elif self.shift_index >= 6:
 					top_bits = (self.shift >> self.shift_index - 6) & 0b111111
 					if top_bits == 0b100100:
@@ -899,32 +900,32 @@ class Decoder(srd.Decoder):
 						self.shift_decoded_1 += 6
 						self.shift_index -= 6
 						continue
-		
+
 					elif top_bits == 0b001000:
 						self.shift_decoded = (self.shift_decoded << 3) + 0b011
 						self.shift_decoded_1 += 6
 						self.shift_index -= 6
 						continue
-		
+
 					elif top_bits == 0b000100:
 						self.shift_decoded = (self.shift_decoded << 3) + self.code_0b000100
 						self.shift_decoded_1 += 6
 						self.shift_index -= 6
 						continue
-	
+
 					top_bits = top_bits & 0b111100
 					if top_bits == 0b100000:
 						self.shift_decoded = (self.shift_decoded << 2) + 0b11
 						self.shift_decoded_1 += 4
 						self.shift_index -= 4
 						continue
-		
+
 					elif top_bits == 0b010000:
 						self.shift_decoded = (self.shift_decoded << 2) + 0b10
 						self.shift_decoded_1 += 4
 						self.shift_index -= 4
 						continue
-	
+
 				elif self.shift_index >= 4:
 					top_bits = (self.shift >> self.shift_index - 4) & 0b1111
 					if top_bits == 0b1000:
@@ -932,7 +933,7 @@ class Decoder(srd.Decoder):
 						self.shift_decoded_1 += 4
 						self.shift_index -= 4
 						continue
-		
+
 					elif top_bits == 0b0100:
 						self.shift_decoded = (self.shift_decoded << 2) + 0b10
 						self.shift_decoded_1 += 4
@@ -1146,26 +1147,62 @@ class Decoder(srd.Decoder):
 	# OUT: self.crc_accum updated
 	# ------------------------------------------------------------------------
 
+	def make_crc_table(self, crc_poly, crc_bits):
+		mask = (1 << crc_bits) - 1
+		topbit = 1 << (crc_bits - 1)
+
+		table = [0] * 256
+
+		for i in range(256):
+			c = i << (crc_bits - 8)
+			for _ in range(8):
+				if c & topbit:
+					c = ((c << 1) ^ crc_poly) & mask
+				else:
+					c = (c << 1) & mask
+
+			table[i] = c
+
+		self.data_crc_table = table
+
 	def calculate_crc_header(self, all_arrays):
 		self.calculate_crc(all_arrays, self.header_crc_init, self.header_crc_size, self.header_crc_mask, self.header_crc_poly)
 
 	def calculate_crc_data(self, all_arrays):
-		self.calculate_crc(all_arrays, self.data_crc_init, self.data_crc_size, self.data_crc_mask, self.data_crc_poly)
+		#self.calculate_crc(all_arrays, self.data_crc_init, self.data_crc_size, self.data_crc_mask, self.data_crc_poly)
+		self.calculate_crc_table(all_arrays, self.data_crc_init, self.data_crc_size, self.data_crc_mask, self.data_crc_poly)
 
 	def calculate_crc(self, all_arrays, crc_accum, crc_bits, crc_mask, crc_poly):
 		crc_offset = crc_bits - 8
-		crc_shift = 1 << (crc_bits -1)
+		crc_topbit = 1 << (crc_bits -1)
 
 		for arr in all_arrays:
 			for byte in arr:
 				crc_accum = (crc_accum ^ (byte << crc_offset)) & crc_mask
-				for i in range(8):
-					check = crc_accum & crc_shift
+				for _ in range(8):
+					check = crc_accum & crc_topbit
 					crc_accum = (crc_accum << 1) & crc_mask
 					if check:
 						crc_accum = crc_accum ^ crc_poly
+					# Alternative no comparisons version of above 4 lines. Much faster in C, actually slower in python :=). Credit luasoft10
+					#crc_accum = ((crc_accum << 1) ^ (-(crc_accum >> (crc_bits -1)) & crc_poly)) & crc_mask
 
 		self.crc_accum = crc_accum
+
+	# Table version is 8 times faster than calculate_crc
+	def calculate_crc_table(self, all_arrays, crc_accum, crc_bits, crc_mask, crc_poly):
+		shift = crc_bits - 8
+		mask = crc_mask
+		table = self.data_crc_table
+
+		crc = crc_accum & mask
+
+		for arr in all_arrays:
+			for b in arr:
+				idx = ((crc >> shift) ^ b) & 0xFF
+				crc = ((crc << 8) ^ table[idx]) & mask
+
+		self.crc_accum = crc
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Annotate single half-bit-cell window.
@@ -1700,6 +1737,9 @@ class Decoder(srd.Decoder):
 		if not self.samplerate:
 			raise raise_exception('Cannot decode without samplerate.')
 
+		# --- Initialize CRC Table
+		self.make_crc_table(self.data_crc_poly, self.data_crc_size)
+
 		# --- Initialize (half-)bit-cell-window
 		# Cant put it in start() or metadata() becaue we cant be sure of order those
 		# two are called, one initializes (samplerate) the other user options (data_rate)
@@ -2133,6 +2173,9 @@ class Decoder(srd.Decoder):
 
 		if not self.samplerate:
 			raise raise_exception('Cannot decode without samplerate.')
+
+		# --- Initialize CRC Table
+		self.make_crc_table(self.data_crc_poly, self.data_crc_size)
 
 		# Calculate maximum number of samples allowed between ID and Data Address Marks.
 		# Cant put it in start() or metadata() becaue we cant be sure of order those
