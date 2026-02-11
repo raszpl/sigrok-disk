@@ -1012,7 +1012,7 @@ Now try CRC32-CCSDS x32 + x23 + x21 + x11 + x2 + 1
 - [Hard Disk Geometry and Low-Level Data Structures](https://www.viser.edu.rs/uploads/2018/03/Predavanje%2002c%20-%20Hard%20disk%20geometrija.pdf) by School of Electrical and Computer Engineering of Applied Studies in Belgrade (VISER)
 - Artem Rubtsov (creator of HDDScan) [HDD from Inside: Hard Drive Main Parts](https://hddscan.com/doc/HDD_from_inside.html)   [HDD inside: Tracks and Zones](https://hddscan.com/doc/HDD_Tracks_and_Zones.html)
 - [Bit Banging a 3.5" Floppy Drive](https://floppy.cafe/)
-- [Logic analyzer: visualizing latency between two digital signals in real time with sigrok and matplotlib](https://blog.savoirfairelinux.com/en-ca/2014/logic-analyzer-visualize-latency-with-sigrok-and-matplotlib/)
+- Sebastien Bourdelin [Logic analyzer: visualizing latency between two digital signals in real time with sigrok and matplotlib](https://blog.savoirfairelinux.com/en-ca/2014/logic-analyzer-visualize-latency-with-sigrok-and-matplotlib/)
 ### Patents
 - [US3794987 Mfm readout with assymetrical data window](https://patents.google.com/patent/US3794987)
 - [US5062011A Address mark generating method and its circuit in a data memory](https://patents.google.com/patent/US5062011A)
@@ -1086,7 +1086,7 @@ Full [Changelog](doc/changelog.md). Biggest changes from original:
     - [ ] `auto` encoding detection - this is a difficult one
 - [ ] Rename Errors annotation field to more general Status
 - [ ] Figure out crazy RLL_DTC7287 format
-- [ ] use RevEng to reverse all crc/ecc
+- [x] use RevEng to reverse all crc/ecc
 - [ ] GCR
 - [ ] ESDI?
 - [ ] SMD??? :-)
