@@ -600,7 +600,8 @@ class Decoder(srd.Decoder):
 		self.data_crc_init = int(self.options['data_crc_init'], 0) & self.data_crc_mask
 		if self.options['data_crc_poly_custom']:
 			self.data_crc_poly = int(self.options['data_crc_poly_custom'], 0) & self.data_crc_mask
-		self.data_crc_table = []
+		self.header_crc_table = [0] * 256
+		self.data_crc_table = [0] * 256
 
 		self.time_unit = self.options['time_unit']
 		self.show_sample_num = True if self.options['dsply_sn'] == 'yes' else False
@@ -1147,62 +1148,66 @@ class Decoder(srd.Decoder):
 	# OUT: self.crc_accum updated
 	# ------------------------------------------------------------------------
 
-	def make_crc_table(self, crc_poly, crc_bits):
+	def make_crc_table(self, crc_table, crc_poly, crc_bits):
 		mask = (1 << crc_bits) - 1
 		topbit = 1 << (crc_bits - 1)
-
-		table = [0] * 256
+		crc_table_ = crc_table
+		crc_poly_ = crc_poly
 
 		for i in range(256):
-			c = i << (crc_bits - 8)
+			crc = i << (crc_bits - 8)
 			for _ in range(8):
-				if c & topbit:
-					c = ((c << 1) ^ crc_poly) & mask
+				if crc & topbit:
+					crc = ((crc << 1) ^ crc_poly_) & mask
 				else:
-					c = (c << 1) & mask
+					crc = (crc << 1) & mask
 
-			table[i] = c
-
-		self.data_crc_table = table
+			crc_table_[i] = crc
 
 	def calculate_crc_header(self, all_arrays):
-		self.calculate_crc(all_arrays, self.header_crc_init, self.header_crc_size, self.header_crc_mask, self.header_crc_poly)
+		#self.calculate_crc(all_arrays, self.header_crc_init, self.header_crc_size, self.header_crc_mask, self.header_crc_poly)
+		self.calculate_crc_table(all_arrays, self.header_crc_table, self.header_crc_init, self.header_crc_size, self.header_crc_mask)
 
 	def calculate_crc_data(self, all_arrays):
 		#self.calculate_crc(all_arrays, self.data_crc_init, self.data_crc_size, self.data_crc_mask, self.data_crc_poly)
-		self.calculate_crc_table(all_arrays, self.data_crc_init, self.data_crc_size, self.data_crc_mask, self.data_crc_poly)
+		self.calculate_crc_table(all_arrays, self.data_crc_table, self.data_crc_init, self.data_crc_size, self.data_crc_mask)
 
 	def calculate_crc(self, all_arrays, crc_accum, crc_bits, crc_mask, crc_poly):
 		crc_offset = crc_bits - 8
 		crc_topbit = 1 << (crc_bits -1)
+		# hoisted local variables, supposedly faster, stupid python
+		crc_mask_ = crc_mask
+		crc_accum_ = crc_accum
+		crc_poly_ = crc_poly
+		all_arrays_ = all_arrays
 
-		for arr in all_arrays:
+		for arr in all_arrays_:
 			for byte in arr:
-				crc_accum = (crc_accum ^ (byte << crc_offset)) & crc_mask
+				crc_accum_ = (crc_accum_ ^ (byte << crc_offset)) & crc_mask_
 				for _ in range(8):
-					check = crc_accum & crc_topbit
-					crc_accum = (crc_accum << 1) & crc_mask
-					if check:
-						crc_accum = crc_accum ^ crc_poly
+					if crc_accum_ & crc_topbit:
+						crc_accum_ = ((crc_accum_ << 1) ^ crc_poly_) & crc_mask_
+					else:
+						crc_accum_ = (crc_accum_ << 1) & crc_mask_
 					# Alternative no comparisons version of above 4 lines. Much faster in C, actually slower in python :=). Credit luasoft10
-					#crc_accum = ((crc_accum << 1) ^ (-(crc_accum >> (crc_bits -1)) & crc_poly)) & crc_mask
+					#crc_accum_ = ((crc_accum_ << 1) ^ (-(crc_accum_ >> (crc_bits -1)) & crc_poly_)) & crc_mask_
 
-		self.crc_accum = crc_accum
+		self.crc_accum = crc_accum_
 
 	# Table version is 8 times faster than calculate_crc
-	def calculate_crc_table(self, all_arrays, crc_accum, crc_bits, crc_mask, crc_poly):
+	def calculate_crc_table(self, all_arrays, crc_table, crc_accum, crc_bits, crc_mask):
+		all_arrays_ = all_arrays
+		crc_table_ = crc_table
+		crc_accum_ = crc_accum
 		shift = crc_bits - 8
-		mask = crc_mask
-		table = self.data_crc_table
+		crc_mask_ = crc_mask
 
-		crc = crc_accum & mask
+		for arr in all_arrays_:
+			for byte in arr:
+				idx = ((crc_accum_ >> shift) ^ byte) & 0xFF
+				crc_accum_ = ((crc_accum_ << 8) ^ crc_table_[idx]) & crc_mask_
 
-		for arr in all_arrays:
-			for b in arr:
-				idx = ((crc >> shift) ^ b) & 0xFF
-				crc = ((crc << 8) ^ table[idx]) & mask
-
-		self.crc_accum = crc
+		self.crc_accum = crc_accum_
 
 	# ------------------------------------------------------------------------
 	# PURPOSE: Annotate single half-bit-cell window.
@@ -1737,8 +1742,12 @@ class Decoder(srd.Decoder):
 		if not self.samplerate:
 			raise raise_exception('Cannot decode without samplerate.')
 
-		# --- Initialize CRC Table
-		self.make_crc_table(self.data_crc_poly, self.data_crc_size)
+		# --- Initialize CRC Tables
+		self.make_crc_table(self.header_crc_table, self.header_crc_poly, self.header_crc_size)
+		if self.header_crc_poly == self.data_crc_poly:
+			self.data_crc_table = self.header_crc_table
+		else:
+			self.make_crc_table(self.data_crc_table, self.data_crc_poly, self.data_crc_size)
 
 		# --- Initialize (half-)bit-cell-window
 		# Cant put it in start() or metadata() becaue we cant be sure of order those
@@ -2174,8 +2183,12 @@ class Decoder(srd.Decoder):
 		if not self.samplerate:
 			raise raise_exception('Cannot decode without samplerate.')
 
-		# --- Initialize CRC Table
-		self.make_crc_table(self.data_crc_poly, self.data_crc_size)
+		# --- Initialize CRC Tables
+		self.make_crc_table(self.header_crc_table, self.header_crc_poly, self.header_crc_size)
+		if self.header_crc_poly == self.data_crc_poly:
+			self.data_crc_table = self.header_crc_table
+		else:
+			self.make_crc_table(self.data_crc_table, self.data_crc_poly, self.data_crc_size)
 
 		# Calculate maximum number of samples allowed between ID and Data Address Marks.
 		# Cant put it in start() or metadata() becaue we cant be sure of order those
