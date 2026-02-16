@@ -1663,6 +1663,8 @@ class Decoder(srd.Decoder):
 
 		elif self.pb_state == state.Data_Record:
 			self.annotate_byte(val)
+			if self.byte_cnt >= self.sector_size:
+				raise raise_exception("Error: Data_Record DRrec allocation too small to fit incoming data. Switch 'Sector payload length' from Auto to fixed size.")
 			self.DRrec[self.byte_cnt] = val
 			self.byte_cnt += 1
 			if self.byte_cnt == self.sector_size:
