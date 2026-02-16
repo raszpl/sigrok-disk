@@ -674,6 +674,8 @@ class Decoder(srd.Decoder):
 				'ID_prefix_mark':	helper_list(self.options['custom_encoder_ID_prefix_mark']),
 				'nop_mark':			helper_list(self.options['custom_encoder_nop_mark'])
 			}
+			if format_current['limits_key'] in [coding.FM, coding.MFM]:
+				format_current['codemap_key'] = coding.FM_MFM
 		else:
 			format_current = {
 				'IDData_mark':		[],
