@@ -178,6 +178,8 @@ class Decoder(srd.Decoder):
 			'default': ''},
 		{'id': 'custom_encoder_nop_mark', 'desc': 'Custom encoder: nop_mark',
 			'default': ''},
+		{'id': 'custom_encoder_nop_A1_mark', 'desc': 'Custom encoder: nop_A1_mark',
+			'default': ''},
 	)
 
 	# build list of valid options, we will be verifying sigrok-cli command line input
@@ -415,6 +417,7 @@ class Decoder(srd.Decoder):
 	# Data_mark: skip straight to decoding Data
 	# ID_prefix_mark: Overrides the meaning of following IDData_mark to mean ID_mark
 	# nop_mark: inert mark
+	# nop_A1_mark: inert mark that sets A1. Works like IDData_mark but uses custom ID_mark/Data_mark instead of jumping to hardcoded ID/DATA markers
 	format_table = {
 		coding.FM: {
 			'limits_key': coding.FM,
@@ -672,7 +675,8 @@ class Decoder(srd.Decoder):
 				'ID_mark':			helper_list(self.options['custom_encoder_ID_mark']),
 				'Data_mark':		helper_list(self.options['custom_encoder_Data_mark']),
 				'ID_prefix_mark':	helper_list(self.options['custom_encoder_ID_prefix_mark']),
-				'nop_mark':			helper_list(self.options['custom_encoder_nop_mark'])
+				'nop_mark':			helper_list(self.options['custom_encoder_nop_mark']),
+				'nop_A1_mark':			helper_list(self.options['custom_encoder_nop_A1_mark']),
 			}
 			if format_current['limits_key'] in [coding.FM, coding.MFM]:
 				format_current['codemap_key'] = coding.FM_MFM
@@ -683,6 +687,7 @@ class Decoder(srd.Decoder):
 				'Data_mark':		[],
 				'ID_prefix_mark':	[],
 				'nop_mark':			[],
+				'nop_A1_mark':		[],
 			}
 			format_current.update(deepcopy(self.format_table[self.format]))
 			# Support nop_mark * wildcard for reverse engineering new formats.
@@ -1596,6 +1601,8 @@ class Decoder(srd.Decoder):
 				self.IDmark = [val]
 			elif val in self.format_current.nop_mark:
 				pass
+			elif val in self.format_current.nop_A1_mark:
+				self.A1 = [0xA1]
 			# FM Index Mark
 			elif val == 0xFC:
 				self.display_field(field.Index_Mark)
