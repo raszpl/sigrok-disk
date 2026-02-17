@@ -27,6 +27,7 @@ import sigrokdecode as srd
 from array import array
 from copy import deepcopy
 from types import SimpleNamespace
+import sys
 # ----------------------------------------------------------------------------
 # Warning: Python 3.4 Enums are EXTREMELY SLOW. It's been "fixed" in Python 3.5
 # such that enum attribute lookup is "only" 3-6x slower than normal, instead of 25-70x! Python 3.4:
@@ -608,6 +609,10 @@ class Decoder(srd.Decoder):
 
 		self.time_unit = self.options['time_unit']
 		self.show_sample_num = True if self.options['dsply_sn'] == 'yes' else False
+
+		# DSView crashes with lots of annotations, only workaround is detecting this sucky program and disabling heaviest annotations we provide
+		if 'dsview' in sys.executable.lower():
+			self.show_sample_num = False
 
 		self.report = {	'no':	'no',
 						'IAM':	field.Index_Mark,
