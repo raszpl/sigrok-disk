@@ -90,10 +90,10 @@ class Decoder(srd.Decoder):
 	)
 	binary = (
 		('id', 'raw ID Records (Header data fields)'),
-		('data', 'raw Data Records, order as on track'),
-		('iddata', 'combined ID + Data Records, order as on track'),
 		('idcrc', 'whole headers including Address Mark and crc'),
+		('data', 'raw Data Records, order as on track'),
 		('datacrc', 'whole data field including Address Mark and crc'),
+		('iddata', 'combined ID + Data Records, order as on track'),
 		('tr', 'dgesswein/mfm transitions file format'),
 		('ex', 'dgesswein/mfm extract file format'),
 	)
