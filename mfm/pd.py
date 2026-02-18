@@ -406,7 +406,7 @@ class Decoder(srd.Decoder):
 
 	# format_table holds data for configuring process_byte() and SimplePLL State Machines
 	#
-	# limits: pulse widths outside reset PLL
+	# limits: pulse widths outside this range reset PLL
 	# codemap: code translation map
 	# sync_pulse: anything other halts PLLstate.locking phase and triggers reset_pll()
 	# sync_marks: used by PLLstate.scanning_sync_mark
