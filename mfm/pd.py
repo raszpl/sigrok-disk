@@ -2196,13 +2196,6 @@ class Decoder(srd.Decoder):
 		if not self.samplerate:
 			raise raise_exception('Cannot decode without samplerate.')
 
-		# --- Initialize CRC Tables
-		self.make_crc_table(self.header_crc_table, self.header_crc_poly, self.header_crc_size)
-		if self.header_crc_poly == self.data_crc_poly:
-			self.data_crc_table = self.header_crc_table
-		else:
-			self.make_crc_table(self.data_crc_table, self.data_crc_poly, self.data_crc_size)
-
 		# Calculate maximum number of samples allowed between ID and Data Address Marks.
 		# Cant put it in start() or metadata() becaue we cant be sure of order those
 		# two are called, one initializes (samplerate) the other user options (data_rate)
