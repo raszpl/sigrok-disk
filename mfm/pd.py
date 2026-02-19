@@ -591,8 +591,8 @@ class Decoder(srd.Decoder):
 		self.decode_id_rec = getattr(self, header_format)
 		self.IDrec = bytearray(self.header_size)	# ID record (3-4 bytes)
 		self.sector_size = 0 if self.options['sector_size'] == 'auto' else int(self.options['sector_size'])
-		self.DRrec = bytearray(16384)	# Data record (128-16384 bytes), allocate biggest buffer just in case
 		self.sector_size_auto = True if self.options['sector_size'] == 'auto' else False
+		self.DRrec = bytearray(16384)	# Data record (128-16384 bytes), allocate biggest buffer just in case
 		self.header_crc_size = int(self.options['header_crc_size'])
 		self.header_crc_bytes = self.header_crc_size // 8
 		self.header_crc_mask = (1 << self.header_crc_size) -1
