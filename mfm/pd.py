@@ -539,9 +539,12 @@ class Decoder(srd.Decoder):
 		self.field_start = 0		# start of field (sample number)
 		self.pb_state = state.sync_mark # init process_byte() State Machine
 		self.byte_cnt = 0			# number of bytes to process in field (1024/512/256/128/4/2..0)
-		self.IDcyl = 0				# cylinder number field in ID record (0..244)
-		self.IDsid = 0				# side number field in ID record (0..1)
-		self.IDsec = 0				# sector number field in ID record (0..244)
+		# INT 13h BIOS limit	: cylinder 10 bits, head 8 bits, sector 6 bits, 7.87GiB/8.45GB
+		# Disc Controller limit	: cylinder 16 bits, head 4 bits, sector 8 bits, 127.5GiB/136.9GB
+		# Resulting common limit: cylinder 10 bits, head 4 bits, sector 6 bits, 504MiB/528.4MB
+		self.IDcyl = 0				# cylinder number field in ID record (0..1023)
+		self.IDhead = 0				# side/head number field in ID record (0..15)
+		self.IDsec = 0				# sector number field in ID record (0..255)
 		self.IDlenc = 0				# sector length code field in ID record (0..3)
 		self.IDlenv = 128			# sector length (from code field) in ID record (128/256/512/1024)
 
@@ -1443,8 +1446,8 @@ class Decoder(srd.Decoder):
 
 		elif typ == field.ID_Record:
 			self.put(self.field_start, self.byte_end, self.out_ann,
-					 [ann.rec, ['ID Record: cyl=%d, sid=%d, sec=%d, len=%d' %
-						  (self.IDcyl, self.IDsid, self.IDsec, self.IDlenv),
+					 [ann.rec, ['ID Record: cyl=%d, head=%d, sec=%d, len=%d' %
+						  (self.IDcyl, self.IDhead, self.IDsec, self.IDlenv),
 						  'ID Record', 'Irec', 'R']])
 
 		elif typ == field.Data_Record:
@@ -1496,21 +1499,21 @@ class Decoder(srd.Decoder):
 		msb = (self.IDmark[0] ^ 0xE) & 0x0F
 		# IDrec[0] holds Cylinder lower byte
 		self.IDcyl = ((msb & 0b11) << 8) + ((msb & 0b1000) << 7) + IDrec[0]
-		self.IDsid = IDrec[1] & 0x0F
+		self.IDhead = IDrec[1] & 0x0F
 		self.IDsec = IDrec[2]
 		self.IDlenc = IDrec[1] >> 4
 		self.IDlenv = 128 << (self.IDlenc & 7)
 
 	def decode_id_rec_4byte(self, IDrec):
 		self.IDcyl = IDrec[0]
-		self.IDsid = IDrec[1]
+		self.IDhead = IDrec[1]
 		self.IDsec = IDrec[2]
 		self.IDlenc = IDrec[3]
 		self.IDlenv = 128 << (IDrec[3] & 7)
 
 	def decode_id_rec_4byte_Seagate(self, IDrec):
 		self.IDcyl = ((IDrec[0] & 0b11000000) << 2) + IDrec[1]
-		self.IDsid = IDrec[0] & 0xF
+		self.IDhead = IDrec[0] & 0xF
 		# Quirks: spare unused sector marked as IDsec == 254
 		self.IDsec = IDrec[2]
 		#self.IDlenc = IDrec[3]
@@ -1520,7 +1523,7 @@ class Decoder(srd.Decoder):
 
 	def decode_id_rec_4byte_OMTI(self, IDrec):
 		self.IDcyl = (IDrec[0] << 8) + IDrec[1]
-		self.IDsid = IDrec[2]
+		self.IDhead = IDrec[2]
 		self.IDsec = IDrec[3]
 		# no space for encoding Sector size, hardcode 512
 		self.IDlenc = 2
@@ -1528,7 +1531,7 @@ class Decoder(srd.Decoder):
 
 	def decode_id_rec_4byte_Adaptec(self, IDrec):
 		self.IDcyl = ((IDrec[1] & 0xF0) << 4) + IDrec[0]
-		self.IDsid = IDrec[1] & 0xF
+		self.IDhead = IDrec[1] & 0xF
 		self.IDsec = IDrec[2]
 		# hardcoded 512
 		self.IDlenc = 2
@@ -1539,7 +1542,7 @@ class Decoder(srd.Decoder):
 		LBA = (IDrec[0] << 16) + (IDrec[1] << 8) + IDrec[2]
 		track = LBA // 26
 		self.IDcyl = track // 6
-		self.IDsid = track - self.IDcyl * 6
+		self.IDhead = track - self.IDcyl * 6
 		self.IDsec = LBA - track * 26
 		# hardcoded 512, 6 heads, 26 sectors/track
 		self.IDlenc = 2
@@ -1553,9 +1556,9 @@ class Decoder(srd.Decoder):
 		#print(hex(mark), hex(msb), hex(mark ^ 0xc), hex(((msb & 0b11) << 8)), hex(((msb & 0b1000) << 7)), hex(rec[0]), hex(rec[0] >> 1))
 		# IDrec[0] holds Cylinder lower byte
 		self.IDcyl = ((msb & 0b11) << 8) + ((msb & 0b1000) << 7) + (rec[0] >> 1)
-		self.IDsid = (rec[1] & 0x0F) >> 1
-		if self.IDsid == 7:
-			self.IDsid = 5
+		self.IDhead = (rec[1] & 0x0F) >> 1
+		if self.IDhead == 7:
+			self.IDhead = 5
 		#print(bin(rec), hex(msb), hex(mark ^ 0xc), hex(((msb & 0b11) << 8)), hex(((msb & 0b1000) << 7)), hex(rec[0]), hex(rec[0] >> 1))
 		#self.IDsec = ((rec[2] & 0b101110) >> 1) #+  (((rec[2] ^ 1) & 1) << 3)
 		self.IDsec = ((rec[2] & 0b111110) >> 1) #+  (((rec[2] ^ 1) & 1) << 3)
