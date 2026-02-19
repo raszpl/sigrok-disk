@@ -689,7 +689,7 @@ class Decoder(srd.Decoder):
 				'Data_mark':		helper_list(self.options['custom_encoder_Data_mark']),
 				'ID_prefix_mark':	helper_list(self.options['custom_encoder_ID_prefix_mark']),
 				'nop_mark':			helper_list(self.options['custom_encoder_nop_mark']),
-				'nop_A1_mark':			helper_list(self.options['custom_encoder_nop_A1_mark']),
+				'nop_A1_mark':		helper_list(self.options['custom_encoder_nop_A1_mark']),
 			}
 			if format_current['limits_key'] in [coding.FM, coding.MFM]:
 				format_current['codemap_key'] = coding.FM_MFM
