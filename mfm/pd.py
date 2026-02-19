@@ -121,7 +121,7 @@ class Decoder(srd.Decoder):
 			'default': '5000000', 'values': ('125000', '150000',
 			'250000', '300000', '500000', '5000000', '7500000', '10000000')},
 		{'id': 'format', 'desc': 'Encoding format. Pick preset or custom to define your own',
-			'default': 'MFM', 'values': ('FM', 'MFM', 'RLL_Seagate', 'RLL_Adaptec', 'RLL_Adaptec4070', 'RLL_WD', 'RLL_OMTI', 'RLL_DTC7287_unknown', 'custom')},
+			'default': 'MFM', 'values': ('FM', 'MFM', 'RLL_Seagate', 'RLL_Adaptec', 'RLL_Adaptec4070', 'RLL_WD', 'RLL_OMTI', 'RLL_DTC7287_unknown', 'RQDX3_badbloks', 'custom')},
 		{'id': 'header_format', 'desc': 'Header format, defines length in bytes',
 			'default': '4', 'values': ('3', '4', 'Seagate', 'OMTI', 'Adaptec', 'Adaptec4070', 'RLL_DTC7287_unknown')},
 		{'id': 'sector_size', 'desc': 'Sector payload length in bytes',
@@ -278,14 +278,15 @@ class Decoder(srd.Decoder):
 		RLL_WD				= 5,
 		RLL_OMTI			= 6,
 		RLL_DTC7287_unknown	= 7,
-		custom				= 8,
+		RQDX3_badbloks		= 8,
+		custom				= 9,
 
-		FM_MFM				= 9,
-		RLL					= 10,
-		RLL_IBM				= 11,
-		GCR					= 12,
-		GCR_IBM				= 13,
-		GCR_CBM				= 14,
+		FM_MFM				= 10,
+		RLL					= 11,
+		RLL_IBM				= 12,
+		GCR					= 13,
+		GCR_IBM				= 14,
+		GCR_CBM				= 15,
 	)
 
 	header_format = {
@@ -519,6 +520,16 @@ class Decoder(srd.Decoder):
 		#	'Data_mark': [0xFD, 0xFC],
 		#	'nop_mark': [0xC9, 0x7C],
 		#},
+		coding.RQDX3_badbloks: {
+			'limits_key': coding.MFM,
+			'codemap_key': coding.FM_MFM,
+			'sync_pulse': 2,
+			'sync_marks': [[3, 4, 3, 4, 3], [3, 2, 3, 4, 3, 4]],
+			'shift_index': [16, 18],
+			'ID_mark': [0xFA],
+			'Data_mark': [0xF8],
+			'nop_A1_mark': [0xA1],
+		},
 	}
 
 	# ------------------------------------------------------------------------
