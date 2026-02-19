@@ -43,7 +43,8 @@ def print_(*args):
 
 # ----------------------------------------------------------------------------
 # PURPOSE: Signal recoverable errors to DSView GUI and sigrok-cli output.
-# PulseView sadly doesnt display those messages :(
+# PulseView sadly doesnt display those messages directly :(, it hides
+# them under Settings/Logging
 # ----------------------------------------------------------------------------
 
 class raise_exception(Exception):
