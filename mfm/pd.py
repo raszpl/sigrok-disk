@@ -607,6 +607,13 @@ class Decoder(srd.Decoder):
 			self.data_crc_poly = int(self.options['data_crc_poly_custom'], 0) & self.data_crc_mask
 		self.header_crc_table = [0] * 256
 		self.data_crc_table = [0] * 256
+		
+		# --- Initialize CRC Tables
+		self.make_crc_table(self.header_crc_table, self.header_crc_poly, self.header_crc_size)
+		if self.header_crc_poly == self.data_crc_poly:
+			self.data_crc_table = self.header_crc_table
+		else:
+			self.make_crc_table(self.data_crc_table, self.data_crc_poly, self.data_crc_size)
 
 		self.time_unit = self.options['time_unit']
 		self.show_sample_num = True if self.options['dsply_sn'] == 'yes' else False
@@ -1755,13 +1762,6 @@ class Decoder(srd.Decoder):
 		# --- Verify that a sample rate was specified.
 		if not self.samplerate:
 			raise raise_exception('Cannot decode without samplerate.')
-
-		# --- Initialize CRC Tables
-		self.make_crc_table(self.header_crc_table, self.header_crc_poly, self.header_crc_size)
-		if self.header_crc_poly == self.data_crc_poly:
-			self.data_crc_table = self.header_crc_table
-		else:
-			self.make_crc_table(self.data_crc_table, self.data_crc_poly, self.data_crc_size)
 
 		# --- Initialize (half-)bit-cell-window
 		# Cant put it in start() or metadata() becaue we cant be sure of order those
