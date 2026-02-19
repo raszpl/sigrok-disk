@@ -1811,7 +1811,6 @@ class Decoder(srd.Decoder):
 
 		# --- Process all input data.
 		while True:
-			self.Intrvls += 1
 
 			# Wait for leading edge (rising or falling) on channel 0.  Also handle
 			# extra pulses on channel 1, and disable/suppress signal on channel 2.
@@ -1819,6 +1818,8 @@ class Decoder(srd.Decoder):
 				(data_pin, extra_pin, suppress_pin) = self.wait([{0: 'r', 2: 'l'}, {1: 'r', 2: 'l'}])
 			else:
 				(data_pin, extra_pin, suppress_pin) = self.wait([{0: 'f', 2: 'l'}, {1: 'r', 2: 'l'}])
+
+			self.Intrvls += 1
 
 			pll_ret = self.pll.edge(self.samplenum)
 			interval = self.pll.pulse_ticks
