@@ -68,7 +68,7 @@ class Decoder(srd.Decoder):
 		{'id': 'data', 'name': 'Read data', 'desc': 'channel 0', 'idn':'dec_mfm_chan_data'},
 	)
 	optional_channels = (
-		{'id': 'extra', 'name': 'Extra pulses', 'desc': 'channel 1', 'idn':'dec_mfm_chan_extra'},
+		{'id': 'index', 'name': 'Index pulses', 'desc': 'channel 1', 'idn':'dec_mfm_chan_index'},
 		{'id': 'suppress', 'name': 'Suppress pulses', 'desc': 'channel 2', 'idn':'dec_mfm_chan_suppress'},
 	)
 	annotations = (
@@ -146,7 +146,7 @@ class Decoder(srd.Decoder):
 		{'id': 'dsply_sn', 'desc': 'Display Windows (bit/clock) and Pulses (pul, erp) sample numbers',
 			'default': 'no', 'values': ('yes', 'no')},
 		{'id': 'report', 'desc': 'Display report after this field',
-			'default': 'no', 'values': ('no', 'IAM', 'IDAM', 'DAM', 'DDAM')},
+			'default': 'no', 'values': ('no', 'Index', 'IAM', 'IDAM', 'DAM', 'DDAM')},
 		{'id': 'report_qty', 'desc': 'Report every x Marks',
 			'default': '9'},
 		{'id': 'decoder', 'desc': 'Decoder',
@@ -266,6 +266,7 @@ class Decoder(srd.Decoder):
 		Unknown_Byte		= 9,
 		Sync				= 10,
 		Gap					= 11,
+		none				= 12,
 	)
 
 	coding = SimpleNamespace(
@@ -626,6 +627,7 @@ class Decoder(srd.Decoder):
 			self.show_sample_num = False
 
 		self.report = {	'no':	'no',
+						'Index':field.none,
 						'IAM':	field.Index_Mark,
 						'IDAM':	field.ID_Address_Mark,
 						'DAM':	field.Data_Address_Mark,
@@ -1815,12 +1817,11 @@ class Decoder(srd.Decoder):
 		# --- Process all input data.
 		while True:
 
-			# Wait for leading edge (rising or falling) on channel 0.  Also handle
-			# extra pulses on channel 1, and disable/suppress signal on channel 2.
+			# Wait for leading edge (rising or falling) on channel 0 and disable/suppress signal on channel 2.
 			if self.rising_edge:
-				(data_pin, extra_pin, suppress_pin) = self.wait([{0: 'r', 2: 'l'}, {1: 'r', 2: 'l'}])
+				(data_pin, index_pin, suppress_pin) = self.wait([{0: 'r', 2: 'l'}])
 			else:
-				(data_pin, extra_pin, suppress_pin) = self.wait([{0: 'f', 2: 'l'}, {1: 'r', 2: 'l'}])
+				(data_pin, index_pin, suppress_pin) = self.wait([{0: 'f', 2: 'l'}])
 
 			self.Intrvls += 1
 
@@ -1849,6 +1850,9 @@ class Decoder(srd.Decoder):
 					self.put(last_samplenum, self.samplenum, self.out_ann,	[ann.erp, ['%s out-of-tolerance leading edge s%d' % (interval_annotation, last_samplenum), '%s OoTI s%d' % (interval_annotation, last_samplenum), '%s OoTI' % interval_annotation, 'OoTI']])
 				else:
 					self.put(last_samplenum, self.samplenum, self.out_ann,	[ann.erp, ['%s out-of-tolerance leading edge' % interval_annotation, '%s OoTI' % interval_annotation, 'OoTI']])
+
+			# Report on index_pin?
+			#if index_pin
 
 			if pll_ret:
 				ret_val = self.pll.shift_byte ^ 0xff if xor_ed else self.pll.shift_byte
@@ -2249,16 +2253,13 @@ class Decoder(srd.Decoder):
 
 		while True:
 
-			# Wait for leading edge (rising or falling) on channel 0.  Also handle
-			# extra pulses on channel 1, and disable/suppress signal on channel 2.
-
+			# Wait for leading edge (rising or falling) on channel 0 and disable/suppress signal on channel 2.
 			if self.rising_edge:
-				(data_pin, extra_pin, suppress_pin) = self.wait([{0: 'r', 2: 'l'}, {1: 'r', 2: 'l'}])
+				(data_pin, index_pin, suppress_pin) = self.wait([{0: 'r', 2: 'l'}])
 			else:
-				(data_pin, extra_pin, suppress_pin) = self.wait([{0: 'f', 2: 'l'}, {1: 'r', 2: 'l'}])
+				(data_pin, index_pin, suppress_pin) = self.wait([{0: 'f', 2: 'l'}])
 
 			# Calculate interval since previous leading edge.
-
 
 			if self.last_samplenum is None:
 				interval = int(bc10N)
