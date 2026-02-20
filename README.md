@@ -83,6 +83,17 @@ Huge thanks to Al Kossow for providing majority of the [samples hosted by bitsav
 ## sigrok-cli command line usage
 ### Options
 
+sigrok-cli.exe -D -i C:\Users\me\Desktop\t0.sr --show
+
+`data` Data channel name in the input file/stream.  
+**Default**: `0`
+
+`index` Index pulse channel name in the input file/stream, active low.  
+**Default**: `1`
+
+`suppress` Suppress signal channel name in the input file/stream, active high.  
+**Default**: `2`
+
 `leading_edge` Leading Edge specifies edge type for signal detection.  
 **Default**: `rising` **Values**: `rising`, `falling`  
 
