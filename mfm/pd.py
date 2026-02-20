@@ -214,6 +214,8 @@ class Decoder(srd.Decoder):
 		'sync'		: (ann.syn, ['Sync pattern %d bytes', 'Sync', 'S']),
 		'gap'		: (ann.mrk, ['Gap %d bytes', 'Gap', 'G']),
 		'pulse'		: (ann.erw, ['%d%s (extra pulse in win) s%d', 'Extra Pulse', 'EP']),
+		'crc'		: (ann.crc, ['CRC OK %02X', 'CRC OK', 'CRC', 'C']),
+		'cre'		: (ann.crc, ['CRC error %02X', 'CRC error', 'CRC', 'C']),
 		'report'	: (ann.rpt, ['Summary: IAM=%d, IDAM=%d, DAM=%d, DDAM=%d, CRC_OK=%d, CRC_err=%d, EiPW=%d, CkEr=%d, OoTI=%d/%d']),
 	})
 	# message.xxx is static, fast and readable
@@ -1468,19 +1470,18 @@ class Decoder(srd.Decoder):
 
 		elif typ == field.CRC_Ok:
 			self.CRC_OK += 1
-			self.put(self.field_start, self.byte_end, self.out_ann,
-					 [ann.crc, ['CRC OK %02X' % self.crc_accum, 'CRC OK', 'CRC', 'C']])
+			self.put(self.field_start, self.byte_end, self.out_ann, messageD.crc(self.crc_accum))
 			if self.report_last in (field.Deleted_Data_Mark, field.Data_Address_Mark):
-				# display_report called in CRC message so we know when Data_Mark ended
+				# display_report called in CRC message to make sure report will also include CRC fields
 				self.display_report()
 
 		elif typ == field.CRC_Error:
 			self.CRC_err += 1
 			self.put(self.byte_end - 1, self.byte_end, self.out_ann, message.error)
-			self.put(self.field_start, self.byte_end, self.out_ann,
-					 [ann.cre, ['CRC error %02X' % self.crc_accum, 'CRC error', 'CRC', 'C']])
+			self.put(self.field_start, self.byte_end, self.out_ann, messageD.cre(self.crc_accum))
 			if self.report_last in (field.Deleted_Data_Mark, field.Data_Address_Mark):
-				self.display_report() # called in CRC message so we know when Data_Mark ended
+				# display_report called in CRC message to make sure report will also include CRC fields
+				self.display_report()
 
 		elif typ == field.Unknown_Byte:
 			self.put(self.byte_start, self.byte_end, self.out_ann, message.errorUnkByte)
