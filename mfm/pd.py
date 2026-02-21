@@ -147,8 +147,8 @@ class Decoder(srd.Decoder):
 			'default': 'no', 'values': ('yes', 'no')},
 		{'id': 'report', 'desc': 'Display report after this field',
 			'default': 'no', 'values': ('no', 'Index', 'IAM', 'IDAM', 'DAM', 'DDAM')},
-		{'id': 'report_qty', 'desc': 'Report every x Marks',
-			'default': '9'},
+		{'id': 'report_qty', 'desc': 'Report every x Marks, minimum 1',
+			'default': '1'},
 		{'id': 'decoder', 'desc': 'Decoder',
 			'default': 'PLL', 'values': ('PLL', 'legacy')},
 		{'id': 'pll_sync_tolerance', 'desc': 'PLL: Initial tolerance when catching synchronization sequence',
@@ -268,7 +268,6 @@ class Decoder(srd.Decoder):
 		Unknown_Byte		= 9,
 		Sync				= 10,
 		Gap					= 11,
-		none				= 12,
 	)
 
 	coding = SimpleNamespace(
@@ -640,13 +639,13 @@ class Decoder(srd.Decoder):
 			self.show_sample_num = False
 
 		self.report = {	'no':	'no',
-						'Index':field.none,
+						'Index':'Index',
 						'IAM':	field.Index_Mark,
 						'IDAM':	field.ID_Address_Mark,
 						'DAM':	field.Data_Address_Mark,
 						'DDAM':	field.Deleted_Data_Mark,
 					}[self.options['report']]
-		self.report_qty = int(self.options['report_qty'])
+		self.report_qty = max(int(self.options['report_qty']), 1) # minimum 1
 		self.report_start = 0
 		self.reports_called = 0
 
@@ -1786,6 +1785,8 @@ class Decoder(srd.Decoder):
 		bc10N = self.samplerate / self.data_rate	# nominal 1.0 bit cell window size (in fractional samples)
 		window_size = bc10N / 2.0	# current half-bit-cell window size (in fractional samples)
 
+		Index_pulses = 0			# number of Index pulses
+		Index_pulses_last = 0		# Index pulse handler helper
 		interval = 0				# current interval (in samples, 1..n)
 		ret_val = 0
 		pll_ret = False
@@ -1840,9 +1841,6 @@ class Decoder(srd.Decoder):
 			pll_ret = self.pll.edge(self.samplenum)
 			interval = self.pll.pulse_ticks
 			last_samplenum = self.pll.last_samplenum
-			#last_samplenum, interval = pll.read()
-
-			#print_('main:', self.last_samplenum, self.samplenum, interval, str(round(interval * interval_multi)) + interval_unit, pll_ret)
 
 			# Annotate Pulses, leading-edge to leading-edge.
 			# Interval in interval_unit and optional sample number.
@@ -1863,8 +1861,26 @@ class Decoder(srd.Decoder):
 				else:
 					self.put(last_samplenum, self.samplenum, self.out_ann,	[ann.erp, ['%s out-of-tolerance leading edge' % interval_annotation, '%s OoTI' % interval_annotation, 'OoTI']])
 
-			# Report on index_pin?
-			#if index_pin
+			# Handle Index pulses
+			if (index_pin == 0) and (Index_pulses == Index_pulses_last):
+				# start of Index pulse
+				# Report on index_pin?
+				if self.report == 'Index':
+					if Index_pulses == self.report_qty:
+						self.reports_called = Index_pulses
+						byte_start = self.byte_start
+						self.byte_start = self.samplenum
+						self.display_report()
+						self.byte_start = byte_start
+						Index_pulses = 0
+					elif Index_pulses == 0:
+						self.report_start = self.samplenum
+						Index_pulses += 1
+					else:
+						Index_pulses += 1
+			elif index_pin == 1 and Index_pulses != Index_pulses_last:
+				# end of index pulse
+				Index_pulses_last = Index_pulses
 
 			if pll_ret:
 				ret_val = self.pll.shift_byte ^ 0xff if xor_ed else self.pll.shift_byte
