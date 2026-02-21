@@ -1878,6 +1878,8 @@ class Decoder(srd.Decoder):
 						Index_pulses += 1
 					else:
 						Index_pulses += 1
+				else:
+					Index_pulses += 1
 			elif index_pin == 1 and Index_pulses != Index_pulses_last:
 				# end of index pulse
 				Index_pulses_last = Index_pulses
