@@ -136,11 +136,11 @@ sigrok-cli.exe -D -i C:\Users\me\Desktop\t0.sr --show
 `dsply_sn` Display additonal sample numbers for Pulses (pul, erp) and Windows (bit/clock).  
 **Default**: `no` **Values**: `yes`, `no`
 
-`report` Display report after encountering specified field type.  
-**Default**: `no` **Values**: `no`, `IAM` (Index Mark), `IDAM` (ID Address Mark), `DAM` (Data Address Mark), `DDAM` (Deleted Data Address Mark)
+`report` Display report after encountering specified field type or Index pulse.  
+**Default**: `no` **Values**: `no`, `Index` (Index pulse), `IAM` (Index Mark), `IDAM` (ID Address Mark), `DAM` (Data Address Mark), `DDAM` (Deleted Data Address Mark)
 
-`report_qty` Number of Marks (specified above) between reports. This is a workaround for lack of sigrok/pulseview capability to signal end_of_capture.  
-**Default**: `9` **Example**: `9` for floppies, `17` for MFM hdd, `26` for 7.5Mbit RLL drives, `34` for 10Mbit RLL drives etc
+`report_qty` Number of Marks/Index pulses (specified above) between reports. This is a workaround for lack of sigrok/pulseview capability to signal end_of_capture.  
+**Default**: `1` **Example**: `1` when using Index pulses. Using Marks `9` for floppies, `17` for MFM hdd, `26` for 7.5Mbit RLL drives, `34` for 10Mbit RLL drives etc
 
 `decoder` Choice between PI Loop Filter based PLL, or `legacy` with hardcoded immediate andustments.  
 **Default**: `PLL` **Values**: `PLL`, `legacy`
@@ -380,7 +380,7 @@ Proper binary dump of same sector to sector_dump.bin file:
 Report of the first 17 sectors:  
 <code>sigrok-cli -D -i samples\hdd_mfm_RQDX3.sr -P mfm:report=DAM:report_qty=17 -A mfm=reports</code>
 <pre>
-mfm-1: Summary: IAM=0, IDAM=17, DAM=17, DDAM=0, CRC_OK=34, CRC_err=0, EiPW=0, CkEr=0, OoTI=13/74987
+mfm-1: Summary: IAM=0, IDAM=17, DAM=17, DDAM=0, CRC_OK=34, CRC_err=0, EiPW=0, CkEr=0, OoTI=12/74987
 </pre>  
 
 <details><summary>Show all fields:<br><code>sigrok-cli -D -i samples\fdd_fm.sr -P mfm:data_rate=125000:encoding=FM:data_crc_size=16:data_crc_poly=0x1021 -A mfm=fields</code></summary>  
