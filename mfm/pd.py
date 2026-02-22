@@ -553,7 +553,7 @@ class Decoder(srd.Decoder):
 		self.pb_state = state.sync_mark # init process_byte() State Machine
 		self.byte_cnt = 0			# number of bytes to process in field (1024/512/256/128/4/2..0)
 		# INT 13h BIOS limit	: cylinder 10 bits, head 8 bits, sector 6 bits, 7.87GiB/8.45GB
-		# Disc Controller limit	: cylinder 16 bits, head 4 bits, sector 8 bits, 127.5GiB/136.9GB
+		# Disk Controller limit	: cylinder 16 bits, head 4 bits, sector 8 bits, 127.5GiB/136.9GB
 		# Resulting common limit: cylinder 10 bits, head 4 bits, sector 6 bits, 504MiB/528.4MB
 		self.IDcyl = 0				# cylinder number field in ID record (0..1023)
 		self.IDhead = 0				# side/head number field in ID record (0..15)
