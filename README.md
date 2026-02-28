@@ -101,10 +101,10 @@ sigrok-cli.exe -D -i C:\Users\me\Desktop\t0.sr --show
 **Default**: `5000000` **Values**: `125000`, `150000`, `250000`, `300000`, `500000`, `5000000`, `7500000`, `10000000`
 
 `format` Encoding schemes available. 'custom' lets you build own decoder interactively in the GUI fully controlling its behavior.  
-**Default**: `MFM` **Values**: `FM`, `MFM`, `RLL_Seagate`, `RLL_Adaptec`, `RLL_Adaptec4070`, `RLL_WD`, `RLL_OMTI`, `custom`, `RLL_DTC7287_unknown`
+**Default**: `MFM` **Values**: `FM`, `MFM`, `RLL_Seagate`, `RLL_Adaptec`, `RLL_Adaptec4070`, `RLL_WD`, `RLL_OMTI`, `RLL_DTC7287_unknown`, `RQDX3_badbloks`, `custom
 
 `header_format` Header payload length in bytes.  
-**Default**: `4` **Values**: `3`, `4`, `Seagate`, `OMTI`, `Adaptec`, `Adaptec4070`
+**Default**: `4` **Values**: `3`, `4`, `Seagate`, `OMTI`, `Adaptec`, `Adaptec4070`, `RLL_DTC7287_unknown`
 
 `sector_size` Sector payload length in bytes.  
 **Default**: `auto` **Values**: `auto`, `128`, `256`, `512`, `1024`, `2048`, `4096`, `8192`, `16384`
@@ -122,7 +122,7 @@ sigrok-cli.exe -D -i C:\Users\me\Desktop\t0.sr --show
 **Default**: `32` **Values**: `16`, `32`, `48`, `56`
 
 `data_crc_poly` Polynomial used in Data field CRC calculation.  
-**Default**: `0xA00805` **Values**: `0x1021` (CRC-CCITT), `0xA00805` (CRC32-CCSDS), `0x140a0445`, `0x0104c981`, `0x41044185`, `0x140a0445000101`
+**Default**: `0xA00805` **Values**: `0x1021` (CRC-CCITT), `0xA00805` (CRC32-CCSDS), `0x140a0445`, `0x0104c981`, `0x41044185`, `0x181814503011`, `0x140a0445000101`
 
 `data_crc_poly_custom` Custom Data field Polynomial, overrides `data_crc_poly` setting.  
 **Default**: `` (empty string)
@@ -205,6 +205,9 @@ All custom_encoder_ _mark options below support * wildcard, useful when debuggin
 
 `custom_encoder_nop_mark` nop_mark is an inert Mark.  
 **Default**: `` (empty string) **Example**: `0x1E, 0x5E, 0xDE` for RLL_Adaptec
+
+`custom_encoder_nop_A1_mark` nop_A1_mark is a Mark replacing standard IDData_mark. Works like IDData_mark (sets A1) but uses custom ID_mark/Data_mark instead of jumping to hardcoded ID/DATA markers.  
+**Default**: `` (empty string) **Example**: `0xA1` for RQDX3_badbloks
 
 ### Annotations
 
