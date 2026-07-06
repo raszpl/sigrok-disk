@@ -83,7 +83,7 @@ Huge thanks to Al Kossow for providing majority of the [samples hosted by bitsav
 ## sigrok-cli command line usage
 ### Options
 
-sigrok-cli.exe -D -i C:\Users\me\Desktop\t0.sr --show
+sigrok-cli.exe -P mfm  --show
 
 `data` Data channel name in the input file/stream.  
 **Default**: `0`
