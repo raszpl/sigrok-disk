@@ -47,8 +47,7 @@ This is a spare/unused sector created at the end of every track on MFM drive by 
 <hr>
 
 ## Available test sample files
- - [fdd_fm.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/fdd_fm.sr) 15MHz sample rate. FDD, 5:1 interleave. Cylinder 0, Head 0. 125000 bps, FM format, 256 Byte Sectors, Data CRC 16bit, Data poly 0x1021
-Single Density 40 Track 10 Sectors/track floppy from Radio Shack TRS-80 Color Computer aka CoCo running [FLEX OS](https://www.waveguide.se/?article=reading-flex-disk-images)
+ - [fdd_fm.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/fdd_fm.sr) 15MHz sample rate. FDD, 5:1 interleave. Cylinder 0, Head 0. 125000 bps, FM format, 256 Byte Sectors, Data CRC 16bit, Data poly 0x1021<br>Single Density 40 Track 10 Sectors/track floppy from Radio Shack TRS-80 Color Computer aka CoCo running [FLEX OS](https://www.waveguide.se/?article=reading-flex-disk-images)
 
  - [fdd_mfm.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/fdd_mfm.sr) 15MHz sample rate. FDD, 5:1 interleave. Cylinder 1, Head 0. 250000 bps, MFM format, 256 Byte Sectors, Data CRC 16bit, Data poly 0x1021
 
