@@ -47,7 +47,8 @@ This is a spare/unused sector created at the end of every track on MFM drive by 
 <hr>
 
 ## Available test sample files
- - [fdd_fm.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/fdd_fm.sr) 15MHz sample rate. FDD, 5:1 interleave. 125000 bps, FM format, 256 Byte Sectors, Data CRC 16bit, Data poly 0x1021
+ - [fdd_fm.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/fdd_fm.sr) 15MHz sample rate. FDD, 5:1 interleave. Cylinder 0, Head 0. 125000 bps, FM format, 256 Byte Sectors, Data CRC 16bit, Data poly 0x1021
+Single Density 40 Track 10 Sectors/track floppy from Radio Shack TRS-80 Color Computer aka CoCo running [FLEX OS](https://www.waveguide.se/?article=reading-flex-disk-images)
 
  - [fdd_mfm.sr](https://github.com/raszpl/sigrok-mfm/raw/refs/heads/main/samples/fdd_mfm.sr) 15MHz sample rate. FDD, 5:1 interleave. Cylinder 1, Head 0. 250000 bps, MFM format, 256 Byte Sectors, Data CRC 16bit, Data poly 0x1021
 
@@ -386,7 +387,7 @@ Report of the first 17 sectors:
 mfm-1: Summary: IAM=0, IDAM=17, DAM=17, DDAM=0, CRC_OK=34, CRC_err=0, EiPW=0, CkEr=0, OoTI=12/74987
 </pre>  
 
-<details><summary>Show all fields:<br><code>sigrok-cli -D -i samples\fdd_fm.sr -P mfm:data_rate=125000:encoding=FM:data_crc_size=16:data_crc_poly=0x1021 -A mfm=fields</code></summary>  
+<details><summary>Show all fields:<br><code>sigrok-cli -D -i samples\fdd_fm.sr -P mfm:data_rate=125000:format=FM:data_crc_size=16:data_crc_poly=0x1021 -A mfm=fields</code></summary>  
 <pre>
 mfm-1: Sync pattern 6 bytes
 mfm-1: ID Address Mark
