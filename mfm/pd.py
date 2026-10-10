@@ -1241,8 +1241,9 @@ class Decoder(srd.Decoder):
 
 		for arr in all_arrays_:
 			for byte in arr:
-				idx = ((crc_accum_ >> shift) ^ byte) & 0xFF
-				crc_accum_ = ((crc_accum_ << 8) ^ crc_table_[idx]) & crc_mask_
+				#idx = ((crc_accum_ >> shift) ^ byte) & 0xFF
+				#crc_accum_ = ((crc_accum_ << 8) ^ crc_table_[idx]) & crc_mask_
+				crc_accum_ = ((crc_accum_ << 8) & crc_mask_) ^ crc_table_[((crc_accum_ >> shift) ^ byte) & 0xFF]
 
 		self.crc_accum = crc_accum_
 
