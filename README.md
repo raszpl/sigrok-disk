@@ -583,7 +583,7 @@ Now try CRC32-CCSDS x32 + x23 + x21 + x11 + x2 + 1
 - Adaptec AIC-6225 33-Mbit/second (1,7 RLL) Data Separator. Datasheet missing.
 - [Adaptec AIC-6060 Storage Controller](http://www.bitsavers.org/pdf/adaptec/asic/AIC-6060_brochure.pdf) pin and function compatible with Cirrus Logic CL-SH260
 - [Cirrus Logic CL-SH260](https://bitsavers.org/components/cirrusLogic/_dataSheets/CL-SH260_Enhanced_PC_XT-AT_Disk_Controller_Jan1991.pdf)
-- [SSI 32D534 Data Synchronizer/MFM Endec in 1989_Silicon_Systems_Microperipheral_Products](https://bitsavers.trailing-edge.com/components/siliconSystems/_dataBooks/1989_Silicon_Systems_Microperipheral_Products.pdf) (page 271)
+- [SSI 32D534 Data Synchronizer/MFM Endec in 1989_Silicon_Systems_Microperipheral_Products](https://bitsavers.trailing-edge.com/components/siliconSystems/_dataBooks/1989_Silicon_Systems_Microperipheral_Products.pdf#page=271) (page 271)
 - [SSI 32D5321/5322, 32D535/5351, 32D5362 2,7 RLL Endec](https://bitsavers.org/pdf/maxtor/ata/1990_7080AT/data_synchronizer_appnote.pdf)
 - [National Semiconductor DP8463B 2,7 RLL Endec](https://ftpmirror.your.org/pub/misc/bitsavers/components/national/_dataBooks/1989_National_Mass_Storage_Handbook/1989_Mass_Storage_Handbook_02.pdf) (2-85)
 - [OMTI 5070 MFM Data Seperator](http://www.bitsavers.org/pdf/sms/asic/OMTI_5070_Encode_Decode_May84.pdf)
