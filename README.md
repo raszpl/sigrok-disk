@@ -602,7 +602,8 @@ WD1003V versions have 2KB buffer, WD1006V 8KB. Afaik MM1/2 and SM1/2 is same bas
 - David Gesswein [BeagleBone based MFM Hard Disk Reader/Emulator](https://www.pdp8online.com/mfm/)/[github](https://github.com/dgesswein/mfm)
 - Tronix286 [Pi Pico MFM Hard Disk Dumper](https://github.com/Tronix286/MFM-Hard-Disk-Dumper)
 - Matt Jenkins [RTmFM Pi Pico based MFM Hard Disk Emulator](https://github.com/MajenkoProjects/RTmFM) early work in progress
-- Jozef Bogin [Winchesterduino MFM/RLL disk interface](https://boginjr.com/it/hw/winchesterduino/)/[github](https://github.com/climatex/Winchesterduino)
+- Jozef Bogin [Winchesterduino MFM/RLL disk interface v1.0](https://boginjr.com/it/hw/winchesterduino/)/[v1.1](https://boginjr.com/it/hw/winchesterduino-v1_1/)/[github](https://github.com/climatex/Winchesterduino)
+- Jozef Bogin [‘Sentinel’ RPi Pico 2 MFM/RLL disk controller](https://boginjr.com/it/hw/sentinel/)/[github](https://github.com/climatex/Sentinel)
 
 <hr>
 
