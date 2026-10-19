@@ -589,7 +589,7 @@ Now try CRC32-CCSDS x32 + x23 + x21 + x11 + x2 + 1
 - [OMTI 5070 MFM Data Seperator](http://www.bitsavers.org/pdf/sms/asic/OMTI_5070_Encode_Decode_May84.pdf)
 - [OMTI 5027C 2,7 RLL Endec](https://theretroweb.com/chip/documentation/omti-5027c-rll-vco-encode-decode-dec86-68d1200a21030170193849.pdf)
 - [OMTI 7xX0/3500](http://www.bitsavers.org/pdf/sms/omti_7x00/3001546_7x00_3500_Ref_Feb88.pdf)
-### Controllers
+### Expansion cards
 - [WD1003V-MM1/2 WD1006V-MM1/2](https://theretroweb.com/expansioncard/documentation/wd1003v-mmx-mfm-disk-controller-1989-675a13c5c5cfd722800431-688faa8bf369c709553426.pdf)
 - [WD1003V-SR1/2 WD1006V-SR1/2](https://www.minuszerodegrees.net/manuals/Western%20Digital/WD1006V-SR1%20and%20SR2%20-%20Users%20Guide.pdf)
 
