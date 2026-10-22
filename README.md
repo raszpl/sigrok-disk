@@ -580,7 +580,7 @@ Now try CRC32-CCSDS x32 + x23 + x21 + x11 + x2 + 1
 - [WD42C22A Winchester Disk Subsystem Controller (MFM/RLL/NRZ)](https://www.ardent-tool.com/datasheets/WD_WD42C22A.pdf)
 - [WD50C12 Winchester Disk Controller (MFM/RLL/NRZ)](https://bitsavers.org/components/westernDigital/_dataSheets/WD50C12_Winchester_Disk_Controller_198803.pdf)
 - [Adaptec AIC-270 2,7 RLL Endec](http://www.bitsavers.org/pdf/adaptec/asic/AIC-270_RLL_Encoder_Decoder.pdf)
-- Adaptec AIC-6225 33-Mbit/second (1,7 RLL) Data Separator. Datasheet missing.
+- [Adaptec AIC-6225 33-Mbit/second Data Separator/MFM Decoder](https://theretroweb.com/chip/documentation/aic6225l30-6ad93367bf087593432341.pdf)
 - [Adaptec AIC-6060 Storage Controller](http://www.bitsavers.org/pdf/adaptec/asic/AIC-6060_brochure.pdf) pin and function compatible with Cirrus Logic CL-SH260
 - [Cirrus Logic CL-SH260](https://bitsavers.org/components/cirrusLogic/_dataSheets/CL-SH260_Enhanced_PC_XT-AT_Disk_Controller_Jan1991.pdf)
 - [SSI 32D534 Data Synchronizer/MFM Endec in 1989_Silicon_Systems_Microperipheral_Products](https://bitsavers.trailing-edge.com/components/siliconSystems/_dataBooks/1989_Silicon_Systems_Microperipheral_Products.pdf#page=271) (page 271)
