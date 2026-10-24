@@ -601,9 +601,10 @@ WD1003V versions have 2KB buffer, WD1006V 8KB. Afaik MM1/2 and SM1/2 is same bas
 ### Emulation
 - David Gesswein [BeagleBone based MFM Hard Disk Reader/Emulator](https://www.pdp8online.com/mfm/) / [github](https://github.com/dgesswein/mfm)
 - Kuba Szczodrzyński [The smallest and cheapest ST-506/RLL/MFM hard drive emulator](https://kuba.szczodrzynski.pl/posts/toshiba-t1200/rll-hdd-emulator) / [github](https://github.com/kuba2k2/pico506) Designed for Victor/Toshiba 26 pin JVC interface RLL hard drives.
-- jasperhax0r [fork of above with nice universal PCB and differential buffers making it work in desktops](https://github.com/jasperhax0r/pico506)
+- jasperhax0r [fork of kuba2k2/pico506 with nice universal PCB and differential buffers](https://github.com/jasperhax0r/pico506)
+- riktw [fork of kuba2k2/pico506 with nice universal PCB, differential buffers, support for 4 heads](https://github.com/riktw/pico506) early work in progress, in debug stage.
 - Tronix286 [Pi Pico MFM Hard Disk Dumper](https://github.com/Tronix286/MFM-Hard-Disk-Dumper)
-- Matt Jenkins [RTmFM Pi Pico based MFM Hard Disk Emulator](https://github.com/MajenkoProjects/RTmFM) early work in progress
+- Matt Jenkins [RTmFM Pi Pico based MFM Hard Disk Emulator](https://github.com/MajenkoProjects/RTmFM) early work in progress.
 - Jozef Bogin [Winchesterduino MFM/RLL disk interface v1.0](https://boginjr.com/it/hw/winchesterduino/)/[v1.1](https://boginjr.com/it/hw/winchesterduino-v1_1/)/[github](https://github.com/climatex/Winchesterduino)
 - Jozef Bogin [‘Sentinel’ RPi Pico 2 MFM/RLL disk controller](https://boginjr.com/it/hw/sentinel/)/[github](https://github.com/climatex/Sentinel)
 ### Raw Flux Disk imaging
